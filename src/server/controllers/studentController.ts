@@ -71,10 +71,15 @@ const parseStudentBody = (body: Record<string, unknown>) => {
   return data;
 };
 
+const getMongoPhoto = (file?: Express.Multer.File) => {
+  if (!file?.buffer) return undefined;
+  return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+};
+
 export const createStudent = async (req: AuthRequest, res: Response) => {
   try {
     const registrationNumber = await generateRegistrationNumber();
-    const photo = req.file ? `/uploads/students/${req.file.filename}` : undefined;
+    const photo = getMongoPhoto(req.file);
     const parsed = parseStudentBody(req.body);
 
     const student = await Student.create({
@@ -97,7 +102,7 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
     delete updates.registrationNumber;
 
     if (req.file) {
-      updates.photo = `/uploads/students/${req.file.filename}`;
+      updates.photo = getMongoPhoto(req.file);
     }
 
     const student = await Student.findByIdAndUpdate(req.params.id, updates, { new: true })

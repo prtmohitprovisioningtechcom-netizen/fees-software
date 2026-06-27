@@ -12,7 +12,8 @@ import { studentsApi } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
 export default function ViewStudentPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const router = useRouter();
   const [student, setStudent] = useState<Record<string, unknown> | null>(null);
 

@@ -19,7 +19,8 @@ import { toast } from "@/components/ui/use-toast";
 import { FeeCalculation } from "@/types";
 
 export default function CollectFeePage() {
-  const { studentId } = useParams<{ studentId: string }>();
+  const params = useParams<{ studentId: string }>();
+  const studentId = params?.studentId ?? "";
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

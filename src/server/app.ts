@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import path from "path";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
 import classRoutes from "./routes/classRoutes";
@@ -17,7 +16,6 @@ const createApp = () => {
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);

@@ -40,7 +40,8 @@ const editSchema = z.object({
 type EditForm = z.infer<typeof editSchema>;
 
 export default function EditStudentPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [regNo, setRegNo] = useState("");

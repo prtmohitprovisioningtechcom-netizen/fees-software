@@ -1,5 +1,18 @@
 import mongoose from "mongoose";
 
+declare global {
+  // eslint-disable-next-line no-var
+  var mongooseCache:
+    | {
+        conn: typeof mongoose | null;
+        promise: Promise<typeof mongoose> | null;
+      }
+    | undefined;
+}
+
+const cached = global.mongooseCache ?? { conn: null, promise: null };
+if (!global.mongooseCache) global.mongooseCache = cached;
+
 const connectDB = async () => {
   const uri = process.env.MONGODB_URI;
 
@@ -7,17 +20,26 @@ const connectDB = async () => {
     throw new Error("MONGODB_URI is not defined in .env file");
   }
 
-  mongoose.set("strictQuery", true);
+  if (cached.conn) {
+    return cached.conn;
+  }
 
-  try {
-    const conn = await mongoose.connect(uri, {
+  if (!cached.promise) {
+    mongoose.set("strictQuery", true);
+    cached.promise = mongoose.connect(uri, {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
+      bufferCommands: false,
     });
+  }
 
-    console.log(`MongoDB connected: ${conn.connection.host}`);
-    console.log(`Database: ${conn.connection.name}`);
+  try {
+    cached.conn = await cached.promise;
+    console.log(`MongoDB connected: ${cached.conn.connection.host}`);
+    console.log(`Database: ${cached.conn.connection.name}`);
+    return cached.conn;
   } catch (error) {
+    cached.promise = null;
     console.error("MongoDB connection failed:", error instanceof Error ? error.message : error);
     throw error;
   }

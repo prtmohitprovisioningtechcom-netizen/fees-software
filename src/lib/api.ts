@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+// Browser: always same-origin /api (works on Vercel + localhost)
+// Server: full URL for local custom server
+const API_URL =
+  typeof window !== "undefined"
+    ? "/api"
+    : process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
 interface FetchOptions extends RequestInit {
   token?: string;

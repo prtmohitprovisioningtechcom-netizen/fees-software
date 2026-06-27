@@ -13,7 +13,8 @@ import autoTable from "jspdf-autotable";
 const SCHOOL_NAME = process.env.NEXT_PUBLIC_SCHOOL_NAME || "Delhi Public School";
 
 export default function ReceiptPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const { user } = useAuth();
   const [payment, setPayment] = useState<Record<string, unknown> | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
