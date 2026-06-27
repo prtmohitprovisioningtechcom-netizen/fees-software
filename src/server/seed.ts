@@ -7,6 +7,8 @@ import { User, Class, Section, AcademicSession } from "./models";
 async function seed() {
   await connectDB();
 
+  await User.collection.dropIndex("username_1").catch(() => undefined);
+
   const superAdmin = await User.findOne({ email: "superadmin@school.com" });
   if (!superAdmin) {
     await User.create({

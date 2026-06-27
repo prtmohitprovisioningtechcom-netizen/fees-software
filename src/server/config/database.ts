@@ -15,6 +15,7 @@ if (!global.mongooseCache) global.mongooseCache = cached;
 
 const connectDB = async () => {
   const uri = process.env.MONGODB_URI;
+  const dbName = process.env.MONGODB_DB || "fees";
 
   if (!uri) {
     throw new Error("MONGODB_URI is not defined in .env file");
@@ -27,6 +28,7 @@ const connectDB = async () => {
   if (!cached.promise) {
     mongoose.set("strictQuery", true);
     cached.promise = mongoose.connect(uri, {
+      dbName,
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
       bufferCommands: false,
