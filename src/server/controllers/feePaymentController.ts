@@ -1,8 +1,19 @@
 import { Response } from "express";
 import { Types } from "mongoose";
-import { FeePayment, Student, FeeStructure } from "../models";
+import { AcademicSession, FeePayment, Student, FeeStructure } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { calculateFee, generateReceiptNumber } from "../services/feeService";
+import { calculateFee, generateReceiptNumber, getStudentSessionFeeStatus } from "../services/feeService";
+
+const resolveSessionId = async (sessionId?: string) => {
+  if (sessionId && Types.ObjectId.isValid(sessionId)) {
+    const session = await AcademicSession.findById(sessionId);
+    if (session) return session;
+  }
+  return (
+    (await AcademicSession.findOne({ isActive: true, isCurrent: true })) ||
+    (await AcademicSession.findOne({ isActive: true }).sort({ startDate: -1 }))
+  );
+};
 
 export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
   try {
@@ -13,29 +24,40 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
 
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
 
+    const session = await resolveSessionId((req.query.sessionId as string) || student.sessionId.toString());
+    if (!session) {
+      return res.status(400).json({ success: false, message: "Academic session not found" });
+    }
+
     const feeStructure = await FeeStructure.findOne({
       classId: student.classId._id,
-      sessionId: student.sessionId._id,
+      sessionId: session._id,
     });
 
     let calculation: Awaited<ReturnType<typeof calculateFee>> | null = null;
     if (feeStructure) {
       calculation = await calculateFee(
         student._id.toString(),
-        student.sessionId._id.toString(),
+        session._id.toString(),
         student.classId._id.toString(),
         0,
         student.transportRequired
       );
     }
 
-    const payments = await FeePayment.find({ studentId: student._id })
+    const payments = await FeePayment.find({ studentId: student._id, sessionId: session._id })
       .populate("collectedBy", "name")
       .sort({ paymentDate: -1 });
 
     res.json({
       success: true,
-      data: { student, feeStructure, calculation, payments },
+      data: {
+        student,
+        session: { _id: session._id, name: session.name },
+        feeStructure,
+        calculation,
+        payments,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch fee summary";
@@ -43,22 +65,97 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = (req.query.search as string) || "";
+    const classId = req.query.classId as string;
+    const sectionId = req.query.sectionId as string;
+
+    const session = await resolveSessionId(req.query.sessionId as string);
+    if (!session) {
+      return res.status(400).json({ success: false, message: "Academic session not found" });
+    }
+
+    const filter: Record<string, unknown> = { status: "active" };
+    if (classId) filter.classId = classId;
+    if (sectionId) filter.sectionId = sectionId;
+    if (search) {
+      filter.$or = [
+        { studentName: { $regex: search, $options: "i" } },
+        { registrationNumber: { $regex: search, $options: "i" } },
+        { admissionNumber: { $regex: search, $options: "i" } },
+        { fatherName: { $regex: search, $options: "i" } },
+        { mobileNumber: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const total = await Student.countDocuments(filter);
+    const students = await Student.find(filter)
+      .populate("classId", "name")
+      .populate("sectionId", "name")
+      .sort({ studentName: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const data = await Promise.all(
+      students.map(async (student) => {
+        const feeStatus = await getStudentSessionFeeStatus(
+          student._id.toString(),
+          session._id.toString(),
+          student.classId._id.toString()
+        );
+        return {
+          _id: student._id,
+          registrationNumber: student.registrationNumber,
+          admissionNumber: student.admissionNumber,
+          studentName: student.studentName,
+          fatherName: student.fatherName,
+          mobileNumber: student.mobileNumber,
+          classId: student.classId,
+          sectionId: student.sectionId,
+          sessionId: session._id,
+          sessionName: session.name,
+          totalFee: feeStatus.totalFee,
+          paidAmount: feeStatus.paidAmount,
+          pendingAmount: feeStatus.pendingAmount,
+          paymentStatus: feeStatus.paymentStatus,
+          hasFeeStructure: feeStatus.hasFeeStructure,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data,
+      session: { _id: session._id, name: session.name },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch student fees", error: String(error) });
+  }
+};
+
 export const collectFee = async (req: AuthRequest, res: Response) => {
   try {
-    const { studentId, paymentAmount, paymentMode, remarks } = req.body;
+    const { studentId, paymentAmount, paymentMode, remarks, sessionId: bodySessionId } = req.body;
 
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
 
+    const session = await resolveSessionId(bodySessionId || student.sessionId.toString());
+    if (!session) return res.status(400).json({ success: false, message: "Academic session not found" });
+
     const feeStructure = await FeeStructure.findOne({
       classId: student.classId,
-      sessionId: student.sessionId,
+      sessionId: session._id,
     });
-    if (!feeStructure) return res.status(404).json({ success: false, message: "Fee structure not found" });
+    if (!feeStructure) return res.status(404).json({ success: false, message: "Fee structure not found for this class and session" });
 
     const calculation = await calculateFee(
       studentId,
-      student.sessionId.toString(),
+      session._id.toString(),
       student.classId.toString(),
       paymentAmount,
       student.transportRequired
@@ -76,7 +173,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
     const payment = await FeePayment.create({
       receiptNumber,
       studentId: new Types.ObjectId(studentId),
-      sessionId: student.sessionId,
+      sessionId: session._id,
       feeStructureId: feeStructure._id,
       totalFee: calculation.totalFee,
       paidAmount: calculation.paidAmount,
@@ -123,12 +220,12 @@ export const getPayments = async (req: AuthRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = (req.query.search as string) || "";
+    const sessionId = req.query.sessionId as string;
 
     const filter: Record<string, unknown> = {};
+    if (sessionId) filter.sessionId = sessionId;
     if (search) {
-      filter.$or = [
-        { receiptNumber: { $regex: search, $options: "i" } },
-      ];
+      filter.$or = [{ receiptNumber: { $regex: search, $options: "i" } }];
     }
 
     const total = await FeePayment.countDocuments(filter);

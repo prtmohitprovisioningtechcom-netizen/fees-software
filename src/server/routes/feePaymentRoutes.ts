@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getStudentFeeSummary,
+  getStudentsFeeOverview,
   collectFee,
   getPayment,
   getPayments,
@@ -15,6 +16,7 @@ router.use(authenticate);
 
 router.get("/", getPayments);
 router.get("/student/:studentId/summary", getStudentFeeSummary);
+router.get("/students-overview", getStudentsFeeOverview);
 router.post("/collect", validate(feePaymentSchema), collectFee);
 router.get("/:id", getPayment);
 

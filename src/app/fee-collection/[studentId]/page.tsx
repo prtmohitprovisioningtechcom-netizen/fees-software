@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,18 +13,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { feePaymentsApi } from "@/lib/api";
+import { feePaymentsApi, sessionsApi } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { FeeCalculation } from "@/types";
 
+interface Session {
+  _id: string;
+  name: string;
+  isCurrent?: boolean;
+}
+
 export default function CollectFeePage() {
   const params = useParams<{ studentId: string }>();
+  const searchParams = useSearchParams();
   const studentId = params?.studentId ?? "";
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [student, setStudent] = useState<Record<string, unknown> | null>(null);
+  const [session, setSession] = useState<{ _id: string; name: string } | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionId, setSessionId] = useState(searchParams?.get("sessionId") || "");
   const [calculation, setCalculation] = useState<FeeCalculation | null>(null);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -32,13 +42,24 @@ export default function CollectFeePage() {
   const [remarks, setRemarks] = useState("");
 
   useEffect(() => {
+    sessionsApi.getAll().then((res) => {
+      const list = (res as { data: Session[] }).data || [];
+      setSessions(list);
+    });
+  }, []);
+
+  useEffect(() => {
     if (!studentId) return;
     setLoading(true);
     feePaymentsApi
-      .getStudentSummary(studentId)
+      .getStudentSummary(studentId, sessionId || undefined)
       .then((res) => {
         const data = (res as { data: Record<string, unknown> }).data;
         setStudent((data.student as Record<string, unknown>) ?? null);
+        setSession((data.session as { _id: string; name: string }) ?? null);
+        if (!sessionId && data.session) {
+          setSessionId((data.session as { _id: string })._id);
+        }
         setCalculation((data.calculation as FeeCalculation | null) ?? null);
         setPayments((data.payments as Record<string, unknown>[]) ?? []);
       })
@@ -50,7 +71,7 @@ export default function CollectFeePage() {
         });
       })
       .finally(() => setLoading(false));
-  }, [studentId]);
+  }, [studentId, sessionId]);
 
   const handleCollect = async () => {
     const amount = Number(paymentAmount);
@@ -62,6 +83,7 @@ export default function CollectFeePage() {
     try {
       const res = await feePaymentsApi.collect({
         studentId,
+        sessionId: session?._id || sessionId,
         paymentAmount: amount,
         paymentMode,
         remarks,
@@ -105,7 +127,31 @@ export default function CollectFeePage() {
         title="Collect Fee"
         description={`${student?.studentName as string} - ${student?.registrationNumber as string}`}
         breadcrumbs={[{ label: "Fee Collection", href: "/fee-collection" }, { label: "Collect" }]}
+        action={
+          <Select
+            value={sessionId}
+            onValueChange={setSessionId}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select Session" />
+            </SelectTrigger>
+            <SelectContent>
+              {sessions.map((s) => (
+                <SelectItem key={s._id} value={s._id}>
+                  {s.name}
+                  {s.isCurrent ? " (Current)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
+
+      {session && (
+        <p className="text-sm text-muted-foreground mb-4">
+          Collecting fee for session: <strong>{session.name}</strong>
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
@@ -121,7 +167,7 @@ export default function CollectFeePage() {
 
           {calculation && (
             <Card>
-              <CardHeader><CardTitle>Fee Breakdown (Backend Calculated)</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Fee Breakdown — {session?.name}</CardTitle></CardHeader>
               <CardContent>
                 <Table>
                   <TableBody>
@@ -132,7 +178,7 @@ export default function CollectFeePage() {
                     <TableRow><TableCell>Other Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.otherFee)}</TableCell></TableRow>
                     <TableRow className="font-bold"><TableCell>Total Fee</TableCell><TableCell className="text-right text-primary">{formatCurrency(calculation.totalFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Paid Amount</TableCell><TableCell className="text-right text-emerald-600">{formatCurrency(calculation.paidAmount)}</TableCell></TableRow>
-                    <TableRow><TableCell>Previous Due</TableCell><TableCell className="text-right text-amber-600">{formatCurrency(calculation.previousDue)}</TableCell></TableRow>
+                    <TableRow><TableCell>Pending / Due</TableCell><TableCell className="text-right text-amber-600">{formatCurrency(calculation.previousDue)}</TableCell></TableRow>
                   </TableBody>
                 </Table>
               </CardContent>
@@ -189,7 +235,7 @@ export default function CollectFeePage() {
 
           {payments.length > 0 && (
             <Card>
-              <CardHeader><CardTitle>Payment History</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Payment History — {session?.name}</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 {payments.map((p) => (
                   <div key={p._id as string} className="flex justify-between items-center p-3 rounded-lg bg-muted text-sm">

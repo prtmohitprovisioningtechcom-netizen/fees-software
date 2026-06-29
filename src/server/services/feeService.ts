@@ -86,3 +86,46 @@ export const generateReceiptNumber = async (): Promise<string> => {
   }
   return `${prefix}${String(seq).padStart(5, "0")}`;
 };
+
+export const getStructureTotalFee = (structure: {
+  admissionFee: number;
+  monthlyFee: number;
+  computerFee: number;
+  examFee: number;
+  otherFee: number;
+}) => structure.admissionFee + structure.monthlyFee * 12 + structure.computerFee + structure.examFee + structure.otherFee;
+
+export const getStudentSessionFeeStatus = async (
+  studentId: string,
+  sessionId: string,
+  classId: string
+) => {
+  const feeStructure = await FeeStructure.findOne({
+    classId: new Types.ObjectId(classId),
+    sessionId: new Types.ObjectId(sessionId),
+  });
+
+  if (!feeStructure) {
+    return {
+      totalFee: 0,
+      paidAmount: 0,
+      pendingAmount: 0,
+      paymentStatus: "pending" as const,
+      hasFeeStructure: false,
+    };
+  }
+
+  const totalFee = getStructureTotalFee(feeStructure);
+  const payments = await FeePayment.find({
+    studentId: new Types.ObjectId(studentId),
+    sessionId: new Types.ObjectId(sessionId),
+  });
+  const paidAmount = payments.reduce((sum, payment) => sum + payment.currentPayment, 0);
+  const pendingAmount = Math.max(0, totalFee - paidAmount);
+
+  let paymentStatus: "paid" | "partial" | "pending" = "pending";
+  if (paidAmount >= totalFee) paymentStatus = "paid";
+  else if (paidAmount > 0) paymentStatus = "partial";
+
+  return { totalFee, paidAmount, pendingAmount, paymentStatus, hasFeeStructure: true };
+};

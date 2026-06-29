@@ -107,13 +107,23 @@ export const feePaymentsApi = {
     const query = new URLSearchParams(params).toString();
     return apiClient(`/fee-payments${query ? `?${query}` : ""}`);
   },
-  getStudentSummary: (studentId: string) => apiClient(`/fee-payments/student/${studentId}/summary`),
+  getStudentSummary: (studentId: string, sessionId?: string) => {
+    const query = sessionId ? `?sessionId=${sessionId}` : "";
+    return apiClient(`/fee-payments/student/${studentId}/summary${query}`);
+  },
+  getStudentsOverview: (params?: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString();
+    return apiClient(`/fee-payments/students-overview${query ? `?${query}` : ""}`);
+  },
   collect: (data: object) => apiClient("/fee-payments/collect", { method: "POST", body: JSON.stringify(data) }),
   getById: (id: string) => apiClient(`/fee-payments/${id}`),
 };
 
 export const dashboardApi = {
-  getStats: () => apiClient("/dashboard/stats"),
+  getStats: (sessionId?: string) => {
+    const query = sessionId ? `?sessionId=${sessionId}` : "";
+    return apiClient(`/dashboard/stats${query}`);
+  },
   getReports: (params?: Record<string, string>) => {
     const query = new URLSearchParams(params).toString();
     return apiClient(`/dashboard/reports${query ? `?${query}` : ""}`);

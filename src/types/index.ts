@@ -21,11 +21,43 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface DashboardStats {
+  session: { _id: string; name: string };
   totalStudents: number;
-  totalFeeCollected: number;
+  totalFeeCollected?: number;
   pendingFees: number;
   todayCollection: number;
   recentPayments: RecentPayment[];
+  pendingStudents: PendingStudent[];
+}
+
+export interface PendingStudent {
+  _id: string;
+  studentName: string;
+  registrationNumber: string;
+  className: string;
+  totalFee: number;
+  paidAmount: number;
+  pendingAmount: number;
+  paymentStatus: "paid" | "partial" | "pending";
+  hasFeeStructure: boolean;
+}
+
+export interface StudentFeeOverview {
+  _id: string;
+  registrationNumber: string;
+  admissionNumber: string;
+  studentName: string;
+  fatherName: string;
+  mobileNumber: string;
+  classId: { _id: string; name: string };
+  sectionId: { _id: string; name: string };
+  sessionId: string;
+  sessionName: string;
+  totalFee: number;
+  paidAmount: number;
+  pendingAmount: number;
+  paymentStatus: "paid" | "partial" | "pending";
+  hasFeeStructure: boolean;
 }
 
 export interface RecentPayment {
