@@ -17,11 +17,13 @@ import {
   X,
   School,
   Layers,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { settingsApi } from "@/lib/api";
 
 const superAdminLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -33,6 +35,7 @@ const superAdminLinks = [
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/fee-collection", label: "Fee Collection", icon: Receipt },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const adminLinks = [
@@ -46,17 +49,32 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, logout, isSuperAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [settings, setSettings] = useState({ appName: "Fee Management", schoolName: "School ERP", logo: "" });
   const links = isSuperAdmin ? superAdminLinks : adminLinks;
+
+  useEffect(() => {
+    settingsApi.get()
+      .then((res) => {
+        const data = (res as { data?: typeof settings }).data;
+        if (data) setSettings(data);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const NavContent = () => (
     <>
       <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
-          <School className="h-6 w-6 text-sidebar-primary-foreground" />
+          {settings.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={settings.logo} alt="Logo" className="h-8 w-8 rounded object-cover" />
+          ) : (
+            <School className="h-6 w-6 text-sidebar-primary-foreground" />
+          )}
         </div>
         <div>
-          <h1 className="text-sm font-bold text-sidebar-foreground">Fee Management</h1>
-          <p className="text-xs text-sidebar-foreground/60">School ERP</p>
+          <h1 className="text-sm font-bold text-sidebar-foreground">{settings.appName}</h1>
+          <p className="text-xs text-sidebar-foreground/60">{settings.schoolName}</p>
         </div>
       </div>
 

@@ -23,7 +23,7 @@ export const calculateFee = async (
     monthlyFee: feeStructure.monthlyFee * 12,
     computerFee: feeStructure.computerFee,
     examFee: feeStructure.examFee,
-    transportFee: transportRequired ? feeStructure.transportFee : 0,
+    transportFee: 0,
     otherFee: feeStructure.otherFee,
   };
 

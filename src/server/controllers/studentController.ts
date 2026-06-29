@@ -1,7 +1,10 @@
 import { Response } from "express";
-import { Student } from "../models";
+import { Types } from "mongoose";
+import * as XLSX from "xlsx";
+import { AcademicSession, Class, Section, Student } from "../models";
 import { AuthRequest } from "../middleware/auth";
 import { generateRegistrationNumber } from "../services/feeService";
+import { EXCEL_IMPORT_CLASS_DESC } from "../constants/classes";
 
 export const getStudents = async (req: AuthRequest, res: Response) => {
   try {
@@ -76,16 +79,249 @@ const getMongoPhoto = (file?: Express.Multer.File) => {
   return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
 };
 
+type ExcelRow = Record<string, unknown>;
+type ParsedExcelRow = { rowNumber: number; data: ExcelRow };
+
+const normalizeHeader = (header: string) => header.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const getCell = (row: ExcelRow, aliases: string[]) => {
+  const wanted = aliases.map(normalizeHeader);
+  const entry = Object.entries(row).find(([key]) => wanted.includes(normalizeHeader(key)));
+  if (!entry) return "";
+  const value = entry[1];
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "number" && Number.isInteger(value)) return String(value);
+  return String(value).trim();
+};
+
+const getHeaderScore = (row: unknown[]) => {
+  const headers = row.map((cell) => normalizeHeader(String(cell || "")));
+  const has = (aliases: string[]) => aliases.some((alias) => headers.includes(normalizeHeader(alias)));
+  let score = 0;
+  if (has(["Class"])) score += 3;
+  if (has(["Section"])) score += 3;
+  if (has(["Name", "Student Name"])) score += 3;
+  if (has(["Gender"])) score += 2;
+  if (has(["Student PEN", "Admission Number"])) score += 2;
+  if (has(["Student State Code"])) score += 2;
+  if (has(["Father Name"])) score += 1;
+  if (has(["Mother Name"])) score += 1;
+  return score;
+};
+
+const parseWorksheetRows = (worksheet: XLSX.WorkSheet): ParsedExcelRow[] => {
+  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "", blankrows: false });
+  const headerIndex = rawRows.reduce(
+    (best, row, index) => {
+      const score = getHeaderScore(row);
+      return score > best.score ? { index, score } : best;
+    },
+    { index: -1, score: 0 }
+  );
+
+  if (headerIndex.index === -1 || headerIndex.score < 6) return [];
+
+  const headers = rawRows[headerIndex.index].map((header, index) => {
+    const text = String(header || "").trim();
+    return text || `Column ${index + 1}`;
+  });
+
+  return rawRows
+    .slice(headerIndex.index + 1)
+    .map((row, index) => {
+      const data = headers.reduce<ExcelRow>((acc, header, columnIndex) => {
+        acc[header] = row[columnIndex] ?? "";
+        return acc;
+      }, {});
+
+      return {
+        rowNumber: headerIndex.index + index + 2,
+        data,
+      };
+    })
+    .filter(({ data }) => Object.values(data).some((value) => String(value || "").trim()));
+};
+
+const parseExcelDate = (value: unknown) => {
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d);
+  }
+
+  const text = String(value || "").trim();
+  if (!text) return null;
+
+  const slashDate = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (slashDate) {
+    const [, day, month, year] = slashDate;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(text);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeGender = (value: string) => {
+  const gender = value.trim().toLowerCase();
+  if (["m", "male", "boy"].includes(gender)) return "male";
+  if (["f", "female", "girl"].includes(gender)) return "female";
+  if (["other", "others"].includes(gender)) return "other";
+  return null;
+};
+
+const normalizeStatus = (value: string) => {
+  const status = value.trim().toLowerCase();
+  if (["active", "inactive", "left"].includes(status)) return status as "active" | "inactive" | "left";
+  return "active";
+};
+
+const normalizeBoolean = (value: string) => ["yes", "true", "1", "y", "haan"].includes(value.trim().toLowerCase());
+
+const getCurrentSession = async () => {
+  return (
+    (await AcademicSession.findOne({ isActive: true, isCurrent: true })) ||
+    (await AcademicSession.findOne({ isActive: true }).sort({ startDate: -1 }))
+  );
+};
+
+const findClass = async (value: string) => {
+  const ref = value || "";
+  if (!ref) return null;
+  if (Types.ObjectId.isValid(ref)) return Class.findOne({ _id: ref, isActive: true });
+  const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return Class.findOne({
+    isActive: true,
+    description: EXCEL_IMPORT_CLASS_DESC,
+    $or: [
+      { name: { $regex: `^${escaped}$`, $options: "i" } },
+      { name: { $regex: `^class\\s*${escaped}$`, $options: "i" } },
+    ],
+  });
+};
+
+const ensureClass = async (value: string) => {
+  const className = value.trim();
+  const existing = await findClass(className);
+  if (existing) return existing;
+
+  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const conflicting = await Class.findOne({
+    $or: [
+      { name: { $regex: `^${escaped}$`, $options: "i" } },
+      { name: { $regex: `^class\\s*${escaped}$`, $options: "i" } },
+    ],
+  });
+
+  if (conflicting) {
+    conflicting.name = className;
+    conflicting.description = EXCEL_IMPORT_CLASS_DESC;
+    conflicting.isActive = true;
+    await conflicting.save();
+    return conflicting;
+  }
+
+  return Class.create({ name: className, description: EXCEL_IMPORT_CLASS_DESC, isActive: true });
+};
+
+const findSession = async (value: string) => {
+  const ref = value || "";
+  if (!ref) return null;
+  if (Types.ObjectId.isValid(ref)) return AcademicSession.findOne({ _id: ref, isActive: true });
+  return AcademicSession.findOne({ name: { $regex: `^${ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" }, isActive: true });
+};
+
+const findSection = async (value: string, classId: string) => {
+  const ref = value || "";
+  if (!ref) return null;
+  if (Types.ObjectId.isValid(ref)) return Section.findOne({ _id: ref, classId, isActive: true });
+  return Section.findOne({
+    classId,
+    isActive: true,
+    name: { $regex: `^${ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+  });
+};
+
+const ensureSection = async (value: string, classId: string) => {
+  const sectionName = value.trim();
+  const existing = await findSection(sectionName, classId);
+  if (existing) return existing;
+  return Section.create({ name: sectionName, classId, isActive: true });
+};
+
 export const createStudent = async (req: AuthRequest, res: Response) => {
   try {
     const registrationNumber = await generateRegistrationNumber();
     const photo = getMongoPhoto(req.file);
     const parsed = parseStudentBody(req.body);
+    const today = new Date();
+
+    const className = String(parsed.className || parsed.class || "").trim();
+    const sectionName = String(parsed.sectionName || parsed.section || "").trim();
+    const studentPen = String(parsed.studentPen || "").trim();
+    const studentStateCode = String(parsed.studentStateCode || "").trim();
+    const aadharNumber = String(parsed.aadharNumber || "").trim();
+    const admissionNumber = String(parsed.admissionNumber || studentPen || studentStateCode || aadharNumber).trim();
+    const studentName = String(parsed.studentName || parsed.name || "").trim();
+
+    if (!admissionNumber) {
+      return res.status(400).json({ success: false, message: "Student PEN, Student State Code or AADHAAR No. is required" });
+    }
+    if (!studentName || !className || !sectionName) {
+      return res.status(400).json({ success: false, message: "Class, Section and Name are required" });
+    }
+
+    const existing = await Student.findOne({ admissionNumber });
+    if (existing) return res.status(400).json({ success: false, message: "Student already exists with this PEN/Admission number" });
+
+    const cls = parsed.classId ? null : await ensureClass(className);
+    const section = parsed.sectionId ? null : await ensureSection(sectionName, String(cls?._id || parsed.classId));
+    const session = parsed.sessionId ? await findSession(String(parsed.sessionId)) : await getCurrentSession();
+    if (!session) return res.status(400).json({ success: false, message: "Academic Session not found. Create or mark one active/current session." });
 
     const student = await Student.create({
       ...parsed,
       registrationNumber,
       photo,
+      admissionNumber,
+      rollNumber: String(parsed.rollNumber || studentStateCode || studentPen || admissionNumber),
+      studentName,
+      fatherName: String(parsed.fatherName || "-"),
+      motherName: String(parsed.motherName || "-"),
+      mobileNumber: String(parsed.mobileNumber || "0000000000"),
+      gender: normalizeGender(String(parsed.gender || "")) || "other",
+      dateOfBirth: parseExcelDate(parsed.dateOfBirth) || today,
+      classId: parsed.classId || cls?._id,
+      sectionId: parsed.sectionId || section?._id,
+      sessionId: parsed.sessionId || session._id,
+      admissionDate: parseExcelDate(parsed.admissionDate) || today,
+      address: parsed.address || {
+        line1: "Registered from SDMS form",
+        city: "N/A",
+        state: "N/A",
+        pincode: "000000",
+      },
+      status: normalizeStatus(String(parsed.status || "active")),
+      transportRequired: normalizeBoolean(String(parsed.transportRequired || "")),
+      initializedAtSdms: String(parsed.initializedAtSdms || ""),
+      studentPen,
+      studentStateCode,
+      category: String(parsed.socialCategory || parsed.category || ""),
+      minorityGroup: String(parsed.minorityGroup || ""),
+      bplBeneficiary: normalizeBoolean(String(parsed.bplBeneficiary || "")),
+      cwsn: normalizeBoolean(String(parsed.cwsn || "")),
+      typeOfImpairments: String(parsed.typeOfImpairments || ""),
+      isRepeater: normalizeBoolean(String(parsed.isRepeater || "")),
+      suspectedDuplicate: normalizeBoolean(String(parsed.suspectedDuplicate || "")),
+      entryStatus: String(parsed.entryStatus || ""),
+      aadharNumber,
+      nameAsPerAadhaar: String(parsed.nameAsPerAadhaar || ""),
+      aadhaarValidationStatus: String(parsed.aadhaarValidationStatus || ""),
+      mbuStatus: String(parsed.mbuStatus || ""),
+      apaarId: String(parsed.apaarId || ""),
+      apaarStatus: String(parsed.apaarStatus || ""),
       createdBy: req.user?.id,
     });
 
@@ -93,6 +329,161 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ success: true, message: "Student registered successfully", data: student });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to register student", error: String(error) });
+  }
+};
+
+export const importStudents = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file?.buffer) {
+      return res.status(400).json({ success: false, message: "Excel file is required" });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer", cellDates: true });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = parseWorksheetRows(worksheet);
+
+    if (rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Could not find SDMS header row. Please keep columns like Class, Section, Name, Gender, Student PEN in the sheet.",
+      });
+    }
+
+    const imported = [];
+    const errors: { row: number; admissionNumber?: string; studentName?: string; message: string }[] = [];
+    const seenAdmissionNumbers = new Set<string>();
+
+    for (const { rowNumber, data: row } of rows) {
+      const studentPen = getCell(row, ["Student PEN", "PEN", "studentPen"]);
+      const studentStateCode = getCell(row, ["Student State Code", "State Code", "studentStateCode"]);
+      const aadharNumber = getCell(row, ["AADHAAR No.", "AADHAAR No", "Aadhar Number", "Aadhaar Number", "aadharNumber"]);
+      const admissionNumber = getCell(row, ["Admission Number", "Admission No", "admissionNumber"]) || studentPen || studentStateCode || aadharNumber;
+      const studentName = getCell(row, ["Student Name", "Name", "studentName"]);
+
+      try {
+        const rollNumber = getCell(row, ["Roll Number", "Roll No", "rollNumber"]) || studentStateCode || studentPen || String(rowNumber - 1);
+        const fatherName = getCell(row, ["Father Name", "fatherName"]) || "-";
+        const motherName = getCell(row, ["Mother Name", "motherName"]) || "-";
+        const mobileNumber = getCell(row, ["Mobile Number", "Mobile", "Phone", "mobileNumber"]) || "0000000000";
+        const gender = normalizeGender(getCell(row, ["Gender", "Sex"])) || "other";
+        const today = new Date();
+        const dateOfBirth = parseExcelDate(getCell(row, ["Date Of Birth", "DOB", "Birth Date", "dateOfBirth"])) || today;
+        const admissionDate = parseExcelDate(getCell(row, ["Admission Date", "admissionDate"])) || today;
+        const classRef = getCell(row, ["Class", "Class Name", "className", "classId"]);
+        const sectionRef = getCell(row, ["Section", "Section Name", "sectionName", "sectionId"]);
+        const sessionRef = getCell(row, ["Session", "Academic Session", "sessionName", "sessionId"]);
+        const addressLine1 = getCell(row, ["Address", "Address Line 1", "addressLine1"]) || "Imported from SDMS";
+        const city = getCell(row, ["City"]) || "N/A";
+        const state = getCell(row, ["State"]) || "N/A";
+        const pincode = (getCell(row, ["Pincode", "Pin Code", "PIN"]) || "000000").padStart(6, "0");
+
+        const missing = [
+          ["Admission Number", admissionNumber],
+          ["Roll Number", rollNumber],
+          ["Name", studentName],
+          ["Class", classRef],
+          ["Section", sectionRef],
+        ]
+          .filter(([, value]) => !value)
+          .map(([label]) => label);
+
+        if (missing.length) throw new Error(`Missing required fields: ${missing.join(", ")}`);
+        if (mobileNumber !== "0000000000" && !/^[6-9]\d{9}$/.test(mobileNumber)) {
+          throw new Error("Mobile Number must be a valid 10-digit Indian mobile number");
+        }
+        if (!/^\d{6}$/.test(pincode)) throw new Error("Pincode must be 6 digits");
+        if (seenAdmissionNumbers.has(admissionNumber.toLowerCase())) throw new Error("Duplicate Admission Number in uploaded file");
+
+        const existing = await Student.findOne({ admissionNumber });
+        if (existing) throw new Error("Admission Number already exists");
+
+        const cls = await ensureClass(classRef);
+
+        const section = await ensureSection(sectionRef, String(cls._id));
+
+        const session = sessionRef ? await findSession(sessionRef) : await getCurrentSession();
+        if (!session) throw new Error("Academic Session not found. Create or mark one active/current session.");
+
+        const registrationNumber = await generateRegistrationNumber();
+        const student = await Student.create({
+          registrationNumber,
+          admissionNumber,
+          rollNumber,
+          studentName,
+          fatherName,
+          motherName,
+          mobileNumber,
+          alternateMobile: getCell(row, ["Alternate Mobile", "Alternate Mobile Number", "alternateMobile"]),
+          email: getCell(row, ["Email"]),
+          gender,
+          dateOfBirth,
+          bloodGroup: getCell(row, ["Blood Group", "bloodGroup"]),
+          category: getCell(row, ["Social Category", "Category"]),
+          religion: getCell(row, ["Religion"]),
+          aadharNumber,
+          classId: cls._id,
+          sectionId: section._id,
+          sessionId: session._id,
+          admissionDate,
+          address: {
+            line1: addressLine1,
+            city,
+            state,
+            pincode,
+          },
+          status: normalizeStatus(getCell(row, ["Status"])),
+          previousSchool: getCell(row, ["Previous School", "previousSchool"]),
+          transportRequired: normalizeBoolean(getCell(row, ["Transport Required", "Transport", "transportRequired"])),
+          initializedAtSdms: getCell(row, ["Initialised at SDMS", "Initialized at SDMS"]),
+          studentPen,
+          studentStateCode,
+          minorityGroup: getCell(row, ["Minority Group"]),
+          bplBeneficiary: normalizeBoolean(getCell(row, ["BPL beneficiary", "BPL beneficiary "])),
+          cwsn: normalizeBoolean(getCell(row, ["CWSN"])),
+          typeOfImpairments: getCell(row, ["Type of Impairments", "Type of Impairment"]),
+          isRepeater: normalizeBoolean(getCell(row, ["Is Repeater"])),
+          suspectedDuplicate: normalizeBoolean(getCell(row, ["Suspected Duplicate"])),
+          entryStatus: getCell(row, ["Entry Status"]),
+          nameAsPerAadhaar: getCell(row, ["Name As per AADHAAR", "Name As per Aadhaar"]),
+          aadhaarValidationStatus: getCell(row, ["AADHAAR Validation Status", "Aadhaar Validation Status"]),
+          mbuStatus: getCell(row, ["MBU Status"]),
+          apaarId: getCell(row, ["APAAR ID"]),
+          apaarStatus: getCell(row, ["APAAR Status"]),
+          createdBy: req.user?.id,
+        });
+
+        seenAdmissionNumbers.add(admissionNumber.toLowerCase());
+        imported.push({
+          _id: student._id,
+          registrationNumber: student.registrationNumber,
+          admissionNumber: student.admissionNumber,
+          studentName: student.studentName,
+          className: cls.name,
+          sectionName: section.name,
+        });
+      } catch (error) {
+        errors.push({
+          row: rowNumber,
+          admissionNumber: admissionNumber || undefined,
+          studentName: studentName || undefined,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${imported.length} student(s) imported successfully`,
+      data: {
+        importedCount: imported.length,
+        failedCount: errors.length,
+        totalRows: rows.length,
+        imported,
+        errors,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to import students", error: String(error) });
   }
 };
 

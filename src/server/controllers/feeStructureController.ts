@@ -38,16 +38,22 @@ export const createFeeStructure = async (req: AuthRequest, res: Response) => {
     const existing = await FeeStructure.findOne({ classId: req.body.classId, sessionId: req.body.sessionId });
     if (existing) return res.status(400).json({ success: false, message: "Fee structure already exists for this class and session" });
 
-    const totalFee =
-      req.body.admissionFee +
-      req.body.monthlyFee * 12 +
-      req.body.computerFee +
-      req.body.examFee +
-      req.body.transportFee +
-      req.body.otherFee;
+    const admissionFee = Number(req.body.admissionFee) || 0;
+    const monthlyFee = Number(req.body.monthlyFee) || 0;
+    const computerFee = Number(req.body.computerFee) || 0;
+    const examFee = Number(req.body.examFee) || 0;
+    const otherFee = Number(req.body.otherFee) || 0;
+    const transportFee = 0;
+    const totalFee = admissionFee + monthlyFee * 12 + computerFee + examFee + otherFee;
 
     const structure = await FeeStructure.create({
       ...req.body,
+      admissionFee,
+      monthlyFee,
+      computerFee,
+      examFee,
+      otherFee,
+      transportFee,
       totalFee,
       createdBy: req.user?.id,
     });
@@ -67,7 +73,6 @@ export const updateFeeStructure = async (req: AuthRequest, res: Response) => {
       updates.monthlyFee !== undefined ||
       updates.computerFee !== undefined ||
       updates.examFee !== undefined ||
-      updates.transportFee !== undefined ||
       updates.otherFee !== undefined
     ) {
       const current = await FeeStructure.findById(req.params.id);
@@ -77,10 +82,10 @@ export const updateFeeStructure = async (req: AuthRequest, res: Response) => {
       const monthlyFee = updates.monthlyFee ?? current.monthlyFee;
       const computerFee = updates.computerFee ?? current.computerFee;
       const examFee = updates.examFee ?? current.examFee;
-      const transportFee = updates.transportFee ?? current.transportFee;
       const otherFee = updates.otherFee ?? current.otherFee;
 
-      updates.totalFee = admissionFee + monthlyFee * 12 + computerFee + examFee + transportFee + otherFee;
+      updates.transportFee = 0;
+      updates.totalFee = admissionFee + monthlyFee * 12 + computerFee + examFee + otherFee;
     }
 
     const structure = await FeeStructure.findByIdAndUpdate(req.params.id, updates, { new: true })

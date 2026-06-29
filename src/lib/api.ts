@@ -43,10 +43,18 @@ export const authApi = {
 
 export const usersApi = {
   getAll: () => apiClient("/users"),
+  getPasswordTargets: () => apiClient("/users/password-targets"),
   create: (data: object) => apiClient("/users", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: object) => apiClient(`/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   delete: (id: string) => apiClient(`/users/${id}`, { method: "DELETE" }),
   toggleStatus: (id: string) => apiClient(`/users/${id}/toggle-status`, { method: "PATCH" }),
+  changePassword: (id: string, password: string) =>
+    apiClient(`/users/${id}/password`, { method: "PATCH", body: JSON.stringify({ password }) }),
+};
+
+export const settingsApi = {
+  get: () => apiClient("/settings"),
+  update: (data: object) => apiClient("/settings", { method: "PUT", body: JSON.stringify(data) }),
 };
 
 export const classesApi = {
@@ -89,6 +97,7 @@ export const studentsApi = {
   },
   getById: (id: string) => apiClient(`/students/${id}`),
   create: (formData: FormData) => apiClient("/students", { method: "POST", body: formData }),
+  importExcel: (formData: FormData) => apiClient("/students/import", { method: "POST", body: formData }),
   update: (id: string, formData: FormData) => apiClient(`/students/${id}`, { method: "PUT", body: formData }),
   delete: (id: string) => apiClient(`/students/${id}`, { method: "DELETE" }),
 };

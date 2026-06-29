@@ -34,12 +34,12 @@ const feeStructureSchema = new Schema<IFeeStructure>(
 feeStructureSchema.index({ classId: 1, sessionId: 1 }, { unique: true });
 
 feeStructureSchema.pre("save", function (next) {
+  this.transportFee = 0;
   this.totalFee =
     this.admissionFee +
     this.monthlyFee * 12 +
     this.computerFee +
     this.examFee +
-    this.transportFee +
     this.otherFee;
   next();
 });

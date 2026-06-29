@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2, Upload } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { SearchInput } from "@/components/shared/search-input";
@@ -110,10 +110,18 @@ export default function StudentsPage() {
         description="Manage all registered students"
         breadcrumbs={[{ label: "Students" }]}
         action={
-          <Button onClick={() => router.push("/students/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Register Student
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {isSuperAdmin && (
+              <Button variant="outline" onClick={() => router.push("/students/import")}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Excel
+              </Button>
+            )}
+            <Button onClick={() => router.push("/students/new")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Register Student
+            </Button>
+          </div>
         }
       />
 

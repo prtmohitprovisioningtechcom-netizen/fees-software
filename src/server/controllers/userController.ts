@@ -11,6 +11,17 @@ export const getUsers = async (_req: AuthRequest, res: Response) => {
   }
 };
 
+export const getPasswordTargets = async (_req: AuthRequest, res: Response) => {
+  try {
+    const users = await User.find({ role: { $in: ["super_admin", "admin"] } })
+      .select("-password")
+      .sort({ role: -1, name: 1 });
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch users", error: String(error) });
+  }
+};
+
 export const createUser = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await User.findOne({ email: req.body.email });
@@ -54,5 +65,24 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, message: `User ${user.isActive ? "activated" : "deactivated"}`, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to toggle status", error: String(error) });
+  }
+};
+
+export const changeUserPassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const { password } = req.body;
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    user.password = String(password);
+    await user.save();
+
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to change password", error: String(error) });
   }
 };

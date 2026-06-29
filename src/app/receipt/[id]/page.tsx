@@ -53,7 +53,6 @@ export default function ReceiptPage() {
         ["Monthly Fee", formatCurrency(breakdown.monthlyFee)],
         ["Computer Fee", formatCurrency(breakdown.computerFee)],
         ["Exam Fee", formatCurrency(breakdown.examFee)],
-        ["Transport Fee", formatCurrency(breakdown.transportFee)],
         ["Other Fee", formatCurrency(breakdown.otherFee)],
       ],
     });
@@ -122,7 +121,6 @@ export default function ReceiptPage() {
               ["Monthly Fee (Annual)", breakdown.monthlyFee],
               ["Computer Fee", breakdown.computerFee],
               ["Exam Fee", breakdown.examFee],
-              ["Transport Fee", breakdown.transportFee],
               ["Other Fee", breakdown.otherFee],
             ].map(([label, amount]) => (
               <tr key={label as string} className="border-b border-dashed">

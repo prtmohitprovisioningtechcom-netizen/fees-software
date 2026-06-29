@@ -32,12 +32,24 @@ export default function CollectFeePage() {
   const [remarks, setRemarks] = useState("");
 
   useEffect(() => {
-    feePaymentsApi.getStudentSummary(studentId).then((res) => {
-      const data = (res as { data: Record<string, unknown> }).data;
-      setStudent(data.student as Record<string, unknown>);
-      setCalculation(data.calculation as FeeCalculation);
-      setPayments(data.payments as Record<string, unknown>[]);
-    }).finally(() => setLoading(false));
+    if (!studentId) return;
+    setLoading(true);
+    feePaymentsApi
+      .getStudentSummary(studentId)
+      .then((res) => {
+        const data = (res as { data: Record<string, unknown> }).data;
+        setStudent((data.student as Record<string, unknown>) ?? null);
+        setCalculation((data.calculation as FeeCalculation | null) ?? null);
+        setPayments((data.payments as Record<string, unknown>[]) ?? []);
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to load student details",
+          variant: "destructive",
+        });
+      })
+      .finally(() => setLoading(false));
   }, [studentId]);
 
   const handleCollect = async () => {
@@ -65,6 +77,23 @@ export default function CollectFeePage() {
 
   if (loading) {
     return <DashboardLayout><div className="text-center py-12">Loading...</div></DashboardLayout>;
+  }
+
+  if (!student) {
+    return (
+      <DashboardLayout>
+        <PageHeader
+          title="Collect Fee"
+          description="Student not found"
+          breadcrumbs={[{ label: "Fee Collection", href: "/fee-collection" }, { label: "Collect" }]}
+        />
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            Student details not available. Please go back and select a student again.
+          </CardContent>
+        </Card>
+      </DashboardLayout>
+    );
   }
 
   const cls = student?.classId as { name: string };
@@ -100,7 +129,6 @@ export default function CollectFeePage() {
                     <TableRow><TableCell>Monthly Fee (×12)</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.monthlyFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Computer Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.computerFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Exam Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.examFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Transport Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.transportFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Other Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.otherFee)}</TableCell></TableRow>
                     <TableRow className="font-bold"><TableCell>Total Fee</TableCell><TableCell className="text-right text-primary">{formatCurrency(calculation.totalFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Paid Amount</TableCell><TableCell className="text-right text-emerald-600">{formatCurrency(calculation.paidAmount)}</TableCell></TableRow>
@@ -116,6 +144,19 @@ export default function CollectFeePage() {
           <Card>
             <CardHeader><CardTitle>Payment Details</CardTitle></CardHeader>
             <CardContent className="space-y-4">
+              {!calculation && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                  Is class/session ke liye Fee Structure set nahi hai. Fee collect karne se pehle{" "}
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => router.push("/fee-structure")}
+                  >
+                    Fee Structure
+                  </button>{" "}
+                  banayein.
+                </div>
+              )}
               <FormField label="Payment Amount" required>
                 <Input
                   type="number"

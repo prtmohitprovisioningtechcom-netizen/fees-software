@@ -9,6 +9,7 @@ import feeStructureRoutes from "./routes/feeStructureRoutes";
 import studentRoutes from "./routes/studentRoutes";
 import feePaymentRoutes from "./routes/feePaymentRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
+import settingRoutes from "./routes/settingRoutes";
 
 const createApp = () => {
   const app = express();
@@ -26,6 +27,7 @@ const createApp = () => {
   app.use("/api/students", studentRoutes);
   app.use("/api/fee-payments", feePaymentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/settings", settingRoutes);
 
   app.get("/api/health", (_req, res) => {
     res.json({ success: true, message: "API is running" });

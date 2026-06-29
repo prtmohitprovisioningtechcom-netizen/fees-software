@@ -30,6 +30,21 @@ export interface IStudent extends Document {
   status: "active" | "inactive" | "left";
   previousSchool?: string;
   transportRequired: boolean;
+  initializedAtSdms?: string;
+  studentPen?: string;
+  studentStateCode?: string;
+  minorityGroup?: string;
+  bplBeneficiary?: boolean;
+  cwsn?: boolean;
+  typeOfImpairments?: string;
+  isRepeater?: boolean;
+  suspectedDuplicate?: boolean;
+  entryStatus?: string;
+  nameAsPerAadhaar?: string;
+  aadhaarValidationStatus?: string;
+  mbuStatus?: string;
+  apaarId?: string;
+  apaarStatus?: string;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -66,6 +81,21 @@ const studentSchema = new Schema<IStudent>(
     status: { type: String, enum: ["active", "inactive", "left"], default: "active" },
     previousSchool: { type: String, trim: true },
     transportRequired: { type: Boolean, default: false },
+    initializedAtSdms: { type: String, trim: true },
+    studentPen: { type: String, trim: true },
+    studentStateCode: { type: String, trim: true },
+    minorityGroup: { type: String, trim: true },
+    bplBeneficiary: { type: Boolean, default: false },
+    cwsn: { type: Boolean, default: false },
+    typeOfImpairments: { type: String, trim: true },
+    isRepeater: { type: Boolean, default: false },
+    suspectedDuplicate: { type: Boolean, default: false },
+    entryStatus: { type: String, trim: true },
+    nameAsPerAadhaar: { type: String, trim: true },
+    aadhaarValidationStatus: { type: String, trim: true },
+    mbuStatus: { type: String, trim: true },
+    apaarId: { type: String, trim: true },
+    apaarStatus: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

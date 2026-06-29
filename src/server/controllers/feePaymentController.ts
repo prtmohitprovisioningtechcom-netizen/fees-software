@@ -13,18 +13,21 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
 
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
 
-    const calculation = await calculateFee(
-      student._id.toString(),
-      student.sessionId._id.toString(),
-      student.classId._id.toString(),
-      0,
-      student.transportRequired
-    );
-
     const feeStructure = await FeeStructure.findOne({
       classId: student.classId._id,
       sessionId: student.sessionId._id,
     });
+
+    let calculation: Awaited<ReturnType<typeof calculateFee>> | null = null;
+    if (feeStructure) {
+      calculation = await calculateFee(
+        student._id.toString(),
+        student.sessionId._id.toString(),
+        student.classId._id.toString(),
+        0,
+        student.transportRequired
+      );
+    }
 
     const payments = await FeePayment.find({ studentId: student._id })
       .populate("collectedBy", "name")
@@ -36,7 +39,7 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch fee summary";
-    res.status(400).json({ success: false, message });
+    res.status(500).json({ success: false, message });
   }
 };
 

@@ -36,7 +36,7 @@ export const feeStructureSchema = z.object({
   monthlyFee: z.coerce.number().min(0),
   computerFee: z.coerce.number().min(0),
   examFee: z.coerce.number().min(0),
-  transportFee: z.coerce.number().min(0),
+  transportFee: z.coerce.number().min(0).optional(),
   otherFee: z.coerce.number().min(0),
 });
 

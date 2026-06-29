@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -13,88 +13,97 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { classesApi, sectionsApi, sessionsApi, studentsApi } from "@/lib/api";
+import { classesApi, sectionsApi, studentsApi } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 
-const studentFormSchema = z.object({
-  admissionNumber: z.string().min(1, "Required"),
-  rollNumber: z.string().min(1, "Required"),
-  studentName: z.string().min(2, "Required"),
-  fatherName: z.string().min(2, "Required"),
-  motherName: z.string().min(2, "Required"),
-  mobileNumber: z.string().regex(/^[6-9]\d{9}$/, "Valid 10-digit mobile required"),
-  alternateMobile: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  gender: z.enum(["male", "female", "other"]),
-  dateOfBirth: z.string().min(1, "Required"),
-  bloodGroup: z.string().optional(),
-  category: z.string().optional(),
-  religion: z.string().optional(),
-  aadharNumber: z.string().optional(),
-  classId: z.string().min(1, "Required"),
-  sectionId: z.string().min(1, "Required"),
-  sessionId: z.string().min(1, "Required"),
-  admissionDate: z.string().min(1, "Required"),
-  addressLine1: z.string().min(1, "Required"),
-  city: z.string().min(1, "Required"),
-  state: z.string().min(1, "Required"),
-  pincode: z.string().regex(/^\d{6}$/, "Valid 6-digit pincode required"),
-  status: z.enum(["active", "inactive", "left"]).optional(),
-  previousSchool: z.string().optional(),
-  transportRequired: z.boolean().optional(),
-});
+const sdmsStudentSchema = z
+  .object({
+    className: z.string().min(1, "Required"),
+    sectionName: z.string().min(1, "Required"),
+    studentName: z.string().min(2, "Required"),
+    gender: z.enum(["male", "female", "other"]),
+    initializedAtSdms: z.string().optional(),
+    studentPen: z.string().optional(),
+    studentStateCode: z.string().optional(),
+    fatherName: z.string().optional(),
+    motherName: z.string().optional(),
+    socialCategory: z.string().optional(),
+    minorityGroup: z.string().optional(),
+    bplBeneficiary: z.string().optional(),
+    cwsn: z.string().optional(),
+    typeOfImpairments: z.string().optional(),
+    isRepeater: z.string().optional(),
+    suspectedDuplicate: z.string().optional(),
+    entryStatus: z.string().optional(),
+    aadharNumber: z.string().optional(),
+    nameAsPerAadhaar: z.string().optional(),
+    aadhaarValidationStatus: z.string().optional(),
+    mbuStatus: z.string().optional(),
+    apaarId: z.string().optional(),
+    apaarStatus: z.string().optional(),
+  })
+  .refine((data) => data.studentPen || data.studentStateCode || data.aadharNumber, {
+    message: "Student PEN, Student State Code or AADHAAR No. required",
+    path: ["studentPen"],
+  });
 
-type StudentForm = z.infer<typeof studentFormSchema>;
+type SdmsStudentForm = z.infer<typeof sdmsStudentSchema>;
+
+const yesNoOptions = ["Yes", "No"];
 
 export default function NewStudentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [photo, setPhoto] = useState<File | null>(null);
   const [classes, setClasses] = useState<{ _id: string; name: string }[]>([]);
   const [sections, setSections] = useState<{ _id: string; name: string }[]>([]);
-  const [sessions, setSessions] = useState<{ _id: string; name: string }[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedSectionName, setSelectedSectionName] = useState("");
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<StudentForm>({
-    resolver: zodResolver(studentFormSchema),
-    defaultValues: { gender: "male", status: "active", transportRequired: false },
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SdmsStudentForm>({
+    resolver: zodResolver(sdmsStudentSchema),
+    defaultValues: {
+      gender: "other",
+      initializedAtSdms: "Yes",
+      bplBeneficiary: "No",
+      cwsn: "No",
+      isRepeater: "No",
+      suspectedDuplicate: "No",
+      entryStatus: "Active",
+    },
   });
 
-  const classId = watch("classId");
-
   useEffect(() => {
-    Promise.all([classesApi.getAll(), sessionsApi.getAll()]).then(([cRes, sRes]) => {
-      setClasses((cRes as { data: typeof classes }).data);
-      setSessions((sRes as { data: typeof sessions }).data);
-    });
+    classesApi.getAll().then((res) => setClasses((res as { data: typeof classes }).data));
   }, []);
 
   useEffect(() => {
-    if (classId) {
-      sectionsApi.getAll(classId).then((res) => setSections((res as { data: typeof sections }).data));
+    if (!selectedClassId) {
+      setSections([]);
+      setSelectedSectionName("");
+      setValue("sectionName", "");
+      return;
     }
-  }, [classId]);
 
-  const onSubmit = async (data: StudentForm) => {
+    sectionsApi.getAll(selectedClassId).then((res) => setSections((res as { data: typeof sections }).data));
+  }, [selectedClassId, setValue]);
+
+  const onSubmit = async (data: SdmsStudentForm) => {
     setLoading(true);
     try {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
-        if (key.startsWith("address")) return;
         if (value !== undefined && value !== "") formData.append(key, String(value));
       });
-      formData.append("address", JSON.stringify({
-        line1: data.addressLine1,
-        city: data.city,
-        state: data.state,
-        pincode: data.pincode,
-      }));
-      if (photo) formData.append("photo", photo);
 
       await studentsApi.create(formData);
       toast({ title: "Success", description: "Student registered successfully" });
       router.push("/students");
     } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to register student",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -104,40 +113,55 @@ export default function NewStudentPage() {
     <DashboardLayout>
       <PageHeader
         title="Student Registration"
-        description="Register a new student"
+        description="Register student using SDMS fields. Same fields are supported in Excel upload."
         breadcrumbs={[{ label: "Students", href: "/students" }, { label: "Register" }]}
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
-          <CardHeader><CardTitle>Basic Information</CardTitle></CardHeader>
+          <CardHeader><CardTitle>SDMS Student Details</CardTitle></CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <FormField label="Admission Number" required error={errors.admissionNumber?.message}>
-              <Input {...register("admissionNumber")} />
+            <FormField label="Class" required error={errors.className?.message}>
+              <input type="hidden" {...register("className")} />
+              <Select
+                value={selectedClassId}
+                onValueChange={(classId) => {
+                  const selectedClass = classes.find((item) => item._id === classId);
+                  setSelectedClassId(classId);
+                  setValue("className", selectedClass?.name || "", { shouldValidate: true });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                <SelectContent>
+                  {classes.map((item) => (
+                    <SelectItem key={item._id} value={item._id}>{item.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
-            <FormField label="Roll Number" required error={errors.rollNumber?.message}>
-              <Input {...register("rollNumber")} />
+            <FormField label="Section" required error={errors.sectionName?.message}>
+              <input type="hidden" {...register("sectionName")} />
+              <Select
+                value={selectedSectionName}
+                onValueChange={(sectionName) => {
+                  setSelectedSectionName(sectionName);
+                  setValue("sectionName", sectionName, { shouldValidate: true });
+                }}
+                disabled={!selectedClassId}
+              >
+                <SelectTrigger><SelectValue placeholder="Select Section" /></SelectTrigger>
+                <SelectContent>
+                  {sections.map((item) => (
+                    <SelectItem key={item._id} value={item.name}>{item.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
-            <FormField label="Student Name" required error={errors.studentName?.message}>
+            <FormField label="Name" required error={errors.studentName?.message}>
               <Input {...register("studentName")} />
             </FormField>
-            <FormField label="Father Name" required error={errors.fatherName?.message}>
-              <Input {...register("fatherName")} />
-            </FormField>
-            <FormField label="Mother Name" required error={errors.motherName?.message}>
-              <Input {...register("motherName")} />
-            </FormField>
-            <FormField label="Mobile Number" required error={errors.mobileNumber?.message}>
-              <Input {...register("mobileNumber")} maxLength={10} />
-            </FormField>
-            <FormField label="Alternate Mobile" error={errors.alternateMobile?.message}>
-              <Input {...register("alternateMobile")} maxLength={10} />
-            </FormField>
-            <FormField label="Email" error={errors.email?.message}>
-              <Input type="email" {...register("email")} />
-            </FormField>
             <FormField label="Gender" required error={errors.gender?.message}>
-              <Select onValueChange={(v) => setValue("gender", v as StudentForm["gender"])} defaultValue="male">
+              <Select onValueChange={(value) => setValue("gender", value as SdmsStudentForm["gender"])} defaultValue="other">
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="male">Male</SelectItem>
@@ -146,106 +170,87 @@ export default function NewStudentPage() {
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField label="Date of Birth" required error={errors.dateOfBirth?.message}>
-              <Input type="date" {...register("dateOfBirth")} />
-            </FormField>
-            <FormField label="Blood Group">
-              <Input {...register("bloodGroup")} placeholder="e.g. B+" />
-            </FormField>
-            <FormField label="Category">
-              <Select onValueChange={(v) => setValue("category", v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+            <FormField label="Initialised at SDMS">
+              <Select onValueChange={(value) => setValue("initializedAtSdms", value)} defaultValue="Yes">
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["General", "OBC", "SC", "ST", "EWS"].map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
+                  {yesNoOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField label="Religion">
-              <Input {...register("religion")} />
+            <FormField label="Student PEN" required error={errors.studentPen?.message}>
+              <Input {...register("studentPen")} />
             </FormField>
-            <FormField label="Aadhar Number" error={errors.aadharNumber?.message}>
+            <FormField label="Student State Code">
+              <Input {...register("studentStateCode")} />
+            </FormField>
+            <FormField label="Father Name">
+              <Input {...register("fatherName")} />
+            </FormField>
+            <FormField label="Mother Name">
+              <Input {...register("motherName")} />
+            </FormField>
+            <FormField label="Social Category">
+              <Input {...register("socialCategory")} placeholder="General / OBC / SC / ST" />
+            </FormField>
+            <FormField label="Minority Group">
+              <Input {...register("minorityGroup")} />
+            </FormField>
+            <FormField label="BPL beneficiary">
+              <Select onValueChange={(value) => setValue("bplBeneficiary", value)} defaultValue="No">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {yesNoOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="CWSN">
+              <Select onValueChange={(value) => setValue("cwsn", value)} defaultValue="No">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {yesNoOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Type of Impairments">
+              <Input {...register("typeOfImpairments")} />
+            </FormField>
+            <FormField label="Is Repeater">
+              <Select onValueChange={(value) => setValue("isRepeater", value)} defaultValue="No">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {yesNoOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Suspected Duplicate">
+              <Select onValueChange={(value) => setValue("suspectedDuplicate", value)} defaultValue="No">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {yesNoOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Entry Status">
+              <Input {...register("entryStatus")} placeholder="Active" />
+            </FormField>
+            <FormField label="AADHAAR No.">
               <Input {...register("aadharNumber")} maxLength={12} />
             </FormField>
-            <FormField label="Student Photo">
-              <div className="flex items-center gap-2">
-                <Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
-                <Upload className="h-4 w-4 text-muted-foreground" />
-              </div>
+            <FormField label="Name As per AADHAAR">
+              <Input {...register("nameAsPerAadhaar")} />
             </FormField>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Academic Details</CardTitle></CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <FormField label="Class" required error={errors.classId?.message}>
-              <Select onValueChange={(v) => { setValue("classId", v); setValue("sectionId", ""); }}>
-                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
-                <SelectContent>
-                  {classes.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <FormField label="AADHAAR Validation Status">
+              <Input {...register("aadhaarValidationStatus")} />
             </FormField>
-            <FormField label="Section" required error={errors.sectionId?.message}>
-              <Select onValueChange={(v) => setValue("sectionId", v)} disabled={!classId}>
-                <SelectTrigger><SelectValue placeholder="Select Section" /></SelectTrigger>
-                <SelectContent>
-                  {sections.map((s) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <FormField label="MBU Status">
+              <Input {...register("mbuStatus")} />
             </FormField>
-            <FormField label="Session" required error={errors.sessionId?.message}>
-              <Select onValueChange={(v) => setValue("sessionId", v)}>
-                <SelectTrigger><SelectValue placeholder="Select Session" /></SelectTrigger>
-                <SelectContent>
-                  {sessions.map((s) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <FormField label="APAAR ID">
+              <Input {...register("apaarId")} />
             </FormField>
-            <FormField label="Admission Date" required error={errors.admissionDate?.message}>
-              <Input type="date" {...register("admissionDate")} />
-            </FormField>
-            <FormField label="Previous School">
-              <Input {...register("previousSchool")} />
-            </FormField>
-            <FormField label="Status">
-              <Select onValueChange={(v) => setValue("status", v as StudentForm["status"])} defaultValue="active">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="left">Left</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Transport Required">
-              <Select onValueChange={(v) => setValue("transportRequired", v === "true")} defaultValue="false">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Yes</SelectItem>
-                  <SelectItem value="false">No</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Address</CardTitle></CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <FormField label="Address" required error={errors.addressLine1?.message} className="md:col-span-2">
-              <Input {...register("addressLine1")} />
-            </FormField>
-            <FormField label="City" required error={errors.city?.message}>
-              <Input {...register("city")} />
-            </FormField>
-            <FormField label="State" required error={errors.state?.message}>
-              <Input {...register("state")} />
-            </FormField>
-            <FormField label="Pincode" required error={errors.pincode?.message}>
-              <Input {...register("pincode")} maxLength={6} />
+            <FormField label="APAAR Status">
+              <Input {...register("apaarStatus")} />
             </FormField>
           </CardContent>
         </Card>

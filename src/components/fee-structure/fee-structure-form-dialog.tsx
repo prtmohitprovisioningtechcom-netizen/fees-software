@@ -6,7 +6,6 @@ import {
   Calendar,
   Monitor,
   FileText,
-  Bus,
   CircleDollarSign,
   Loader2,
   BookOpen,
@@ -27,7 +26,6 @@ export interface FeeStructureFormData {
   monthlyFee: number;
   computerFee: number;
   examFee: number;
-  transportFee: number;
   otherFee: number;
 }
 
@@ -46,7 +44,7 @@ interface FeeStructureFormDialogProps {
 const FEE_FIELDS: {
   key: keyof Pick<
     FeeStructureFormData,
-    "admissionFee" | "monthlyFee" | "computerFee" | "examFee" | "transportFee" | "otherFee"
+    "admissionFee" | "monthlyFee" | "computerFee" | "examFee" | "otherFee"
   >;
   label: string;
   hint: string;
@@ -82,13 +80,6 @@ const FEE_FIELDS: {
     hint: "Annual charge",
     icon: FileText,
     color: "bg-amber-500/10 text-amber-600",
-  },
-  {
-    key: "transportFee",
-    label: "Transport Fee",
-    hint: "Annual (if opted)",
-    icon: Bus,
-    color: "bg-emerald-500/10 text-emerald-600",
   },
   {
     key: "otherFee",
@@ -137,7 +128,7 @@ export function FeeStructureFormDialog({
 }: FeeStructureFormDialogProps) {
   const monthlyAnnual = form.monthlyFee * 12;
   const oneTimeTotal =
-    form.admissionFee + form.computerFee + form.examFee + form.transportFee + form.otherFee;
+    form.admissionFee + form.computerFee + form.examFee + form.otherFee;
   const totalFee = oneTimeTotal + monthlyAnnual;
 
   const selectedClass = classes.find((c) => c._id === form.classId)?.name;
@@ -309,7 +300,6 @@ const emptyForm: FeeStructureFormData = {
   monthlyFee: 0,
   computerFee: 0,
   examFee: 0,
-  transportFee: 0,
   otherFee: 0,
 };
 

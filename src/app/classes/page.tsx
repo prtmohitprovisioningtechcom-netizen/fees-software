@@ -20,50 +20,81 @@ export default function ClassesPage() {
   const { isSuperAdmin } = useAuth();
   const [classes, setClasses] = useState<{ _id: string; name: string; description?: string }[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [name, setName] = useState("");
 
-  useEffect(() => { if (!isSuperAdmin) router.push("/dashboard"); }, [isSuperAdmin, router]);
+  useEffect(() => {
+    if (!isSuperAdmin) router.push("/dashboard");
+  }, [isSuperAdmin, router]);
 
-  const fetch = () => classesApi.getAll().then((res) => setClasses((res as { data: typeof classes }).data));
-  useEffect(() => { fetch(); }, []);
+  const fetchClasses = () => classesApi.getAll().then((res) => setClasses((res as { data: typeof classes }).data));
+  useEffect(() => {
+    fetchClasses();
+  }, []);
 
   const handleCreate = async () => {
+    if (!name.trim()) {
+      toast({ title: "Required", description: "Class name is required", variant: "destructive" });
+      return;
+    }
     try {
-      await classesApi.create(form);
-      toast({ title: "Created" });
+      await classesApi.create({ name: name.trim() });
+      toast({ title: "Created", description: "Class added successfully" });
       setOpen(false);
-      setForm({ name: "", description: "" });
-      fetch();
+      setName("");
+      fetchClasses();
     } catch (error) {
-      toast({ title: "Error", description: String(error), variant: "destructive" });
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
     await classesApi.delete(id);
     toast({ title: "Deleted" });
-    fetch();
+    fetchClasses();
   };
 
   return (
     <DashboardLayout>
-      <PageHeader title="Classes" breadcrumbs={[{ label: "Classes" }]}
-        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> Add Class</Button>} />
+      <PageHeader
+        title="Classes"
+        description="Add classes manually or they are created automatically from student Excel import."
+        breadcrumbs={[{ label: "Classes" }]}
+        action={
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Class
+          </Button>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
-              {classes.map((c) => (
-                <TableRow key={c._id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>{c.description || "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(c._id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              {classes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
+                    No classes yet. Add a class or upload students from Excel.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                classes.map((c) => (
+                  <TableRow key={c._id}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c._id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -71,11 +102,14 @@ export default function ClassesPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Class</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add Class</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-            <FormField label="Class Name" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Class 1" /></FormField>
-            <FormField label="Description"><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></FormField>
-            <Button onClick={handleCreate} className="w-full">Create</Button>
+            <FormField label="Class Name" required>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Class 1" />
+            </FormField>
+            <Button onClick={handleCreate} className="w-full">Create Class</Button>
           </div>
         </DialogContent>
       </Dialog>

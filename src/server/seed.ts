@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import connectDB from "./config/database";
-import { User, Class, Section, AcademicSession } from "./models";
+import { User, AcademicSession } from "./models";
 
 async function seed() {
   await connectDB();
@@ -31,24 +31,6 @@ async function seed() {
     console.log("Admin created: admin@school.com / admin123");
   }
 
-  const classNames = ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3", "Class 4", "Class 5"];
-  for (const name of classNames) {
-    await Class.findOneAndUpdate({ name }, { name, isActive: true }, { upsert: true });
-  }
-  console.log("Classes seeded");
-
-  const classes = await Class.find();
-  for (const cls of classes) {
-    for (const sec of ["A", "B"]) {
-      await Section.findOneAndUpdate(
-        { classId: cls._id, name: sec },
-        { classId: cls._id, name: sec, isActive: true },
-        { upsert: true }
-      );
-    }
-  }
-  console.log("Sections seeded");
-
   const session = await AcademicSession.findOne({ name: "2025-26" });
   if (!session) {
     await AcademicSession.create({
@@ -61,7 +43,7 @@ async function seed() {
     console.log("Academic session 2025-26 created");
   }
 
-  console.log("Seed completed!");
+  console.log("Seed completed! Classes and sections will be created from student Excel import.");
   process.exit(0);
 }
 
