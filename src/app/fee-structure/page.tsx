@@ -47,7 +47,7 @@ export default function FeeStructurePage() {
   const { isSuperAdmin } = useAuth();
   const [structures, setStructures] = useState<FeeStructure[]>([]);
   const [classes, setClasses] = useState<{ _id: string; name: string }[]>([]);
-  const [sessions, setSessions] = useState<{ _id: string; name: string }[]>([]);
+  const [sessions, setSessions] = useState<{ _id: string; name: string; startDate?: string }[]>([]);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -75,18 +75,40 @@ export default function FeeStructurePage() {
   };
 
   const handleSave = async () => {
-    if (!form.classId || !form.sessionId) {
-      toast({ title: "Required", description: "Please select class and session", variant: "destructive" });
+    if (!form.classIds.length || !form.sessionId) {
+      toast({ title: "Required", description: "Please select at least one class and session", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
       if (editId) {
-        await feeStructuresApi.update(editId, form);
+        const { classIds, ...payload } = form;
+        await feeStructuresApi.update(editId, { ...payload, classId: classIds[0] });
         toast({ title: "Updated", description: "Fee structure updated successfully" });
       } else {
-        await feeStructuresApi.create(form);
-        toast({ title: "Created", description: "Fee structure created successfully" });
+        const { classIds, ...feePayload } = form;
+        const results = await Promise.allSettled(
+          classIds.map((classId) => feeStructuresApi.create({ ...feePayload, classId }))
+        );
+        const succeeded = results.filter((r) => r.status === "fulfilled").length;
+        const failed = results.length - succeeded;
+        if (failed === 0) {
+          toast({
+            title: "Created",
+            description:
+              succeeded === 1
+                ? "Fee structure created successfully"
+                : `Fee structures created for ${succeeded} classes`,
+          });
+        } else if (succeeded > 0) {
+          toast({
+            title: "Partially created",
+            description: `${succeeded} created, ${failed} failed (may already exist)`,
+            variant: "destructive",
+          });
+        } else {
+          throw new Error("Failed to create fee structures");
+        }
       }
       setOpen(false);
       setEditId(null);
@@ -101,7 +123,7 @@ export default function FeeStructurePage() {
   const handleEdit = (s: FeeStructure) => {
     setEditId(s._id);
     setForm({
-      classId: s.classId._id,
+      classIds: [s.classId._id],
       sessionId: s.sessionId._id,
       admissionFee: s.admissionFee,
       monthlyFee: s.monthlyFee,
@@ -223,6 +245,7 @@ export default function FeeStructurePage() {
         setForm={setForm}
         classes={classes}
         sessions={sessions}
+        existingStructures={structures}
         onSave={handleSave}
         saving={saving}
       />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   IndianRupee,
   GraduationCap,
@@ -10,17 +11,27 @@ import {
   Loader2,
   BookOpen,
   CalendarDays,
+  Info,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormField } from "@/components/shared/form-field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatCurrency } from "@/lib/utils";
+import {
+  findPrefillSource,
+  getClassesWithExistingStructure,
+  type FeeStructureRecord,
+  type SessionRecord,
+} from "@/lib/fee-structure-prefill";
 import { LucideIcon } from "lucide-react";
 
 export interface FeeStructureFormData {
-  classId: string;
+  classIds: string[];
   sessionId: string;
   admissionFee: number;
   monthlyFee: number;
@@ -38,7 +49,8 @@ interface FeeStructureFormDialogProps {
   form: FeeStructureFormData;
   setForm: React.Dispatch<React.SetStateAction<FeeStructureFormData>>;
   classes: { _id: string; name: string }[];
-  sessions: { _id: string; name: string }[];
+  sessions: SessionRecord[];
+  existingStructures: FeeStructureRecord[];
   onSave: () => void;
   saving?: boolean;
 }
@@ -141,24 +153,94 @@ export function FeeStructureFormDialog({
   setForm,
   classes,
   sessions,
+  existingStructures,
   onSave,
   saving = false,
 }: FeeStructureFormDialogProps) {
+  const [prefillSource, setPrefillSource] = useState<string | null>(null);
+  const lastPrefillSessionRef = useRef<string | null>(null);
+
   const monthlyAnnual = form.monthlyFee * 12;
   const oneTimeTotal =
     form.admissionFee + form.annualFee + form.computerFee + form.examFee + form.otherFee;
   const grossTotal = oneTimeTotal + monthlyAnnual;
   const totalFee = Math.max(0, grossTotal - (form.discount || 0));
 
-  const selectedClass = classes.find((c) => c._id === form.classId)?.name;
   const selectedSession = sessions.find((s) => s._id === form.sessionId)?.name;
+  const existingForSession = form.sessionId
+    ? getClassesWithExistingStructure(existingStructures, form.sessionId)
+    : new Set<string>();
 
-  const isValid = form.classId && form.sessionId;
+  const selectableClasses = editId
+    ? classes.filter((c) => form.classIds.includes(c._id))
+    : classes.filter((c) => !existingForSession.has(c._id));
+
+  const toggleClass = (classId: string) => {
+    if (editId) return;
+    setForm((prev) => ({
+      ...prev,
+      classIds: prev.classIds.includes(classId)
+        ? prev.classIds.filter((id) => id !== classId)
+        : [...prev.classIds, classId],
+    }));
+  };
+
+  const selectAllClasses = () => {
+    setForm((prev) => ({ ...prev, classIds: selectableClasses.map((c) => c._id) }));
+  };
+
+  const clearClasses = () => {
+    setForm((prev) => ({ ...prev, classIds: [] }));
+  };
+
+  useEffect(() => {
+    if (!open) {
+      lastPrefillSessionRef.current = null;
+      setPrefillSource(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (editId || !open || !form.sessionId) return;
+    if (lastPrefillSessionRef.current === form.sessionId) return;
+
+    const result = findPrefillSource(existingStructures, sessions, form.sessionId, form.classIds);
+    if (result) {
+      setForm((prev) => ({ ...prev, ...result.fees }));
+      setPrefillSource(result.source);
+    }
+    lastPrefillSessionRef.current = form.sessionId;
+  }, [form.sessionId, editId, open, existingStructures, sessions, setForm]);
+
+  useEffect(() => {
+    if (editId || !open || !form.sessionId || form.classIds.length !== 1) return;
+
+    const result = findPrefillSource(existingStructures, sessions, form.sessionId, form.classIds);
+    if (result) {
+      setForm((prev) => ({ ...prev, ...result.fees }));
+      setPrefillSource(result.source);
+    }
+  }, [form.classIds, editId, open, form.sessionId, existingStructures, sessions, setForm]);
+
+  const handleSessionChange = (sessionId: string) => {
+    lastPrefillSessionRef.current = null;
+    setPrefillSource(null);
+    setForm((prev) => ({
+      ...prev,
+      sessionId,
+      classIds: prev.classIds.filter((id) => !getClassesWithExistingStructure(existingStructures, sessionId).has(id)),
+    }));
+  };
+
+  const selectedClassNames = classes
+    .filter((c) => form.classIds.includes(c._id))
+    .map((c) => c.name);
+
+  const isValid = form.classIds.length > 0 && form.sessionId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-        {/* Header */}
         <div className="border-b bg-gradient-to-r from-primary/5 via-primary/10 to-transparent px-6 py-5">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
@@ -168,41 +250,24 @@ export function FeeStructureFormDialog({
               {editId ? "Edit Fee Structure" : "Create Fee Structure"}
             </DialogTitle>
             <p className="text-sm text-muted-foreground pt-1">
-              Set annual fee components for a class. Total is calculated automatically.
+              {editId
+                ? "Update fee components for this class and session."
+                : "Select one or more classes. Fees auto-fill from the previous session — change only what you need."}
             </p>
           </DialogHeader>
         </div>
 
         <div className="px-6 py-5 space-y-6">
-          {/* Class & Session */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
               Academic Details
             </h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Class" required>
-                <Select
-                  value={form.classId}
-                  onValueChange={(v) => setForm({ ...form, classId: v })}
-                  disabled={!!editId}
-                >
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.map((c) => (
-                      <SelectItem key={c._id} value={c._id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Academic Session" required>
+              <FormField label="Academic Session" required className="sm:col-span-2 sm:order-1">
                 <Select
                   value={form.sessionId}
-                  onValueChange={(v) => setForm({ ...form, sessionId: v })}
+                  onValueChange={handleSessionChange}
                   disabled={!!editId}
                 >
                   <SelectTrigger className="h-11">
@@ -217,18 +282,128 @@ export function FeeStructureFormDialog({
                   </SelectContent>
                 </Select>
               </FormField>
+
+              <div className="sm:col-span-2 sm:order-2">
+                <FormField label={editId ? "Class" : "Classes"} required>
+                  {editId ? (
+                    <Select value={form.classIds[0] || ""} disabled>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((c) => (
+                          <SelectItem key={c._id} value={c._id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {form.classIds.length} of {selectableClasses.length} class
+                          {selectableClasses.length !== 1 ? "es" : ""} selected
+                        </p>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={selectAllClasses}
+                            disabled={!form.sessionId || selectableClasses.length === 0}
+                          >
+                            Select All
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={clearClasses}
+                            disabled={form.classIds.length === 0}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      </div>
+                      {!form.sessionId ? (
+                        <p className="text-sm text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center">
+                          Select a session first to choose classes
+                        </p>
+                      ) : (
+                        <div className="max-h-44 overflow-y-auto rounded-lg border divide-y">
+                          {classes.map((c) => {
+                            const alreadySet = existingForSession.has(c._id);
+                            const selected = form.classIds.includes(c._id);
+                            return (
+                              <label
+                                key={c._id}
+                                className={cn(
+                                  "flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors",
+                                  alreadySet && "opacity-50 cursor-not-allowed hover:bg-transparent",
+                                  selected && !alreadySet && "bg-primary/5"
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="sr-only"
+                                  checked={selected}
+                                  disabled={alreadySet}
+                                  onChange={() => toggleClass(c._id)}
+                                />
+                                {selected ? (
+                                  <CheckSquare className="h-4 w-4 text-primary shrink-0" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+                                )}
+                                <span className="text-sm font-medium flex-1">{c.name}</span>
+                                {alreadySet && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Already set
+                                  </Badge>
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </FormField>
+              </div>
             </div>
-            {selectedClass && selectedSession && (
+
+            {prefillSource && !editId && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900 px-3 py-2 text-sm">
+                <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                <span>
+                  Fees prefilled from <strong>{prefillSource}</strong>. Change only what you need.
+                </span>
+              </div>
+            )}
+
+            {selectedClassNames.length > 0 && selectedSession && (
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm">
                 <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span>
-                  Fee structure for <strong>{selectedClass}</strong> — Session <strong>{selectedSession}</strong>
+                  {editId ? (
+                    <>
+                      Fee structure for <strong>{selectedClassNames[0]}</strong> — Session{" "}
+                      <strong>{selectedSession}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Creating for <strong>{selectedClassNames.join(", ")}</strong> — Session{" "}
+                      <strong>{selectedSession}</strong>
+                    </>
+                  )}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Fee Components */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-primary" />
@@ -272,7 +447,6 @@ export function FeeStructureFormDialog({
             </div>
           </div>
 
-          {/* Summary */}
           <div className="rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-5">
             <p className="text-sm font-medium text-muted-foreground mb-3">Fee Summary (Auto Calculated)</p>
             <div className="space-y-2 text-sm mb-4">
@@ -302,7 +476,6 @@ export function FeeStructureFormDialog({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="border-t bg-muted/30 px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
@@ -315,6 +488,8 @@ export function FeeStructureFormDialog({
               </>
             ) : editId ? (
               "Update Fee Structure"
+            ) : form.classIds.length > 1 ? (
+              `Create for ${form.classIds.length} Classes`
             ) : (
               "Create Fee Structure"
             )}
@@ -326,7 +501,7 @@ export function FeeStructureFormDialog({
 }
 
 const emptyForm: FeeStructureFormData = {
-  classId: "",
+  classIds: [],
   sessionId: "",
   admissionFee: 0,
   monthlyFee: 0,
