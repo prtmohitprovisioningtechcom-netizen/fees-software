@@ -129,6 +129,67 @@ export const generateReceiptNumber = async (): Promise<string> => {
 /** @deprecated use getGrossStructureTotal */
 export const getStructureTotalFee = getGrossStructureTotal;
 
+export type SessionFeeCache = {
+  structuresByClass: Map<string, StructureLike>;
+  paidByStudent: Map<string, number>;
+};
+
+export const createSessionFeeCache = async (sessionId: string): Promise<SessionFeeCache> => {
+  const sessionOid = new Types.ObjectId(sessionId);
+  const [structures, paidAgg] = await Promise.all([
+    FeeStructure.find({ sessionId: sessionOid })
+      .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
+      .lean(),
+    FeePayment.aggregate<{ _id: Types.ObjectId; paidAmount: number }>([
+      { $match: { sessionId: sessionOid } },
+      { $group: { _id: "$studentId", paidAmount: { $sum: "$currentPayment" } } },
+    ]),
+  ]);
+
+  return {
+    structuresByClass: new Map(structures.map((s) => [s.classId.toString(), s])),
+    paidByStudent: new Map(paidAgg.map((p) => [p._id.toString(), p.paidAmount])),
+  };
+};
+
+export const getFeeStatusFromCache = (
+  cache: SessionFeeCache,
+  classId: string,
+  studentId: string,
+  studentFeeDiscount = 0
+) => {
+  const structure = cache.structuresByClass.get(classId);
+  if (!structure) {
+    return {
+      grossTotal: 0,
+      totalDiscount: 0,
+      totalFee: 0,
+      paidAmount: 0,
+      pendingAmount: 0,
+      paymentStatus: "pending" as const,
+      hasFeeStructure: false,
+    };
+  }
+
+  const { grossTotal, totalDiscount, netTotal } = computeNetFee(structure, studentFeeDiscount);
+  const paidAmount = cache.paidByStudent.get(studentId) || 0;
+  const pendingAmount = Math.max(0, netTotal - paidAmount);
+
+  let paymentStatus: "paid" | "partial" | "pending" = "pending";
+  if (paidAmount >= netTotal) paymentStatus = "paid";
+  else if (paidAmount > 0) paymentStatus = "partial";
+
+  return {
+    grossTotal,
+    totalDiscount,
+    totalFee: netTotal,
+    paidAmount,
+    pendingAmount,
+    paymentStatus,
+    hasFeeStructure: true,
+  };
+};
+
 export const getStudentSessionFeeStatus = async (
   studentId: string,
   sessionId: string,
@@ -138,7 +199,9 @@ export const getStudentSessionFeeStatus = async (
   const feeStructure = await FeeStructure.findOne({
     classId: new Types.ObjectId(classId),
     sessionId: new Types.ObjectId(sessionId),
-  });
+  })
+    .select("admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
+    .lean();
 
   if (!feeStructure) {
     return {
@@ -152,12 +215,18 @@ export const getStudentSessionFeeStatus = async (
     };
   }
 
+  const paidAgg = await FeePayment.aggregate<{ paidAmount: number }>([
+    {
+      $match: {
+        studentId: new Types.ObjectId(studentId),
+        sessionId: new Types.ObjectId(sessionId),
+      },
+    },
+    { $group: { _id: null, paidAmount: { $sum: "$currentPayment" } } },
+  ]);
+
   const { grossTotal, totalDiscount, netTotal } = computeNetFee(feeStructure, studentFeeDiscount);
-  const payments = await FeePayment.find({
-    studentId: new Types.ObjectId(studentId),
-    sessionId: new Types.ObjectId(sessionId),
-  });
-  const paidAmount = payments.reduce((sum, payment) => sum + payment.currentPayment, 0);
+  const paidAmount = paidAgg[0]?.paidAmount || 0;
   const pendingAmount = Math.max(0, netTotal - paidAmount);
 
   let paymentStatus: "paid" | "partial" | "pending" = "pending";

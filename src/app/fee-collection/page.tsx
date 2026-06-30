@@ -136,7 +136,7 @@ export default function FeeCollectionPage() {
     <DashboardLayout>
       <PageHeader
         title="Fee Collection"
-        description="Session-wise fee status — paid aur pending amount dekhein, phir fee collect karein."
+        description="View paid and pending fees by session, then collect payments."
         breadcrumbs={[{ label: "Fee Collection" }]}
       />
 

@@ -63,6 +63,36 @@ export interface StudentFeeOverview {
   hasFeeStructure: boolean;
 }
 
+export interface ExpenseCategory {
+  _id: string;
+  name: string;
+}
+
+export interface Expense {
+  _id: string;
+  voucherNumber: string;
+  title: string;
+  categoryId: { _id: string; name: string };
+  amount: number;
+  expenseDate: string;
+  paymentMode: string;
+  paidTo?: string;
+  sessionId?: { _id: string; name: string };
+  remarks?: string;
+  createdBy?: { _id: string; name: string };
+}
+
+export interface ExpenseStats {
+  todayTotal: number;
+  todayCount: number;
+  monthTotal: number;
+  monthCount: number;
+  rangeTotal: number;
+  rangeCount: number;
+  byCategory: { categoryId: string; categoryName: string; total: number; count: number }[];
+  recentExpenses: Expense[];
+}
+
 export interface RecentPayment {
   _id: string;
   receiptNumber: string;

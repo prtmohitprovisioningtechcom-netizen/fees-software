@@ -133,4 +133,45 @@ export const dashboardApi = {
     const query = new URLSearchParams(params).toString();
     return apiClient(`/dashboard/reports${query ? `?${query}` : ""}`);
   },
+  getReportCollectors: () => apiClient("/dashboard/reports/collectors"),
+  downloadReportsExcel: async (params?: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString();
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const base = typeof window !== "undefined" ? "/api" : process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+    const res = await fetch(`${base}/dashboard/reports/export${query ? `?${query}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { message?: string }).message || "Failed to download report");
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `fee-collection-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const expensesApi = {
+  getCategories: () => apiClient("/expenses/categories"),
+  createCategory: (name: string) =>
+    apiClient("/expenses/categories", { method: "POST", body: JSON.stringify({ name }) }),
+  deleteCategory: (id: string) => apiClient(`/expenses/categories/${id}`, { method: "DELETE" }),
+  getAll: (params?: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString();
+    return apiClient(`/expenses${query ? `?${query}` : ""}`);
+  },
+  getStats: (params?: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString();
+    return apiClient(`/expenses/stats${query ? `?${query}` : ""}`);
+  },
+  getById: (id: string) => apiClient(`/expenses/${id}`),
+  create: (data: object) => apiClient("/expenses", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: object) => apiClient(`/expenses/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: string) => apiClient(`/expenses/${id}`, { method: "DELETE" }),
 };

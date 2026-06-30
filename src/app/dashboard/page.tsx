@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Users, IndianRupee, AlertCircle, TrendingUp, Receipt } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { dashboardApi, sessionsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -27,18 +26,50 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionId, setSessionId] = useState("");
   const [loading, setLoading] = useState(true);
+  const skipNextFetch = useRef(false);
 
   useEffect(() => {
-    sessionsApi.getAll().then((res) => {
-      const list = (res as { data: Session[] }).data || [];
-      setSessions(list);
-      const current = list.find((s) => s.isCurrent) || list[0];
-      if (current) setSessionId(current._id);
-    });
+    let cancelled = false;
+    setLoading(true);
+
+    Promise.all([
+      sessionsApi.getAll(),
+      dashboardApi.getStats(),
+    ])
+      .then(([sessionsRes, statsRes]) => {
+        if (cancelled) return;
+        const list = (sessionsRes as { data: Session[] }).data || [];
+        const data = (statsRes as { data: DashboardStats }).data;
+        setSessions(list);
+        setStats(data);
+        if (data.session?._id) {
+          skipNextFetch.current = true;
+          setSessionId(data.session._id);
+        } else {
+          const current = list.find((s) => s.isCurrent) || list[0];
+          if (current) {
+            skipNextFetch.current = true;
+            setSessionId(current._id);
+          }
+        }
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!sessionId) return;
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
+
     setLoading(true);
     dashboardApi
       .getStats(sessionId)

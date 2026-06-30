@@ -2,7 +2,7 @@ import { Response } from "express";
 import { Types } from "mongoose";
 import { AcademicSession, FeePayment, Student, FeeStructure } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { calculateFee, generateReceiptNumber, getStudentSessionFeeStatus } from "../services/feeService";
+import { calculateFee, generateReceiptNumber, createSessionFeeCache, getFeeStatusFromCache } from "../services/feeService";
 
 const resolveSessionId = async (sessionId?: string) => {
   if (sessionId && Types.ObjectId.isValid(sessionId)) {
@@ -93,43 +93,44 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
     }
 
     const total = await Student.countDocuments(filter);
-    const students = await Student.find(filter)
-      .populate("classId", "name")
-      .populate("sectionId", "name")
-      .sort({ studentName: 1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [students, feeCache] = await Promise.all([
+      Student.find(filter)
+        .populate("classId", "name")
+        .populate("sectionId", "name")
+        .sort({ studentName: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      createSessionFeeCache(session._id.toString()),
+    ]);
 
-    const data = await Promise.all(
-      students.map(async (student) => {
-        const feeStatus = await getStudentSessionFeeStatus(
-          student._id.toString(),
-          session._id.toString(),
-          student.classId._id.toString(),
-          student.feeDiscount || 0
-        );
-        return {
-          _id: student._id,
-          registrationNumber: student.registrationNumber,
-          admissionNumber: student.admissionNumber,
-          studentName: student.studentName,
-          fatherName: student.fatherName,
-          mobileNumber: student.mobileNumber,
-          classId: student.classId,
-          sectionId: student.sectionId,
-          sessionId: session._id,
-          sessionName: session.name,
-          grossTotal: feeStatus.grossTotal,
-          totalDiscount: feeStatus.totalDiscount,
-          feeDiscount: student.feeDiscount || 0,
-          totalFee: feeStatus.totalFee,
-          paidAmount: feeStatus.paidAmount,
-          pendingAmount: feeStatus.pendingAmount,
-          paymentStatus: feeStatus.paymentStatus,
-          hasFeeStructure: feeStatus.hasFeeStructure,
-        };
-      })
-    );
+    const data = students.map((student) => {
+      const feeStatus = getFeeStatusFromCache(
+        feeCache,
+        student.classId._id.toString(),
+        student._id.toString(),
+        student.feeDiscount || 0
+      );
+      return {
+        _id: student._id,
+        registrationNumber: student.registrationNumber,
+        admissionNumber: student.admissionNumber,
+        studentName: student.studentName,
+        fatherName: student.fatherName,
+        mobileNumber: student.mobileNumber,
+        classId: student.classId,
+        sectionId: student.sectionId,
+        sessionId: session._id,
+        sessionName: session.name,
+        grossTotal: feeStatus.grossTotal,
+        totalDiscount: feeStatus.totalDiscount,
+        feeDiscount: student.feeDiscount || 0,
+        totalFee: feeStatus.totalFee,
+        paidAmount: feeStatus.paidAmount,
+        pendingAmount: feeStatus.pendingAmount,
+        paymentStatus: feeStatus.paymentStatus,
+        hasFeeStructure: feeStatus.hasFeeStructure,
+      };
+    });
 
     res.json({
       success: true,

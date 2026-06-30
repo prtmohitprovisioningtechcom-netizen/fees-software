@@ -18,6 +18,7 @@ import {
   School,
   Layers,
   Settings,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -34,6 +35,7 @@ const superAdminLinks = [
   { href: "/fee-structure", label: "Fee Structure", icon: IndianRupee },
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/fee-collection", label: "Fee Collection", icon: Receipt },
+  { href: "/expenses", label: "Expenses", icon: Wallet },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -43,6 +45,8 @@ const adminLinks = [
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/students/new", label: "Register Student", icon: UserPlus },
   { href: "/fee-collection", label: "Fee Collection", icon: Receipt },
+  { href: "/expenses", label: "Expenses", icon: Wallet },
+  { href: "/reports", label: "My Reports", icon: BarChart3 },
 ];
 
 export function Sidebar() {

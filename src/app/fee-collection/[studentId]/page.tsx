@@ -255,7 +255,7 @@ export default function CollectFeePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Yahan se student ko extra discount de sakte ho. Class default discount Fee Structure se aata hai.
+                  Apply an extra student discount here. The class default discount comes from Fee Structure.
                 </p>
                 {(calculation.feeBreakdown.structureDiscount || 0) > 0 && (
                   <div className="flex justify-between text-sm rounded-lg bg-muted/50 px-3 py-2">
@@ -274,7 +274,7 @@ export default function CollectFeePage() {
                 </FormField>
                 {discountChanged && (
                   <p className="text-xs text-amber-600">
-                    Discount change hua hai — Apply karein ya payment submit karte waqt auto-apply hoga.
+                    Discount has changed — click Apply or it will be saved automatically when you submit payment.
                   </p>
                 )}
                 <Button
@@ -295,7 +295,7 @@ export default function CollectFeePage() {
             <CardContent className="space-y-4">
               {!calculation && (
                 <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                  Is class/session ke liye Fee Structure set nahi hai. Fee collect karne se pehle{" "}
+                  No fee structure exists for this class and session. Please create one in{" "}
                   <button
                     type="button"
                     className="font-semibold underline"
@@ -303,7 +303,7 @@ export default function CollectFeePage() {
                   >
                     Fee Structure
                   </button>{" "}
-                  banayein.
+                  before collecting fees.
                 </div>
               )}
               <FormField label="Payment Amount" required>

@@ -84,3 +84,18 @@ export const feePaymentSchema = z.object({
   paymentMode: z.enum(["cash", "upi", "card", "cheque", "bank_transfer"]),
   remarks: z.string().optional(),
 });
+
+export const expenseCategorySchema = z.object({
+  name: z.string().min(1, "Category name is required"),
+});
+
+export const expenseSchema = z.object({
+  title: z.string().min(2, "Title is required"),
+  categoryId: z.string().min(1, "Category is required"),
+  amount: z.coerce.number().min(1, "Amount must be greater than 0"),
+  expenseDate: z.string().min(1, "Date is required"),
+  paymentMode: z.enum(["cash", "upi", "card", "cheque", "bank_transfer"]),
+  paidTo: z.string().optional(),
+  sessionId: z.string().optional(),
+  remarks: z.string().optional(),
+});
