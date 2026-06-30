@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Percent } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
@@ -24,7 +24,7 @@ interface Session {
   isCurrent?: boolean;
 }
 
-export default function CollectFeePage() {
+function CollectFeePageContent() {
   const params = useParams<{ studentId: string }>();
   const searchParams = useSearchParams();
   const studentId = params?.studentId ?? "";
@@ -358,5 +358,21 @@ export default function CollectFeePage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+function CollectFeeFallback() {
+  return (
+    <DashboardLayout>
+      <div className="text-center py-12 text-muted-foreground">Loading...</div>
+    </DashboardLayout>
+  );
+}
+
+export default function CollectFeePage() {
+  return (
+    <Suspense fallback={<CollectFeeFallback />}>
+      <CollectFeePageContent />
+    </Suspense>
   );
 }

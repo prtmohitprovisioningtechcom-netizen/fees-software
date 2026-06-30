@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
@@ -25,7 +25,7 @@ interface Session {
   isCurrent?: boolean;
 }
 
-export default function FeeCollectionPage() {
+function FeeCollectionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentFeeOverview[]>([]);
@@ -364,5 +364,21 @@ export default function FeeCollectionPage() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  );
+}
+
+function FeeCollectionFallback() {
+  return (
+    <DashboardLayout>
+      <div className="text-center py-12 text-muted-foreground">Loading fee collection...</div>
+    </DashboardLayout>
+  );
+}
+
+export default function FeeCollectionPage() {
+  return (
+    <Suspense fallback={<FeeCollectionFallback />}>
+      <FeeCollectionPageContent />
+    </Suspense>
   );
 }
