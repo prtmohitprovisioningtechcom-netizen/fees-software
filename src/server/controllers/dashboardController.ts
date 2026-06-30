@@ -54,7 +54,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
           { $group: { _id: null, total: { $sum: "$currentPayment" } } },
         ]),
         Student.find({ status: "active" })
-          .select("_id classId sessionId studentName registrationNumber")
+          .select("_id classId sessionId studentName registrationNumber feeDiscount")
           .populate("classId", "name")
           .lean(),
         FeePayment.find({ sessionId: sessionObjectId })
@@ -75,7 +75,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         const status = await getStudentSessionFeeStatus(
           student._id.toString(),
           session._id.toString(),
-          student.classId._id.toString()
+          student.classId._id.toString(),
+          (student as { feeDiscount?: number }).feeDiscount || 0
         );
         return {
           _id: student._id.toString(),

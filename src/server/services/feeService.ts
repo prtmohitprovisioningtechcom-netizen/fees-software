@@ -2,12 +2,41 @@ import { Types } from "mongoose";
 import { FeeStructure, FeePayment } from "../models";
 import { FeeCalculation } from "@/types";
 
+type StructureLike = {
+  admissionFee: number;
+  monthlyFee: number;
+  annualFee?: number;
+  computerFee: number;
+  examFee: number;
+  otherFee: number;
+  discount?: number;
+};
+
+export const getGrossStructureTotal = (structure: StructureLike) =>
+  structure.admissionFee +
+  structure.monthlyFee * 12 +
+  (structure.annualFee || 0) +
+  structure.computerFee +
+  structure.examFee +
+  structure.otherFee;
+
+export const computeNetFee = (structure: StructureLike, studentFeeDiscount = 0) => {
+  const grossTotal = getGrossStructureTotal(structure);
+  const structureDiscount = structure.discount || 0;
+  const studentDiscount = studentFeeDiscount || 0;
+  const totalDiscount = Math.min(grossTotal, structureDiscount + studentDiscount);
+  const netTotal = grossTotal - totalDiscount;
+
+  return { grossTotal, structureDiscount, studentDiscount, totalDiscount, netTotal };
+};
+
 export const calculateFee = async (
   studentId: string,
   sessionId: string,
   classId: string,
   currentPayment: number,
-  transportRequired: boolean
+  transportRequired: boolean,
+  studentFeeDiscount = 0
 ): Promise<FeeCalculation> => {
   const feeStructure = await FeeStructure.findOne({
     classId: new Types.ObjectId(classId),
@@ -18,16 +47,24 @@ export const calculateFee = async (
     throw new Error("Fee structure not found for this class and session");
   }
 
+  const { grossTotal, structureDiscount, studentDiscount, totalDiscount, netTotal } = computeNetFee(
+    feeStructure,
+    studentFeeDiscount
+  );
+
   const feeBreakdown = {
     admissionFee: feeStructure.admissionFee,
     monthlyFee: feeStructure.monthlyFee * 12,
+    annualFee: feeStructure.annualFee || 0,
     computerFee: feeStructure.computerFee,
     examFee: feeStructure.examFee,
     transportFee: 0,
     otherFee: feeStructure.otherFee,
+    grossTotal,
+    structureDiscount,
+    studentDiscount,
+    totalDiscount,
   };
-
-  const totalFee = Object.values(feeBreakdown).reduce((sum, val) => sum + val, 0);
 
   const payments = await FeePayment.find({
     studentId: new Types.ObjectId(studentId),
@@ -35,17 +72,19 @@ export const calculateFee = async (
   });
 
   const paidAmount = payments.reduce((sum, p) => sum + p.currentPayment, 0);
-  const remainingAmount = Math.max(0, totalFee - paidAmount);
+  const remainingAmount = Math.max(0, netTotal - paidAmount);
   const previousDue = remainingAmount;
   const balance = Math.max(0, previousDue - currentPayment);
   const newPaidTotal = paidAmount + currentPayment;
 
   let paymentStatus: "paid" | "partial" | "pending" = "pending";
-  if (newPaidTotal >= totalFee) paymentStatus = "paid";
+  if (newPaidTotal >= netTotal) paymentStatus = "paid";
   else if (newPaidTotal > 0) paymentStatus = "partial";
 
   return {
-    totalFee,
+    totalFee: netTotal,
+    grossTotal,
+    totalDiscount,
     paidAmount: newPaidTotal,
     remainingAmount: balance,
     previousDue,
@@ -87,18 +126,14 @@ export const generateReceiptNumber = async (): Promise<string> => {
   return `${prefix}${String(seq).padStart(5, "0")}`;
 };
 
-export const getStructureTotalFee = (structure: {
-  admissionFee: number;
-  monthlyFee: number;
-  computerFee: number;
-  examFee: number;
-  otherFee: number;
-}) => structure.admissionFee + structure.monthlyFee * 12 + structure.computerFee + structure.examFee + structure.otherFee;
+/** @deprecated use getGrossStructureTotal */
+export const getStructureTotalFee = getGrossStructureTotal;
 
 export const getStudentSessionFeeStatus = async (
   studentId: string,
   sessionId: string,
-  classId: string
+  classId: string,
+  studentFeeDiscount = 0
 ) => {
   const feeStructure = await FeeStructure.findOne({
     classId: new Types.ObjectId(classId),
@@ -107,6 +142,8 @@ export const getStudentSessionFeeStatus = async (
 
   if (!feeStructure) {
     return {
+      grossTotal: 0,
+      totalDiscount: 0,
       totalFee: 0,
       paidAmount: 0,
       pendingAmount: 0,
@@ -115,17 +152,25 @@ export const getStudentSessionFeeStatus = async (
     };
   }
 
-  const totalFee = getStructureTotalFee(feeStructure);
+  const { grossTotal, totalDiscount, netTotal } = computeNetFee(feeStructure, studentFeeDiscount);
   const payments = await FeePayment.find({
     studentId: new Types.ObjectId(studentId),
     sessionId: new Types.ObjectId(sessionId),
   });
   const paidAmount = payments.reduce((sum, payment) => sum + payment.currentPayment, 0);
-  const pendingAmount = Math.max(0, totalFee - paidAmount);
+  const pendingAmount = Math.max(0, netTotal - paidAmount);
 
   let paymentStatus: "paid" | "partial" | "pending" = "pending";
-  if (paidAmount >= totalFee) paymentStatus = "paid";
+  if (paidAmount >= netTotal) paymentStatus = "paid";
   else if (paidAmount > 0) paymentStatus = "partial";
 
-  return { totalFee, paidAmount, pendingAmount, paymentStatus, hasFeeStructure: true };
+  return {
+    grossTotal,
+    totalDiscount,
+    totalFee: netTotal,
+    paidAmount,
+    pendingAmount,
+    paymentStatus,
+    hasFeeStructure: true,
+  };
 };

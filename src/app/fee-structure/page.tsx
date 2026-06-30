@@ -34,9 +34,11 @@ interface FeeStructure {
   sessionId: { _id: string; name: string };
   admissionFee: number;
   monthlyFee: number;
+  annualFee: number;
   computerFee: number;
   examFee: number;
   otherFee: number;
+  discount: number;
   totalFee: number;
 }
 
@@ -103,9 +105,11 @@ export default function FeeStructurePage() {
       sessionId: s.sessionId._id,
       admissionFee: s.admissionFee,
       monthlyFee: s.monthlyFee,
+      annualFee: s.annualFee || 0,
       computerFee: s.computerFee,
       examFee: s.examFee,
       otherFee: s.otherFee,
+      discount: s.discount || 0,
     });
     setOpen(true);
   };
@@ -161,10 +165,12 @@ export default function FeeStructurePage() {
                     <TableHead>Session</TableHead>
                     <TableHead>Admission</TableHead>
                     <TableHead>Monthly</TableHead>
+                    <TableHead>Annual</TableHead>
                     <TableHead>Computer</TableHead>
                     <TableHead>Exam</TableHead>
                     <TableHead>Other</TableHead>
-                    <TableHead>Total Annual</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead>Gross Total</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -181,9 +187,11 @@ export default function FeeStructurePage() {
                       </TableCell>
                       <TableCell>{formatCurrency(s.admissionFee)}</TableCell>
                       <TableCell>{formatCurrency(s.monthlyFee)}</TableCell>
+                      <TableCell>{formatCurrency(s.annualFee || 0)}</TableCell>
                       <TableCell>{formatCurrency(s.computerFee)}</TableCell>
                       <TableCell>{formatCurrency(s.examFee)}</TableCell>
                       <TableCell>{formatCurrency(s.otherFee)}</TableCell>
+                      <TableCell className="text-emerald-600">{formatCurrency(s.discount || 0)}</TableCell>
                       <TableCell>
                         <span className="inline-flex items-center gap-1 font-bold text-primary">
                           <IndianRupee className="h-3.5 w-3.5" />

@@ -1,6 +1,24 @@
 import { Response } from "express";
 import { FeeStructure } from "../models";
 import { AuthRequest } from "../middleware/auth";
+import { getGrossStructureTotal } from "../services/feeService";
+
+const buildTotalFee = (body: {
+  admissionFee?: number;
+  monthlyFee?: number;
+  annualFee?: number;
+  computerFee?: number;
+  examFee?: number;
+  otherFee?: number;
+}) =>
+  getGrossStructureTotal({
+    admissionFee: Number(body.admissionFee) || 0,
+    monthlyFee: Number(body.monthlyFee) || 0,
+    annualFee: Number(body.annualFee) || 0,
+    computerFee: Number(body.computerFee) || 0,
+    examFee: Number(body.examFee) || 0,
+    otherFee: Number(body.otherFee) || 0,
+  });
 
 export const getFeeStructures = async (req: AuthRequest, res: Response) => {
   try {
@@ -40,19 +58,23 @@ export const createFeeStructure = async (req: AuthRequest, res: Response) => {
 
     const admissionFee = Number(req.body.admissionFee) || 0;
     const monthlyFee = Number(req.body.monthlyFee) || 0;
+    const annualFee = Number(req.body.annualFee) || 0;
     const computerFee = Number(req.body.computerFee) || 0;
     const examFee = Number(req.body.examFee) || 0;
     const otherFee = Number(req.body.otherFee) || 0;
+    const discount = Number(req.body.discount) || 0;
     const transportFee = 0;
-    const totalFee = admissionFee + monthlyFee * 12 + computerFee + examFee + otherFee;
+    const totalFee = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
 
     const structure = await FeeStructure.create({
       ...req.body,
       admissionFee,
       monthlyFee,
+      annualFee,
       computerFee,
       examFee,
       otherFee,
+      discount,
       transportFee,
       totalFee,
       createdBy: req.user?.id,
@@ -68,25 +90,18 @@ export const createFeeStructure = async (req: AuthRequest, res: Response) => {
 export const updateFeeStructure = async (req: AuthRequest, res: Response) => {
   try {
     const updates = { ...req.body };
-    if (
-      updates.admissionFee !== undefined ||
-      updates.monthlyFee !== undefined ||
-      updates.computerFee !== undefined ||
-      updates.examFee !== undefined ||
-      updates.otherFee !== undefined
-    ) {
-      const current = await FeeStructure.findById(req.params.id);
-      if (!current) return res.status(404).json({ success: false, message: "Fee structure not found" });
+    const current = await FeeStructure.findById(req.params.id);
+    if (!current) return res.status(404).json({ success: false, message: "Fee structure not found" });
 
-      const admissionFee = updates.admissionFee ?? current.admissionFee;
-      const monthlyFee = updates.monthlyFee ?? current.monthlyFee;
-      const computerFee = updates.computerFee ?? current.computerFee;
-      const examFee = updates.examFee ?? current.examFee;
-      const otherFee = updates.otherFee ?? current.otherFee;
+    const admissionFee = updates.admissionFee ?? current.admissionFee;
+    const monthlyFee = updates.monthlyFee ?? current.monthlyFee;
+    const annualFee = updates.annualFee ?? current.annualFee;
+    const computerFee = updates.computerFee ?? current.computerFee;
+    const examFee = updates.examFee ?? current.examFee;
+    const otherFee = updates.otherFee ?? current.otherFee;
 
-      updates.transportFee = 0;
-      updates.totalFee = admissionFee + monthlyFee * 12 + computerFee + examFee + otherFee;
-    }
+    updates.transportFee = 0;
+    updates.totalFee = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
 
     const structure = await FeeStructure.findByIdAndUpdate(req.params.id, updates, { new: true })
       .populate("classId", "name")

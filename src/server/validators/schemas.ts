@@ -34,10 +34,16 @@ export const feeStructureSchema = z.object({
   sessionId: z.string().min(1, "Session is required"),
   admissionFee: z.coerce.number().min(0),
   monthlyFee: z.coerce.number().min(0),
+  annualFee: z.coerce.number().min(0).optional(),
   computerFee: z.coerce.number().min(0),
   examFee: z.coerce.number().min(0),
   transportFee: z.coerce.number().min(0).optional(),
   otherFee: z.coerce.number().min(0),
+  discount: z.coerce.number().min(0).optional(),
+});
+
+export const studentFeeDiscountSchema = z.object({
+  feeDiscount: z.coerce.number().min(0, "Discount cannot be negative"),
 });
 
 export const studentSchema = z.object({
@@ -73,6 +79,7 @@ export const studentSchema = z.object({
 export const feePaymentSchema = z.object({
   studentId: z.string().min(1, "Student is required"),
   sessionId: z.string().optional(),
+  feeDiscount: z.coerce.number().min(0).optional(),
   paymentAmount: z.coerce.number().min(1, "Payment amount must be greater than 0"),
   paymentMode: z.enum(["cash", "upi", "card", "cheque", "bank_transfer"]),
   remarks: z.string().optional(),

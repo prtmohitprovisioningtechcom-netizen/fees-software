@@ -99,6 +99,11 @@ export const studentsApi = {
   create: (formData: FormData) => apiClient("/students", { method: "POST", body: formData }),
   importExcel: (formData: FormData) => apiClient("/students/import", { method: "POST", body: formData }),
   update: (id: string, formData: FormData) => apiClient(`/students/${id}`, { method: "PUT", body: formData }),
+  updateFeeDiscount: (id: string, feeDiscount: number) =>
+    apiClient(`/students/${id}/fee-discount`, {
+      method: "PATCH",
+      body: JSON.stringify({ feeDiscount }),
+    }),
   delete: (id: string) => apiClient(`/students/${id}`, { method: "DELETE" }),
 };
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Percent } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { feePaymentsApi, sessionsApi } from "@/lib/api";
+import { feePaymentsApi, sessionsApi, studentsApi } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { FeeCalculation } from "@/types";
@@ -31,6 +31,7 @@ export default function CollectFeePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [student, setStudent] = useState<Record<string, unknown> | null>(null);
   const [session, setSession] = useState<{ _id: string; name: string } | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -40,6 +41,33 @@ export default function CollectFeePage() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState("cash");
   const [remarks, setRemarks] = useState("");
+  const [studentDiscount, setStudentDiscount] = useState("0");
+
+  const loadSummary = useCallback(async () => {
+    if (!studentId) return;
+    setLoading(true);
+    try {
+      const res = await feePaymentsApi.getStudentSummary(studentId, sessionId || undefined);
+      const data = (res as { data: Record<string, unknown> }).data;
+      const studentData = (data.student as Record<string, unknown>) ?? null;
+      setStudent(studentData);
+      setSession((data.session as { _id: string; name: string }) ?? null);
+      if (!sessionId && data.session) {
+        setSessionId((data.session as { _id: string })._id);
+      }
+      setCalculation((data.calculation as FeeCalculation | null) ?? null);
+      setPayments((data.payments as Record<string, unknown>[]) ?? []);
+      setStudentDiscount(String((studentData?.feeDiscount as number) || 0));
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load student details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId, sessionId]);
 
   useEffect(() => {
     sessionsApi.getAll().then((res) => {
@@ -49,29 +77,26 @@ export default function CollectFeePage() {
   }, []);
 
   useEffect(() => {
-    if (!studentId) return;
-    setLoading(true);
-    feePaymentsApi
-      .getStudentSummary(studentId, sessionId || undefined)
-      .then((res) => {
-        const data = (res as { data: Record<string, unknown> }).data;
-        setStudent((data.student as Record<string, unknown>) ?? null);
-        setSession((data.session as { _id: string; name: string }) ?? null);
-        if (!sessionId && data.session) {
-          setSessionId((data.session as { _id: string })._id);
-        }
-        setCalculation((data.calculation as FeeCalculation | null) ?? null);
-        setPayments((data.payments as Record<string, unknown>[]) ?? []);
-      })
-      .catch((error) => {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load student details",
-          variant: "destructive",
-        });
-      })
-      .finally(() => setLoading(false));
-  }, [studentId, sessionId]);
+    loadSummary();
+  }, [loadSummary]);
+
+  const applyDiscount = async () => {
+    setApplyingDiscount(true);
+    try {
+      await studentsApi.updateFeeDiscount(studentId, Number(studentDiscount) || 0);
+      toast({ title: "Discount Applied", description: "Fee updated with new discount" });
+      await loadSummary();
+      setPaymentAmount("");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to apply discount",
+        variant: "destructive",
+      });
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
 
   const handleCollect = async () => {
     const amount = Number(paymentAmount);
@@ -84,6 +109,7 @@ export default function CollectFeePage() {
       const res = await feePaymentsApi.collect({
         studentId,
         sessionId: session?._id || sessionId,
+        feeDiscount: Number(studentDiscount) || 0,
         paymentAmount: amount,
         paymentMode,
         remarks,
@@ -96,6 +122,21 @@ export default function CollectFeePage() {
       setSubmitting(false);
     }
   };
+
+  const previewNetDue = () => {
+    if (!calculation) return 0;
+    const gross = calculation.grossTotal;
+    const structureDiscount = calculation.feeBreakdown.structureDiscount || 0;
+    const newStudentDiscount = Number(studentDiscount) || 0;
+    const totalDiscount = Math.min(gross, structureDiscount + newStudentDiscount);
+    const netTotal = gross - totalDiscount;
+    const paidBefore = calculation.paidAmount - (calculation.currentPayment || 0);
+    return Math.max(0, netTotal - paidBefore);
+  };
+
+  const discountChanged =
+    calculation &&
+    Number(studentDiscount) !== (calculation.feeBreakdown.studentDiscount || 0);
 
   if (loading) {
     return <DashboardLayout><div className="text-center py-12">Loading...</div></DashboardLayout>;
@@ -120,6 +161,7 @@ export default function CollectFeePage() {
 
   const cls = student?.classId as { name: string };
   const sec = student?.sectionId as { name: string };
+  const maxPayable = discountChanged ? previewNetDue() : (calculation?.previousDue || 0);
 
   return (
     <DashboardLayout>
@@ -128,10 +170,7 @@ export default function CollectFeePage() {
         description={`${student?.studentName as string} - ${student?.registrationNumber as string}`}
         breadcrumbs={[{ label: "Fee Collection", href: "/fee-collection" }, { label: "Collect" }]}
         action={
-          <Select
-            value={sessionId}
-            onValueChange={setSessionId}
-          >
+          <Select value={sessionId} onValueChange={setSessionId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Select Session" />
             </SelectTrigger>
@@ -173,12 +212,31 @@ export default function CollectFeePage() {
                   <TableBody>
                     <TableRow><TableCell>Admission Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.admissionFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Monthly Fee (×12)</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.monthlyFee)}</TableCell></TableRow>
+                    <TableRow><TableCell>Annual Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.annualFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Computer Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.computerFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Exam Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.examFee)}</TableCell></TableRow>
                     <TableRow><TableCell>Other Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.otherFee)}</TableCell></TableRow>
-                    <TableRow className="font-bold"><TableCell>Total Fee</TableCell><TableCell className="text-right text-primary">{formatCurrency(calculation.totalFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Paid Amount</TableCell><TableCell className="text-right text-emerald-600">{formatCurrency(calculation.paidAmount)}</TableCell></TableRow>
-                    <TableRow><TableCell>Pending / Due</TableCell><TableCell className="text-right text-amber-600">{formatCurrency(calculation.previousDue)}</TableCell></TableRow>
+                    <TableRow className="font-medium"><TableCell>Gross Total</TableCell><TableCell className="text-right">{formatCurrency(calculation.grossTotal)}</TableCell></TableRow>
+                    {(calculation.feeBreakdown.structureDiscount || 0) > 0 && (
+                      <TableRow className="text-emerald-600">
+                        <TableCell>Class Default Discount</TableCell>
+                        <TableCell className="text-right">− {formatCurrency(calculation.feeBreakdown.structureDiscount)}</TableCell>
+                      </TableRow>
+                    )}
+                    {(Number(studentDiscount) || calculation.feeBreakdown.studentDiscount) > 0 && (
+                      <TableRow className="text-emerald-600">
+                        <TableCell>Student Discount</TableCell>
+                        <TableCell className="text-right">
+                          − {formatCurrency(Number(studentDiscount) || calculation.feeBreakdown.studentDiscount)}
+                          {discountChanged && (
+                            <Badge variant="warning" className="ml-2 text-[10px]">unsaved</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow className="font-bold"><TableCell>Net Total Fee</TableCell><TableCell className="text-right text-primary">{formatCurrency(discountChanged ? calculation.grossTotal - Math.min(calculation.grossTotal, (calculation.feeBreakdown.structureDiscount || 0) + (Number(studentDiscount) || 0)) : calculation.totalFee)}</TableCell></TableRow>
+                    <TableRow><TableCell>Paid Amount</TableCell><TableCell className="text-right text-emerald-600">{formatCurrency(calculation.paidAmount - (calculation.currentPayment || 0))}</TableCell></TableRow>
+                    <TableRow><TableCell>Pending / Due</TableCell><TableCell className="text-right text-amber-600 font-semibold">{formatCurrency(maxPayable)}</TableCell></TableRow>
                   </TableBody>
                 </Table>
               </CardContent>
@@ -187,6 +245,51 @@ export default function CollectFeePage() {
         </div>
 
         <div className="space-y-6">
+          {calculation && (
+            <Card className="border-emerald-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Percent className="h-4 w-4 text-emerald-600" />
+                  Discount (Collection Time)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Yahan se student ko extra discount de sakte ho. Class default discount Fee Structure se aata hai.
+                </p>
+                {(calculation.feeBreakdown.structureDiscount || 0) > 0 && (
+                  <div className="flex justify-between text-sm rounded-lg bg-muted/50 px-3 py-2">
+                    <span>Class Default Discount</span>
+                    <span className="font-medium text-emerald-600">− {formatCurrency(calculation.feeBreakdown.structureDiscount)}</span>
+                  </div>
+                )}
+                <FormField label="Student Extra Discount (₹)">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={studentDiscount}
+                    onChange={(e) => setStudentDiscount(e.target.value)}
+                    placeholder="0"
+                  />
+                </FormField>
+                {discountChanged && (
+                  <p className="text-xs text-amber-600">
+                    Discount change hua hai — Apply karein ya payment submit karte waqt auto-apply hoga.
+                  </p>
+                )}
+                <Button
+                  variant="outline"
+                  className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  onClick={applyDiscount}
+                  disabled={applyingDiscount}
+                >
+                  {applyingDiscount ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Percent className="h-4 w-4 mr-2" />}
+                  Apply Discount
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader><CardTitle>Payment Details</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -207,10 +310,10 @@ export default function CollectFeePage() {
                 <Input
                   type="number"
                   min={1}
-                  max={calculation?.previousDue}
+                  max={maxPayable}
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder={`Max: ${formatCurrency(calculation?.previousDue || 0)}`}
+                  placeholder={`Max: ${formatCurrency(maxPayable)}`}
                 />
               </FormField>
               <FormField label="Payment Mode" required>
@@ -226,7 +329,7 @@ export default function CollectFeePage() {
               <FormField label="Remarks">
                 <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional remarks" />
               </FormField>
-              <Button className="w-full" onClick={handleCollect} disabled={submitting || !calculation?.previousDue}>
+              <Button className="w-full" onClick={handleCollect} disabled={submitting || !maxPayable}>
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Submit Payment
               </Button>

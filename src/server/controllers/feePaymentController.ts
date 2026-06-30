@@ -41,7 +41,8 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
         session._id.toString(),
         student.classId._id.toString(),
         0,
-        student.transportRequired
+        student.transportRequired,
+        student.feeDiscount || 0
       );
     }
 
@@ -104,7 +105,8 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
         const feeStatus = await getStudentSessionFeeStatus(
           student._id.toString(),
           session._id.toString(),
-          student.classId._id.toString()
+          student.classId._id.toString(),
+          student.feeDiscount || 0
         );
         return {
           _id: student._id,
@@ -117,6 +119,9 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
           sectionId: student.sectionId,
           sessionId: session._id,
           sessionName: session.name,
+          grossTotal: feeStatus.grossTotal,
+          totalDiscount: feeStatus.totalDiscount,
+          feeDiscount: student.feeDiscount || 0,
           totalFee: feeStatus.totalFee,
           paidAmount: feeStatus.paidAmount,
           pendingAmount: feeStatus.pendingAmount,
@@ -139,10 +144,15 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
 
 export const collectFee = async (req: AuthRequest, res: Response) => {
   try {
-    const { studentId, paymentAmount, paymentMode, remarks, sessionId: bodySessionId } = req.body;
+    const { studentId, paymentAmount, paymentMode, remarks, sessionId: bodySessionId, feeDiscount } = req.body;
 
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+
+    if (feeDiscount !== undefined && feeDiscount !== null && feeDiscount !== "") {
+      student.feeDiscount = Math.max(0, Number(feeDiscount) || 0);
+      await student.save();
+    }
 
     const session = await resolveSessionId(bodySessionId || student.sessionId.toString());
     if (!session) return res.status(400).json({ success: false, message: "Academic session not found" });
@@ -158,7 +168,8 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       session._id.toString(),
       student.classId.toString(),
       paymentAmount,
-      student.transportRequired
+      student.transportRequired,
+      student.feeDiscount || 0
     );
 
     if (paymentAmount > calculation.previousDue) {

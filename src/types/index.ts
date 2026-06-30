@@ -53,6 +53,9 @@ export interface StudentFeeOverview {
   sectionId: { _id: string; name: string };
   sessionId: string;
   sessionName: string;
+  grossTotal: number;
+  totalDiscount: number;
+  feeDiscount: number;
   totalFee: number;
   paidAmount: number;
   pendingAmount: number;
@@ -74,6 +77,8 @@ export interface RecentPayment {
 
 export interface FeeCalculation {
   totalFee: number;
+  grossTotal: number;
+  totalDiscount: number;
   paidAmount: number;
   remainingAmount: number;
   previousDue: number;
@@ -83,9 +88,14 @@ export interface FeeCalculation {
   feeBreakdown: {
     admissionFee: number;
     monthlyFee: number;
+    annualFee: number;
     computerFee: number;
     examFee: number;
     transportFee: number;
     otherFee: number;
+    grossTotal: number;
+    structureDiscount: number;
+    studentDiscount: number;
+    totalDiscount: number;
   };
 }

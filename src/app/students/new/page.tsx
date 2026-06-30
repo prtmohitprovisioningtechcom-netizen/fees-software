@@ -23,6 +23,7 @@ const sdmsStudentSchema = z
     studentName: z.string().min(2, "Required"),
     gender: z.enum(["male", "female", "other"]),
     initializedAtSdms: z.string().optional(),
+    admissionNumber: z.string().optional(),
     studentPen: z.string().optional(),
     studentStateCode: z.string().optional(),
     fatherName: z.string().optional(),
@@ -42,9 +43,9 @@ const sdmsStudentSchema = z
     apaarId: z.string().optional(),
     apaarStatus: z.string().optional(),
   })
-  .refine((data) => data.studentPen || data.studentStateCode || data.aadharNumber, {
-    message: "Student PEN, Student State Code or AADHAAR No. required",
-    path: ["studentPen"],
+  .refine((data) => data.admissionNumber || data.studentPen || data.studentStateCode || data.aadharNumber, {
+    message: "Admission Number, Student PEN, State Code or AADHAAR No. required",
+    path: ["admissionNumber"],
   });
 
 type SdmsStudentForm = z.infer<typeof sdmsStudentSchema>;
@@ -178,7 +179,10 @@ export default function NewStudentPage() {
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField label="Student PEN" required error={errors.studentPen?.message}>
+            <FormField label="Admission Number" required error={errors.admissionNumber?.message}>
+              <Input {...register("admissionNumber")} placeholder="School admission number" />
+            </FormField>
+            <FormField label="Student PEN" error={errors.studentPen?.message}>
               <Input {...register("studentPen")} />
             </FormField>
             <FormField label="Student State Code">

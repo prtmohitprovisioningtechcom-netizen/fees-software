@@ -267,7 +267,7 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
     const studentName = String(parsed.studentName || parsed.name || "").trim();
 
     if (!admissionNumber) {
-      return res.status(400).json({ success: false, message: "Student PEN, Student State Code or AADHAAR No. is required" });
+      return res.status(400).json({ success: false, message: "Admission Number, Student PEN, State Code or AADHAAR No. is required" });
     }
     if (!studentName || !className || !sectionName) {
       return res.status(400).json({ success: false, message: "Class, Section and Name are required" });
@@ -515,5 +515,23 @@ export const deleteStudent = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, message: "Student deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to delete student", error: String(error) });
+  }
+};
+
+export const updateStudentFeeDiscount = async (req: AuthRequest, res: Response) => {
+  try {
+    const feeDiscount = Math.max(0, Number(req.body.feeDiscount) || 0);
+    const student = await Student.findByIdAndUpdate(
+      req.params.id,
+      { feeDiscount },
+      { new: true }
+    )
+      .populate("classId", "name")
+      .populate("sectionId", "name");
+
+    if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+    res.json({ success: true, message: "Student discount updated", data: student });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to update discount", error: String(error) });
   }
 };

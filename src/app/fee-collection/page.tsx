@@ -10,11 +10,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { feePaymentsApi, classesApi, sectionsApi, sessionsApi } from "@/lib/api";
+import { feePaymentsApi, classesApi, sectionsApi, sessionsApi, studentsApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { StudentFeeOverview } from "@/types";
-import { IndianRupee, Users } from "lucide-react";
+import { IndianRupee, Users, Percent } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface Session {
   _id: string;
@@ -37,6 +40,9 @@ export default function FeeCollectionPage() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [classes, setClasses] = useState<{ _id: string; name: string }[]>([]);
   const [sections, setSections] = useState<{ _id: string; name: string }[]>([]);
+  const [discountStudent, setDiscountStudent] = useState<StudentFeeOverview | null>(null);
+  const [discountValue, setDiscountValue] = useState("");
+  const [savingDiscount, setSavingDiscount] = useState(false);
 
   const limit = 20;
 
@@ -104,6 +110,26 @@ export default function FeeCollectionPage() {
     if (status === "paid") return <Badge variant="success">Paid</Badge>;
     if (status === "partial") return <Badge variant="warning">Partial</Badge>;
     return <Badge variant="secondary">Pending</Badge>;
+  };
+
+  const openDiscountDialog = (student: StudentFeeOverview) => {
+    setDiscountStudent(student);
+    setDiscountValue(String(student.feeDiscount || 0));
+  };
+
+  const saveDiscount = async () => {
+    if (!discountStudent) return;
+    setSavingDiscount(true);
+    try {
+      await studentsApi.updateFeeDiscount(discountStudent._id, Number(discountValue) || 0);
+      toast({ title: "Saved", description: "Student discount updated" });
+      setDiscountStudent(null);
+      fetchStudents();
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
+    } finally {
+      setSavingDiscount(false);
+    }
   };
 
   return (
@@ -193,7 +219,8 @@ export default function FeeCollectionPage() {
                 <TableHead>Student Name</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Section</TableHead>
-                <TableHead className="text-right">Total Fee</TableHead>
+                <TableHead className="text-right">Net Fee</TableHead>
+                <TableHead className="text-right">Discount</TableHead>
                 <TableHead className="text-right">Paid</TableHead>
                 <TableHead className="text-right">Pending</TableHead>
                 <TableHead>Status</TableHead>
@@ -203,13 +230,13 @@ export default function FeeCollectionPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                     Loading students...
                   </TableCell>
                 </TableRow>
               ) : students.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                     {search.trim() ? "No matching students found" : "No students registered yet"}
                   </TableCell>
                 </TableRow>
@@ -223,6 +250,25 @@ export default function FeeCollectionPage() {
                     <TableCell className="text-right">
                       {s.hasFeeStructure ? formatCurrency(s.totalFee) : "—"}
                     </TableCell>
+                    <TableCell className="text-right">
+                      {s.hasFeeStructure ? (
+                        <button
+                          type="button"
+                          className="text-emerald-600 hover:underline text-sm"
+                          onClick={() => openDiscountDialog(s)}
+                          title="Set student discount"
+                        >
+                          {formatCurrency(s.totalDiscount)}
+                          {s.feeDiscount > 0 && (
+                            <span className="block text-[10px] text-muted-foreground">
+                              +{formatCurrency(s.feeDiscount)} student
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                     <TableCell className="text-right text-emerald-600">
                       {s.hasFeeStructure ? formatCurrency(s.paidAmount) : "—"}
                     </TableCell>
@@ -235,13 +281,24 @@ export default function FeeCollectionPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        onClick={() => router.push(`/fee-collection/${s._id}?sessionId=${sessionId}`)}
-                      >
-                        <IndianRupee className="h-4 w-4 mr-1" />
-                        Collect
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openDiscountDialog(s)}
+                          title="Student discount"
+                        >
+                          <Percent className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => router.push(`/fee-collection/${s._id}?sessionId=${sessionId}`)}
+                        >
+                          <IndianRupee className="h-4 w-4 mr-1" />
+                          Collect
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -258,6 +315,54 @@ export default function FeeCollectionPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!discountStudent} onOpenChange={(open) => !open && setDiscountStudent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Student Discount</DialogTitle>
+          </DialogHeader>
+          {discountStudent && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>{discountStudent.studentName}</strong> — Extra discount (₹) on top of class default discount.
+              </p>
+              <div className="text-sm space-y-1 rounded-lg bg-muted p-3">
+                <div className="flex justify-between">
+                  <span>Gross Fee</span>
+                  <span>{formatCurrency(discountStudent.grossTotal)}</span>
+                </div>
+                <div className="flex justify-between text-emerald-600">
+                  <span>Total Discount (after save)</span>
+                  <span>
+                    {formatCurrency(
+                      Math.min(
+                        discountStudent.grossTotal,
+                        (discountStudent.totalDiscount - discountStudent.feeDiscount) + (Number(discountValue) || 0)
+                      )
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Student Discount (₹)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDiscountStudent(null)}>Cancel</Button>
+                <Button onClick={saveDiscount} disabled={savingDiscount}>
+                  {savingDiscount ? "Saving..." : "Save Discount"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

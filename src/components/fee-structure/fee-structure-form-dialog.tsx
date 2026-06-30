@@ -24,9 +24,11 @@ export interface FeeStructureFormData {
   sessionId: string;
   admissionFee: number;
   monthlyFee: number;
+  annualFee: number;
   computerFee: number;
   examFee: number;
   otherFee: number;
+  discount: number;
 }
 
 interface FeeStructureFormDialogProps {
@@ -44,13 +46,14 @@ interface FeeStructureFormDialogProps {
 const FEE_FIELDS: {
   key: keyof Pick<
     FeeStructureFormData,
-    "admissionFee" | "monthlyFee" | "computerFee" | "examFee" | "otherFee"
+    "admissionFee" | "monthlyFee" | "annualFee" | "computerFee" | "examFee" | "otherFee" | "discount"
   >;
   label: string;
   hint: string;
   icon: LucideIcon;
   color: string;
   multiply?: number;
+  isDiscount?: boolean;
 }[] = [
   {
     key: "admissionFee",
@@ -66,6 +69,13 @@ const FEE_FIELDS: {
     icon: Calendar,
     color: "bg-violet-500/10 text-violet-600",
     multiply: 12,
+  },
+  {
+    key: "annualFee",
+    label: "Annual Fee",
+    hint: "Yearly fee (lump sum)",
+    icon: CalendarDays,
+    color: "bg-indigo-500/10 text-indigo-600",
   },
   {
     key: "computerFee",
@@ -87,6 +97,14 @@ const FEE_FIELDS: {
     hint: "Miscellaneous annual",
     icon: CircleDollarSign,
     color: "bg-rose-500/10 text-rose-600",
+  },
+  {
+    key: "discount",
+    label: "Default Discount",
+    hint: "Class-wide discount (₹) for all students",
+    icon: IndianRupee,
+    color: "bg-emerald-500/10 text-emerald-600",
+    isDiscount: true,
   },
 ];
 
@@ -128,8 +146,9 @@ export function FeeStructureFormDialog({
 }: FeeStructureFormDialogProps) {
   const monthlyAnnual = form.monthlyFee * 12;
   const oneTimeTotal =
-    form.admissionFee + form.computerFee + form.examFee + form.otherFee;
-  const totalFee = oneTimeTotal + monthlyAnnual;
+    form.admissionFee + form.annualFee + form.computerFee + form.examFee + form.otherFee;
+  const grossTotal = oneTimeTotal + monthlyAnnual;
+  const totalFee = Math.max(0, grossTotal - (form.discount || 0));
 
   const selectedClass = classes.find((c) => c._id === form.classId)?.name;
   const selectedSession = sessions.find((s) => s._id === form.sessionId)?.name;
@@ -216,14 +235,17 @@ export function FeeStructureFormDialog({
               Fee Components
             </h3>
             <div className="grid gap-3 sm:grid-cols-2">
-              {FEE_FIELDS.map(({ key, label, hint, icon: Icon, color, multiply }) => {
+              {FEE_FIELDS.map(({ key, label, hint, icon: Icon, color, multiply, isDiscount }) => {
                 const amount = form[key];
                 const annualAmount = multiply ? amount * multiply : amount;
 
                 return (
                   <div
                     key={key}
-                    className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm"
+                    className={cn(
+                      "rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm",
+                      isDiscount && "sm:col-span-2 border-emerald-200"
+                    )}
                   >
                     <div className="flex items-start gap-3 mb-3">
                       <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", color)}>
@@ -262,8 +284,18 @@ export function FeeStructureFormDialog({
                 <span className="text-muted-foreground">Monthly Fee (×12)</span>
                 <span className="font-medium">{formatCurrency(monthlyAnnual)}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Gross Total</span>
+                <span className="font-medium">{formatCurrency(grossTotal)}</span>
+              </div>
+              {form.discount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Default Discount</span>
+                  <span className="font-medium">− {formatCurrency(form.discount)}</span>
+                </div>
+              )}
               <div className="border-t border-primary/20 pt-2 flex justify-between items-center">
-                <span className="font-semibold">Total Annual Fee</span>
+                <span className="font-semibold">Net Annual Fee (after discount)</span>
                 <span className="text-2xl font-bold text-primary">{formatCurrency(totalFee)}</span>
               </div>
             </div>
@@ -298,9 +330,11 @@ const emptyForm: FeeStructureFormData = {
   sessionId: "",
   admissionFee: 0,
   monthlyFee: 0,
+  annualFee: 0,
   computerFee: 0,
   examFee: 0,
   otherFee: 0,
+  discount: 0,
 };
 
 export { emptyForm };

@@ -5,10 +5,12 @@ export interface IFeeStructure extends Document {
   sessionId: Types.ObjectId;
   admissionFee: number;
   monthlyFee: number;
+  annualFee: number;
   computerFee: number;
   examFee: number;
   transportFee: number;
   otherFee: number;
+  discount: number;
   totalFee: number;
   createdBy: Types.ObjectId;
   createdAt: Date;
@@ -21,10 +23,12 @@ const feeStructureSchema = new Schema<IFeeStructure>(
     sessionId: { type: Schema.Types.ObjectId, ref: "AcademicSession", required: true },
     admissionFee: { type: Number, required: true, min: 0, default: 0 },
     monthlyFee: { type: Number, required: true, min: 0, default: 0 },
+    annualFee: { type: Number, required: true, min: 0, default: 0 },
     computerFee: { type: Number, required: true, min: 0, default: 0 },
     examFee: { type: Number, required: true, min: 0, default: 0 },
     transportFee: { type: Number, required: true, min: 0, default: 0 },
     otherFee: { type: Number, required: true, min: 0, default: 0 },
+    discount: { type: Number, required: true, min: 0, default: 0 },
     totalFee: { type: Number, required: true, min: 0, default: 0 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
@@ -38,6 +42,7 @@ feeStructureSchema.pre("save", function (next) {
   this.totalFee =
     this.admissionFee +
     this.monthlyFee * 12 +
+    this.annualFee +
     this.computerFee +
     this.examFee +
     this.otherFee;
