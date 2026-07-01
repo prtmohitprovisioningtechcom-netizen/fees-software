@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Plus, Pencil, Trash2, Wallet, TrendingDown, CalendarDays, Tag } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Plus, Pencil, Trash2, Wallet, CalendarDays, Tag } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { Pagination } from "@/components/shared/pagination";
-import { StatCard } from "@/components/shared/stat-card";
-import { FormField } from "@/components/shared/form-field";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,48 +19,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { expensesApi, sessionsApi } from "@/lib/api";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { expensesApi } from "@/lib/api";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
-import { useAuth } from "@/lib/auth-context";
 import { Expense, ExpenseCategory, ExpenseStats } from "@/types";
+import {
+  ExpenseFormDialog,
+  emptyExpenseForm,
+  type ExpenseFormData,
+} from "@/components/expenses/expense-form-dialog";
 
-const PAYMENT_MODES = ["cash", "upi", "card", "cheque", "bank_transfer"] as const;
-
-const emptyForm = {
-  title: "",
-  categoryId: "",
-  amount: "",
-  expenseDate: new Date().toISOString().slice(0, 10),
-  paymentMode: "cash" as (typeof PAYMENT_MODES)[number],
-  paidTo: "",
-  sessionId: "",
-  remarks: "",
-};
+function getMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
 
 export default function ExpensesPage() {
-  const { isSuperAdmin } = useAuth();
+  const monthRange = useMemo(() => getMonthRange(), []);
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [sessions, setSessions] = useState<{ _id: string; name: string }[]>([]);
   const [stats, setStats] = useState<ExpenseStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState({
-    categoryId: "",
-    sessionId: "",
-    paymentMode: "",
-    startDate: "",
-    endDate: "",
-  });
+  const [activeCategory, setActiveCategory] = useState("");
+  const [showAllTime, setShowAllTime] = useState(false);
   const [open, setOpen] = useState(false);
-  const [categoryOpen, setCategoryOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<ExpenseFormData>(emptyExpenseForm());
   const [newCategory, setNewCategory] = useState("");
 
   const fetchCategories = () =>
@@ -80,16 +69,13 @@ export default function ExpensesPage() {
         limit: "15",
       };
       if (search.trim()) params.search = search.trim();
-      if (filters.categoryId) params.categoryId = filters.categoryId;
-      if (filters.sessionId) params.sessionId = filters.sessionId;
-      if (filters.paymentMode) params.paymentMode = filters.paymentMode;
-      if (filters.startDate) params.startDate = filters.startDate;
-      if (filters.endDate) params.endDate = filters.endDate;
+      if (activeCategory) params.categoryId = activeCategory;
+      if (!showAllTime) {
+        params.startDate = monthRange.startDate;
+        params.endDate = monthRange.endDate;
+      }
 
-      const statsParams: Record<string, string> = {};
-      if (filters.sessionId) statsParams.sessionId = filters.sessionId;
-      if (filters.startDate) statsParams.startDate = filters.startDate;
-      if (filters.endDate) statsParams.endDate = filters.endDate;
+      const statsParams: Record<string, string> = showAllTime ? {} : { ...monthRange };
 
       const [listRes, statsRes] = await Promise.all([
         expensesApi.getAll(params),
@@ -103,11 +89,10 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, filters]);
+  }, [page, search, activeCategory, showAllTime, monthRange]);
 
   useEffect(() => {
     fetchCategories();
-    sessionsApi.getAll().then((res) => setSessions((res as { data: typeof sessions }).data));
   }, []);
 
   useEffect(() => {
@@ -115,9 +100,17 @@ export default function ExpensesPage() {
     return () => clearTimeout(timer);
   }, [fetchData]);
 
-  const openCreate = () => {
+  const categoryTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    stats?.byCategory?.forEach((item) => {
+      if (item.categoryId) map.set(item.categoryId, item.total);
+    });
+    return map;
+  }, [stats]);
+
+  const openCreate = (categoryId?: string) => {
     setEditId(null);
-    setForm(emptyForm);
+    setForm({ ...emptyExpenseForm(), categoryId: categoryId || "" });
     setOpen(true);
   };
 
@@ -128,17 +121,15 @@ export default function ExpensesPage() {
       categoryId: expense.categoryId._id,
       amount: String(expense.amount),
       expenseDate: expense.expenseDate.slice(0, 10),
-      paymentMode: expense.paymentMode as (typeof PAYMENT_MODES)[number],
+      paymentMode: expense.paymentMode as ExpenseFormData["paymentMode"],
       paidTo: expense.paidTo || "",
-      sessionId: expense.sessionId?._id || "",
-      remarks: expense.remarks || "",
     });
     setOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.title.trim() || !form.categoryId || !form.amount) {
-      toast({ title: "Required", description: "Title, category and amount are required", variant: "destructive" });
+      toast({ title: "Required", description: "Category, amount and description are required", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -150,15 +141,13 @@ export default function ExpensesPage() {
         expenseDate: form.expenseDate,
         paymentMode: form.paymentMode,
         paidTo: form.paidTo || undefined,
-        sessionId: form.sessionId || undefined,
-        remarks: form.remarks || undefined,
       };
       if (editId) {
         await expensesApi.update(editId, payload);
-        toast({ title: "Updated", description: "Expense updated successfully" });
+        toast({ title: "Updated", description: "Expense updated" });
       } else {
         await expensesApi.create(payload);
-        toast({ title: "Recorded", description: "Expense added successfully" });
+        toast({ title: "Saved", description: "Expense recorded" });
       }
       setOpen(false);
       fetchData();
@@ -184,153 +173,188 @@ export default function ExpensesPage() {
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
     try {
-      await expensesApi.createCategory(newCategory.trim());
+      const res = await expensesApi.createCategory(newCategory.trim());
+      const created = (res as { data: ExpenseCategory }).data;
       toast({ title: "Category added" });
       setNewCategory("");
-      fetchCategories();
+      await fetchCategories();
+      if (created?._id) setActiveCategory(created._id);
     } catch (error) {
       toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      await expensesApi.deleteCategory(id);
-      toast({ title: "Category removed" });
-      fetchCategories();
-    } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
-    }
-  };
+  const periodLabel = showAllTime ? "All time" : "This month";
 
   return (
     <DashboardLayout>
       <PageHeader
         title="Expenses"
-        description="Record school expenses with category, date, and payment mode."
+        description="Add your own categories, then track spending under each one."
         breadcrumbs={[{ label: "Expenses" }]}
         action={
-          <div className="flex gap-2">
-            {isSuperAdmin && (
-              <Button variant="outline" onClick={() => setCategoryOpen(true)}>
-                <Tag className="h-4 w-4 mr-2" />
-                Categories
-              </Button>
-            )}
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Expense
-            </Button>
-          </div>
+          <Button
+            onClick={() => openCreate(activeCategory || undefined)}
+            disabled={categories.length === 0}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Expense
+          </Button>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatCard title="Today's Expense" value={stats?.todayTotal ?? 0} icon={Wallet} loading={loading} variant="warning" />
-        <StatCard title="This Month" value={stats?.monthTotal ?? 0} icon={CalendarDays} loading={loading} variant="warning" />
-        <StatCard
-          title="Filtered Total"
-          value={stats?.rangeTotal ?? 0}
-          icon={TrendingDown}
-          loading={loading}
-          variant="warning"
-        />
-        <StatCard title="Expense Count" value={stats?.rangeCount ?? 0} icon={Tag} loading={loading} />
+      {/* Summary */}
+      <div className="grid gap-3 sm:grid-cols-3 mb-5">
+        <div className="rounded-lg border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Wallet className="h-3.5 w-3.5" /> Today
+          </p>
+          <p className="text-xl font-bold text-amber-700 mt-1">{formatCurrency(stats?.todayTotal ?? 0)}</p>
+        </div>
+        <div className="rounded-lg border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <CalendarDays className="h-3.5 w-3.5" /> This month
+          </p>
+          <p className="text-xl font-bold text-amber-700 mt-1">{formatCurrency(stats?.monthTotal ?? 0)}</p>
+        </div>
+        <div className="rounded-lg border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Tag className="h-3.5 w-3.5" /> {activeCategory ? "Category total" : periodLabel}
+          </p>
+          <p className="text-xl font-bold mt-1">
+            {formatCurrency(activeCategory ? categoryTotals.get(activeCategory) ?? 0 : stats?.rangeTotal ?? 0)}
+          </p>
+        </div>
       </div>
 
-      {stats?.byCategory && stats.byCategory.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-base">Category-wise Expenses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {stats.byCategory.map((item) => (
-                <div key={item.categoryId} className="flex justify-between rounded-lg border px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">{item.categoryName}</span>
-                  <span className="font-semibold text-amber-700">{formatCurrency(item.total)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-            <SearchInput
-              value={search}
-              onChange={(v) => { setSearch(v); setPage(1); }}
-              placeholder="Search title, vendor, voucher..."
-            />
-            <Select value={filters.categoryId} onValueChange={(v) => { setFilters({ ...filters, categoryId: v === "all" ? "" : v }); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="All Categories" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filters.sessionId} onValueChange={(v) => { setFilters({ ...filters, sessionId: v === "all" ? "" : v }); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="All Sessions" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sessions</SelectItem>
-                {sessions.map((s) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filters.paymentMode} onValueChange={(v) => { setFilters({ ...filters, paymentMode: v === "all" ? "" : v }); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="Payment Mode" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Modes</SelectItem>
-                {PAYMENT_MODES.map((m) => <SelectItem key={m} value={m} className="capitalize">{m.replace("_", " ")}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input type="date" value={filters.startDate} onChange={(e) => { setFilters({ ...filters, startDate: e.target.value }); setPage(1); }} />
-            <Input type="date" value={filters.endDate} onChange={(e) => { setFilters({ ...filters, endDate: e.target.value }); setPage(1); }} />
+      {/* Category-wise */}
+      <Card className="mb-5">
+        <CardContent className="pt-5 pb-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-sm font-semibold">Your categories — {periodLabel}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => { setShowAllTime(!showAllTime); setPage(1); }}
+            >
+              {showAllTime ? "Show this month" : "Show all time"}
+            </Button>
           </div>
+
+          <div className="flex gap-2 mb-4">
+            <Input
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="New category — e.g. Salary, Rent, Stationery"
+              className="h-9"
+              onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+            />
+            <Button size="sm" className="shrink-0" onClick={handleAddCategory}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
+
+          {categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-lg">
+              No categories yet. Create one above — e.g. Salary, Utilities, Transport.
+            </p>
+          ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => { setActiveCategory(""); setPage(1); }}
+              className={cn(
+                "rounded-lg border px-3 py-2 text-left min-w-[100px] transition-colors",
+                !activeCategory ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:bg-muted"
+              )}
+            >
+              <p className="text-xs text-muted-foreground">All</p>
+              <p className="text-sm font-semibold">{formatCurrency(stats?.rangeTotal ?? 0)}</p>
+            </button>
+            {categories.map((cat) => {
+              const total = categoryTotals.get(cat._id) ?? 0;
+              const selected = activeCategory === cat._id;
+              return (
+                <button
+                  key={cat._id}
+                  type="button"
+                  onClick={() => { setActiveCategory(cat._id); setPage(1); }}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-left min-w-[100px] transition-colors",
+                    selected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:bg-muted"
+                  )}
+                >
+                  <p className="text-xs text-muted-foreground truncate max-w-[120px]">{cat.name}</p>
+                  <p className="text-sm font-semibold text-amber-700">{formatCurrency(total)}</p>
+                </button>
+              );
+            })}
+          </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Search */}
+      <div className="mb-4">
+        <SearchInput
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search description or vendor..."
+        />
+      </div>
+
+      {/* List */}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
-                <TableHead>Voucher</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Paid To</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Paid to</TableHead>
                 <TableHead>Mode</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Loading...</TableCell>
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Loading...</TableCell>
                 </TableRow>
               ) : expenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">No expenses found</TableCell>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <p className="text-muted-foreground">No expenses found</p>
+                    <Button variant="link" className="mt-1" onClick={() => openCreate(activeCategory || undefined)}>
+                      Add your first expense
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ) : (
                 expenses.map((expense) => (
                   <TableRow key={expense._id}>
-                    <TableCell className="font-mono text-xs">{expense.voucherNumber}</TableCell>
-                    <TableCell className="font-medium">{expense.title}</TableCell>
-                    <TableCell><Badge variant="secondary">{expense.categoryId?.name}</Badge></TableCell>
-                    <TableCell>{expense.paidTo || "—"}</TableCell>
-                    <TableCell>{formatDate(expense.expenseDate)}</TableCell>
-                    <TableCell className="capitalize">{expense.paymentMode.replace("_", " ")}</TableCell>
-                    <TableCell className="text-right font-semibold text-amber-700">{formatCurrency(expense.amount)}</TableCell>
+                    <TableCell className="text-sm">{formatDate(expense.expenseDate)}</TableCell>
+                    <TableCell>
+                      <span className="text-xs font-medium rounded-full bg-muted px-2 py-0.5">
+                        {expense.categoryId?.name}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate">{expense.title}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{expense.paidTo || "—"}</TableCell>
+                    <TableCell className="text-sm capitalize">{expense.paymentMode.replace("_", " ")}</TableCell>
+                    <TableCell className="text-right font-semibold text-amber-700">
+                      {formatCurrency(expense.amount)}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(expense)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(expense)}>
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(expense._id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(expense._id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -344,96 +368,28 @@ export default function ExpensesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editId ? "Edit Expense" : "Add Expense"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <FormField label="Title" required>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Electricity Bill" />
-            </FormField>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Category" required>
-                <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Amount (₹)" required>
-                <Input type="number" min={1} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-              </FormField>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Expense Date" required>
-                <Input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} />
-              </FormField>
-              <FormField label="Payment Mode" required>
-                <Select value={form.paymentMode} onValueChange={(v) => setForm({ ...form, paymentMode: v as typeof form.paymentMode })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_MODES.map((m) => <SelectItem key={m} value={m} className="capitalize">{m.replace("_", " ")}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
-            <FormField label="Paid To / Vendor">
-              <Input value={form.paidTo} onChange={(e) => setForm({ ...form, paidTo: e.target.value })} placeholder="Person or company name" />
-            </FormField>
-            <FormField label="Academic Session (optional)">
-              <Select value={form.sessionId || "none"} onValueChange={(v) => setForm({ ...form, sessionId: v === "none" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not linked to session</SelectItem>
-                  {sessions.map((s) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Remarks">
-              <Textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Optional notes" />
-            </FormField>
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? "Saving..." : editId ? "Update Expense" : "Save Expense"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Expense Categories</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="New category name" />
-              <Button onClick={handleAddCategory}>Add</Button>
-            </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {categories.map((c) => (
-                <div key={c._id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span>{c.name}</span>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(c._id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ExpenseFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        editId={editId}
+        form={form}
+        setForm={setForm}
+        categories={categories}
+        onSave={handleSave}
+        saving={saving}
+      />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
-            <AlertDialogDescription>This expense will be removed from records.</AlertDialogDescription>
+            <AlertDialogTitle>Delete expense?</AlertDialogTitle>
+            <AlertDialogDescription>This will remove the expense from your records.</AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex justify-end gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>

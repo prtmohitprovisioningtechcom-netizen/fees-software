@@ -19,8 +19,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/categories", getExpenseCategories);
-router.post("/categories", authorize("super_admin"), validate(expenseCategorySchema), createExpenseCategory);
-router.delete("/categories/:id", authorize("super_admin"), deleteExpenseCategory);
+router.post("/categories", validate(expenseCategorySchema), createExpenseCategory);
+router.delete("/categories/:id", authorize("super_admin", "admin"), deleteExpenseCategory);
 
 router.get("/stats", getExpenseStats);
 router.get("/", getExpenses);

@@ -3,17 +3,6 @@ import { Types } from "mongoose";
 import { Expense, ExpenseCategory } from "../models";
 import { AuthRequest } from "../middleware/auth";
 
-const DEFAULT_CATEGORIES = [
-  "Salary",
-  "Utilities",
-  "Maintenance",
-  "Stationery",
-  "Transport",
-  "Event / Function",
-  "Rent",
-  "Miscellaneous",
-];
-
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -33,13 +22,6 @@ const startOfMonth = () => {
   return d;
 };
 
-export const ensureDefaultCategories = async () => {
-  const count = await ExpenseCategory.countDocuments();
-  if (count === 0) {
-    await ExpenseCategory.insertMany(DEFAULT_CATEGORIES.map((name) => ({ name })));
-  }
-};
-
 export const generateVoucherNumber = async (): Promise<string> => {
   const year = new Date().getFullYear();
   const prefix = `EXP${year}`;
@@ -57,7 +39,6 @@ export const generateVoucherNumber = async (): Promise<string> => {
 
 export const getExpenseCategories = async (_req: AuthRequest, res: Response) => {
   try {
-    await ensureDefaultCategories();
     const categories = await ExpenseCategory.find({ isActive: true }).sort({ name: 1 });
     res.json({ success: true, data: categories });
   } catch (error) {
@@ -183,7 +164,6 @@ export const getExpenseStats = async (req: AuthRequest, res: Response) => {
         { $match: rangeFilter },
         { $group: { _id: "$categoryId", total: { $sum: "$amount" }, count: { $sum: 1 } } },
         { $sort: { total: -1 } },
-        { $limit: 8 },
       ]),
       Expense.find(rangeFilter)
         .populate("categoryId", "name")
