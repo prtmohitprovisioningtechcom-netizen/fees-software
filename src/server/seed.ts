@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import connectDB from "./config/database";
-import { User, AcademicSession } from "./models";
+import { User } from "./models";
 
 async function seed() {
   await connectDB();
@@ -29,18 +29,6 @@ async function seed() {
       role: "admin",
     });
     console.log("Admin created: admin@school.com / admin123");
-  }
-
-  const session = await AcademicSession.findOne({ name: "2025-26" });
-  if (!session) {
-    await AcademicSession.create({
-      name: "2025-26",
-      startDate: new Date("2025-04-01"),
-      endDate: new Date("2026-03-31"),
-      isCurrent: true,
-      isActive: true,
-    });
-    console.log("Academic session 2025-26 created");
   }
 
   console.log("Seed completed! Classes and sections will be created from student Excel import.");

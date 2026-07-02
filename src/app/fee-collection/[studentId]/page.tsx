@@ -220,6 +220,10 @@ function CollectFeePageContent() {
               <div className="flex justify-between"><span className="text-muted-foreground">Section</span><strong>{sec?.name}</strong></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Father</span><strong>{student?.fatherName as string}</strong></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Mobile</span><strong>{student?.mobileNumber as string}</strong></div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Transport</span>
+                <strong>{student?.transportRequired ? "Yes — fee applies" : "No"}</strong>
+              </div>
             </CardContent>
           </Card>
 
@@ -302,6 +306,12 @@ function CollectFeePageContent() {
                       <TableRow><TableCell>ID Card / Diary / Syllabus</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.computerFee)}</TableCell></TableRow>
                       <TableRow><TableCell>Annual / Development</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.annualFee)}</TableCell></TableRow>
                       <TableRow><TableCell>Tour / Other</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.otherFee)}</TableCell></TableRow>
+                      {(calculation.feeBreakdown.transportFee || 0) > 0 && (
+                        <TableRow>
+                          <TableCell>Transport (11 months)</TableCell>
+                          <TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.transportFee)}</TableCell>
+                        </TableRow>
+                      )}
                       <TableRow className="font-medium border-t">
                         <TableCell>Yearly Gross Total</TableCell>
                         <TableCell className="text-right">{formatCurrency(calculation.grossTotal)}</TableCell>

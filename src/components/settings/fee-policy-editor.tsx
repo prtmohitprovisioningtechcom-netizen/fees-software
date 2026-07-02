@@ -55,7 +55,8 @@ export function FeePolicyEditor({ policy, onChange }: FeePolicyEditorProps) {
         <p className="font-semibold text-primary">How it works</p>
         <p>Tuition is always <strong>3 × monthly fee</strong> every quarter.</p>
         <p>Set % for other fees per quarter — each row must total <strong>100%</strong> (or 0% if disabled).</p>
-        <p className="text-muted-foreground">Default: Q1 = Admission + I.C. + Annual + F.I. · Q2/Q3 = ½ Exam each · Q4 = tuition only</p>
+        <p>Default: Q1 = Admission + I.C. + Annual + F.I. · Q2/Q3 = ½ Exam each · Q4 = tuition only</p>
+        <p><strong>Transport</strong> (if student uses it): 11 months — Q1 = 2 months, Q2–Q4 = 3 months each. Set monthly rate in Fee Structure.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">

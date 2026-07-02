@@ -9,6 +9,7 @@ export type FeeStructureRecord = {
   computerFee: number;
   examFee: number;
   otherFee: number;
+  transportFee?: number;
   discount?: number;
 };
 
@@ -21,6 +22,7 @@ const extractFees = (s: FeeStructureRecord): Omit<FeeStructureFormData, "classId
   computerFee: s.computerFee,
   examFee: s.examFee,
   otherFee: s.otherFee,
+  transportFee: s.transportFee || 0,
   discount: s.discount || 0,
 });
 

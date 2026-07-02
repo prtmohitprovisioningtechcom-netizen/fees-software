@@ -123,7 +123,7 @@ export default function ReportsPage() {
     if (isSuperAdmin) {
       dashboardApi.getReportCollectors().then((res) => setCollectors((res as { data: Collector[] }).data));
     }
-  }, [isSuperAdmin, filters.sessionId]);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!filters.sessionId) return;
@@ -141,6 +141,13 @@ export default function ReportsPage() {
         setPayments(data.payments);
         setSummary(data.summary);
         setQuarterlyStudents(data.quarterlyStudents || []);
+      })
+      .catch((error) => {
+        toast({
+          title: "Could not load report",
+          description: error instanceof Error ? error.message : "Failed to fetch reports",
+          variant: "destructive",
+        });
       })
       .finally(() => setLoading(false));
   }, [buildParams, filters.sessionId]);
@@ -177,12 +184,20 @@ export default function ReportsPage() {
         description={reportDescription}
         breadcrumbs={[{ label: isSuperAdmin ? "Reports" : "My Reports" }]}
         action={
-          <Button onClick={handleDownload} disabled={downloading || loading || !filters.sessionId}>
+          <Button onClick={handleDownload} disabled={downloading || loading || !filters.sessionId || sessions.length === 0}>
             {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
             Download Excel
           </Button>
         }
       />
+
+      {sessions.length === 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardContent className="py-4 text-sm">
+            <strong>No academic session found.</strong> Go to Sessions and create one for your school year.
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mb-6">
         <CardContent className="pt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">

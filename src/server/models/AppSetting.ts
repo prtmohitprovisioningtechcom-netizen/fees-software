@@ -24,8 +24,8 @@ export interface IAppSetting extends Document {
 
 const appSettingSchema = new Schema<IAppSetting>(
   {
-    schoolName: { type: String, required: true, trim: true, default: "School ERP" },
-    appName: { type: String, required: true, trim: true, default: "Fee Management" },
+    schoolName: { type: String, required: true, trim: true, default: "" },
+    appName: { type: String, required: true, trim: true, default: "" },
     logo: { type: String },
     address: { type: String, trim: true },
     phone: { type: String, trim: true },

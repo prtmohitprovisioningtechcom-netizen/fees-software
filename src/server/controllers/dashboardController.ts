@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { AcademicSession, Student, FeePayment } from "../models";
 import { AuthRequest } from "../middleware/auth";
 import { createSessionFeeCache, getFeeStatusFromCache, createSessionQuarterlyCache, buildStudentQuarterlyReport, aggregateQuarterlyTotals } from "../services/feeService";
+import { resolveAcademicSession } from "../services/sessionService";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
 const startOfToday = () => {
   const d = new Date();
@@ -17,23 +18,27 @@ const endOfToday = () => {
   return d;
 };
 
-const resolveSessionId = async (sessionId?: string) => {
-  if (sessionId && Types.ObjectId.isValid(sessionId)) {
-    const session = await AcademicSession.findById(sessionId);
-    if (session) return session;
-  }
-  return (
-    (await AcademicSession.findOne({ isActive: true, isCurrent: true })) ||
-    (await AcademicSession.findOne({ isActive: true }).sort({ startDate: -1 }))
-  );
-};
+const resolveSessionId = resolveAcademicSession;
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const isSuperAdmin = req.user?.role === "super_admin";
-    const session = await resolveSessionId(req.query.sessionId as string);
+    const session = await resolveAcademicSession(req.query.sessionId as string);
     if (!session) {
-      return res.status(400).json({ success: false, message: "Academic session not found" });
+      const totalStudents = await Student.countDocuments({ status: "active" });
+      return res.json({
+        success: true,
+        data: {
+          session: null,
+          totalStudents,
+          totalFeeCollected: isSuperAdmin ? 0 : undefined,
+          pendingFees: 0,
+          todayCollection: 0,
+          recentPayments: [],
+          pendingStudents: [],
+          needsSession: true,
+        },
+      });
     }
 
     const sessionObjectId = session._id;
@@ -83,7 +88,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         feeCache,
         classId,
         student._id.toString(),
-        (student as { feeDiscount?: number }).feeDiscount || 0
+        (student as { feeDiscount?: number }).feeDiscount || 0,
+        (student as { transportRequired?: boolean }).transportRequired || false
       );
       return {
         _id: student._id.toString(),
@@ -206,6 +212,7 @@ const buildReportRows = (payments: Awaited<ReturnType<typeof fetchCollectionRepo
       "ID Card / Diary": Number(breakdown.computerFee) || 0,
       "Exam Fee": Number(breakdown.examFee) || 0,
       "Tour / Other": Number(breakdown.otherFee) || 0,
+      "Transport (11 months)": Number(breakdown.transportFee) || 0,
       "Gross Total": Number(breakdown.grossTotal) || p.totalFee,
       "Total Discount": Number(breakdown.totalDiscount) || 0,
     };
@@ -321,9 +328,28 @@ async function fetchCollectionReportData(
   const sessionId = query.sessionId as string | undefined;
   const collectedByQuery = query.collectedBy as string | undefined;
 
-  const session = await resolveSessionId(sessionId);
+  const session = await resolveAcademicSession(sessionId);
   if (!session) {
-    throw new Error("Academic session not found");
+    return {
+      payments: [] as never[],
+      summary: {
+        totalCollections: 0,
+        totalAmount: 0,
+        sessionName: "",
+        className: "All Classes",
+        collectedByName: user?.role === "admin" ? user.name || "You" : "All Admins",
+        byQuarter: { 1: 0, 2: 0, 3: 0, 4: 0 },
+        quarterTotals: {
+          1: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+          2: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+          3: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+          4: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+        },
+        byMode: {},
+        needsSession: true,
+      },
+      quarterlyStudents: [],
+    };
   }
 
   const filter: Record<string, unknown> = { sessionId: session._id };
@@ -388,7 +414,7 @@ async function fetchCollectionReportData(
     .populate("sectionId", "name")
     .sort({ studentName: 1 });
 
-  const quarterlyCache = await createSessionQuarterlyCache(session._id.toString());
+  const quarterlyCache = await createSessionQuarterlyCache(session._id.toString(), students);
   const quarterlyStudents = (
     await Promise.all(
       students.map(async (student) => {

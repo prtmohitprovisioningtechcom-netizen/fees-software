@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { AcademicSession, Class, Section, Student } from "../models";
 import { AuthRequest } from "../middleware/auth";
 import { generateRegistrationNumber } from "../services/feeService";
+import { resolveAcademicSession } from "../services/sessionService";
 import { EXCEL_IMPORT_CLASS_DESC } from "../constants/classes";
 
 export const getStudents = async (req: AuthRequest, res: Response) => {
@@ -63,13 +64,19 @@ export const getStudent = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const normalizeBoolean = (value: string) => ["yes", "true", "1", "y", "haan"].includes(value.trim().toLowerCase());
+
 const parseStudentBody = (body: Record<string, unknown>) => {
   const data = { ...body };
   if (typeof data.address === "string") {
     data.address = JSON.parse(data.address as string);
   }
   if (data.transportRequired !== undefined) {
-    data.transportRequired = data.transportRequired === "true" || data.transportRequired === true;
+    if (typeof data.transportRequired === "boolean") {
+      data.transportRequired = data.transportRequired;
+    } else {
+      data.transportRequired = normalizeBoolean(String(data.transportRequired));
+    }
   }
   return data;
 };
@@ -178,14 +185,7 @@ const normalizeStatus = (value: string) => {
   return "active";
 };
 
-const normalizeBoolean = (value: string) => ["yes", "true", "1", "y", "haan"].includes(value.trim().toLowerCase());
-
-const getCurrentSession = async () => {
-  return (
-    (await AcademicSession.findOne({ isActive: true, isCurrent: true })) ||
-    (await AcademicSession.findOne({ isActive: true }).sort({ startDate: -1 }))
-  );
-};
+const getCurrentSession = () => resolveAcademicSession();
 
 const findClass = async (value: string) => {
   const ref = value || "";

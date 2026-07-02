@@ -12,26 +12,25 @@ import {
   UserPlus,
   Receipt,
   BarChart3,
-  LogOut,
-  Menu,
-  X,
   School,
   Layers,
   Settings,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
-import { settingsApi } from "@/lib/api";
+import { useBranding } from "@/lib/branding-context";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const superAdminLinks = [
+type NavLink = { href: string; label: string; icon: LucideIcon };
+
+const superAdminLinks: NavLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin-users", label: "Admin Users", icon: Users },
   { href: "/classes", label: "Classes", icon: BookOpen },
   { href: "/sections", label: "Sections", icon: Layers },
-  { href: "/sessions", label: "Academic Sessions", icon: Calendar },
+  { href: "/sessions", label: "Sessions", icon: Calendar },
   { href: "/fee-structure", label: "Fee Structure", icon: IndianRupee },
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/fee-collection", label: "Fee Collection", icon: Receipt },
@@ -40,111 +39,85 @@ const superAdminLinks = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-const adminLinks = [
+const adminLinks: NavLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/students", label: "Students", icon: GraduationCap },
-  { href: "/students/new", label: "Register Student", icon: UserPlus },
+  { href: "/students/new", label: "Register", icon: UserPlus },
   { href: "/fee-collection", label: "Fee Collection", icon: Receipt },
   { href: "/expenses", label: "Expenses", icon: Wallet },
-  { href: "/reports", label: "My Reports", icon: BarChart3 },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
-export function Sidebar() {
+function isLinkActive(pathname: string | null, href: string) {
+  if (!pathname) return false;
+  if (href === "/dashboard") return pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+type SidebarProps = {
+  mobileOpen: boolean;
+  onNavigate: () => void;
+};
+
+export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout, isSuperAdmin } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [settings, setSettings] = useState({ appName: "Fee Management", schoolName: "School ERP", logo: "" });
+  const { isSuperAdmin } = useAuth();
+  const { branding, loaded } = useBranding();
   const links = isSuperAdmin ? superAdminLinks : adminLinks;
+  const schoolTitle = branding.schoolName.trim() || branding.appName.trim();
 
-  useEffect(() => {
-    settingsApi.get()
-      .then((res) => {
-        const data = (res as { data?: typeof settings }).data;
-        if (data) setSettings(data);
-      })
-      .catch(() => undefined);
-  }, []);
-
-  const NavContent = () => (
-    <>
-      <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
-          {settings.logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={settings.logo} alt="Logo" className="h-8 w-8 rounded object-cover" />
-          ) : (
-            <School className="h-6 w-6 text-sidebar-primary-foreground" />
-          )}
-        </div>
-        <div>
-          <h1 className="text-sm font-bold text-sidebar-foreground">{settings.appName}</h1>
-          <p className="text-xs text-sidebar-foreground/60">{settings.schoolName}</p>
-        </div>
+  return (
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-40 flex w-52 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+    >
+      <div className="shrink-0 border-b border-sidebar-border px-3 py-4">
+        {!loaded ? (
+          <div className="flex flex-col items-center gap-2">
+            <Skeleton className="h-16 w-16 rounded-xl bg-sidebar-foreground/15" />
+            <Skeleton className="h-4 w-full bg-sidebar-foreground/15" />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-sidebar-primary shadow-md ring-2 ring-white/10">
+              {branding.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={branding.logo} alt="Logo" className="h-14 w-14 rounded-lg object-cover" />
+              ) : (
+                <School className="h-8 w-8 text-sidebar-primary-foreground" />
+              )}
+            </div>
+            <p className="w-full break-words text-base font-semibold leading-snug text-sidebar-foreground">
+              {schoolTitle || "School"}
+            </p>
+          </div>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="sidebar-scroll flex-1 space-y-0.5 overflow-y-auto p-2">
         {links.map((link) => {
           const Icon = link.icon;
-          const active = pathname === link.href || (link.href !== "/dashboard" && pathname?.startsWith(link.href));
+          const active = isLinkActive(pathname, link.href);
           return (
             <Link
               key={link.href}
               href={link.href}
-              onClick={() => setMobileOpen(false)}
+              onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                "flex items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors",
                 active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
             >
-              <Icon className="h-4 w-4" />
-              {link.label}
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="break-words leading-tight">{link.label}</span>
             </Link>
           );
         })}
       </nav>
-
-      <div className="border-t border-sidebar-border p-4">
-        <div className="mb-3 px-3">
-          <p className="text-sm font-medium text-sidebar-foreground">{user?.name}</p>
-          <p className="text-xs text-sidebar-foreground/60 capitalize">{user?.role?.replace("_", " ")}</p>
-        </div>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          onClick={logout}
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
-      </div>
-    </>
-  );
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed left-4 top-4 z-50 lg:hidden"
-        onClick={() => setMobileOpen(!mobileOpen)}
-      >
-        {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
-
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
-      )}
-
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar transition-transform lg:translate-x-0",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <NavContent />
-      </aside>
-    </>
+    </aside>
   );
 }

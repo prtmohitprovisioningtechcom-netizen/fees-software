@@ -54,7 +54,7 @@ export default function LoginPage() {
             <School className="h-8 w-8 text-primary-foreground" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">School Fee Management</CardTitle>
+            <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
             <CardDescription className="mt-2">Sign in to your account to continue</CardDescription>
           </div>
         </CardHeader>

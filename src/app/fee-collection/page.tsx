@@ -58,7 +58,11 @@ function FeeCollectionPageContent() {
   }, [sessionId]);
 
   const fetchStudents = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const params: Record<string, string> = {
@@ -78,6 +82,13 @@ function FeeCollectionPageContent() {
       setStudents(res.data);
       setSessionName(res.session?.name || "");
       setPagination(res.pagination);
+    } catch (error) {
+      setStudents([]);
+      toast({
+        title: "Could not load students",
+        description: error instanceof Error ? error.message : "Failed to load fee collection list",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -201,7 +212,12 @@ function FeeCollectionPageContent() {
               </SelectContent>
             </Select>
           </div>
-          {!loading && sessionName && (
+          {!loading && sessions.length === 0 && (
+            <p className="text-xs text-amber-600 mt-3">
+              No academic session found. Create one from <strong>Sessions</strong> first, then students will appear here.
+            </p>
+          )}
+          {!loading && sessionName && sessions.length > 0 && (
             <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
               <Users className="h-3.5 w-3.5" />
               {pagination.total} student{pagination.total !== 1 ? "s" : ""} — Session: <strong>{sessionName}</strong>
@@ -237,7 +253,11 @@ function FeeCollectionPageContent() {
               ) : students.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
-                    {search.trim() ? "No matching students found" : "No students registered yet"}
+                    {sessions.length === 0
+                      ? "Create an academic session first (Sessions menu)"
+                      : search.trim()
+                        ? "No matching students found"
+                        : "No students registered yet"}
                   </TableCell>
                 </TableRow>
               ) : (

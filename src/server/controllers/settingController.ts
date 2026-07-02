@@ -5,13 +5,15 @@ import { mergeFeePolicy, validateFeePolicy, type FeePolicy } from "@/lib/fee-pol
 import { clearFeePolicyCache } from "../services/feeService";
 
 const defaultSettings = {
-  schoolName: "School ERP",
-  appName: "Fee Management",
+  schoolName: "",
+  appName: "",
   logo: "",
   address: "",
   phone: "",
   email: "",
 };
+
+const MAX_LOGO_LENGTH = 2_000_000;
 
 const getOrCreateSettings = async () => {
   const existing = await AppSetting.findOne();
@@ -38,13 +40,22 @@ export const getSettings = async (_req: AuthRequest, res: Response) => {
 export const updateSettings = async (req: AuthRequest, res: Response) => {
   try {
     const settings = await getOrCreateSettings();
+    const logo = String(req.body.logo || "");
+
+    if (logo.length > MAX_LOGO_LENGTH) {
+      return res.status(413).json({
+        success: false,
+        message: "Logo image is too large. Please upload a smaller image (under 1.5 MB).",
+      });
+    }
+
     const updates: Record<string, unknown> = {
-      schoolName: req.body.schoolName || defaultSettings.schoolName,
-      appName: req.body.appName || defaultSettings.appName,
-      logo: req.body.logo || "",
-      address: req.body.address || "",
-      phone: req.body.phone || "",
-      email: req.body.email || "",
+      schoolName: typeof req.body.schoolName === "string" ? req.body.schoolName.trim() : "",
+      appName: typeof req.body.appName === "string" ? req.body.appName.trim() : "",
+      logo,
+      address: typeof req.body.address === "string" ? req.body.address : "",
+      phone: typeof req.body.phone === "string" ? req.body.phone : "",
+      email: typeof req.body.email === "string" ? req.body.email : "",
     };
 
     if (req.body.feePolicy) {

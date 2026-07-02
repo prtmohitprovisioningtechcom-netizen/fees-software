@@ -108,6 +108,15 @@ export default function DashboardPage() {
         </p>
       )}
 
+      {(stats as DashboardStats & { needsSession?: boolean })?.needsSession && (
+        <Card className="mb-4 border-amber-200 bg-amber-50">
+          <CardContent className="py-4 text-sm">
+            <strong>No academic session found.</strong>{" "}
+            <Link href="/sessions" className="text-primary underline font-medium">Create a session</Link> to view fee collection stats.
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard title="Total Students" value={stats?.totalStudents ?? 0} icon={Users} loading={loading} />
         {isSuperAdmin && (

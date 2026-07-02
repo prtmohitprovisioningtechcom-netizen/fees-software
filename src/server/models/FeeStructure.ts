@@ -38,7 +38,6 @@ const feeStructureSchema = new Schema<IFeeStructure>(
 feeStructureSchema.index({ classId: 1, sessionId: 1 }, { unique: true });
 
 feeStructureSchema.pre("save", function (next) {
-  this.transportFee = 0;
   const tuition = this.monthlyFee * 12;
   const annualCharges = this.examFee + this.computerFee + this.annualFee + this.otherFee;
   const gross = tuition + annualCharges;

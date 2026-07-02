@@ -51,6 +51,26 @@ export default function EditStudentPage() {
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<EditForm>({
     resolver: zodResolver(editSchema),
+    defaultValues: {
+      admissionNumber: "",
+      rollNumber: "",
+      studentName: "",
+      fatherName: "",
+      motherName: "",
+      mobileNumber: "",
+      gender: "male",
+      dateOfBirth: "",
+      classId: "",
+      sectionId: "",
+      sessionId: "",
+      admissionDate: "",
+      addressLine1: "",
+      city: "",
+      state: "",
+      pincode: "",
+      status: "active",
+      transportRequired: false,
+    },
   });
 
   const classId = watch("classId");
@@ -81,7 +101,7 @@ export default function EditStudentPage() {
           state: addr.state,
           pincode: addr.pincode,
           status: st.status as EditForm["status"],
-          transportRequired: st.transportRequired as boolean,
+          transportRequired: Boolean(st.transportRequired),
         });
       }
     );
@@ -184,6 +204,16 @@ export default function EditStudentPage() {
                   <SelectItem value="left">Left</SelectItem>
                 </SelectContent>
               </Select>
+            </FormField>
+            <FormField label="School Transport">
+              <label className="flex items-center gap-2 text-sm cursor-pointer rounded-md border px-3 py-2">
+                <input
+                  type="checkbox"
+                  {...register("transportRequired")}
+                  className="rounded"
+                />
+                <span>Student uses school transport (11-month fee applies)</span>
+              </label>
             </FormField>
             <FormField label="Address" required className="md:col-span-2" error={errors.addressLine1?.message}>
               <Input {...register("addressLine1")} />

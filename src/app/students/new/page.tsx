@@ -42,6 +42,7 @@ const sdmsStudentSchema = z
     mbuStatus: z.string().optional(),
     apaarId: z.string().optional(),
     apaarStatus: z.string().optional(),
+    transportRequired: z.enum(["Yes", "No"]).optional(),
   })
   .refine((data) => data.admissionNumber || data.studentPen || data.studentStateCode || data.aadharNumber, {
     message: "Admission Number, Student PEN, State Code or AADHAAR No. required",
@@ -60,7 +61,7 @@ export default function NewStudentPage() {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedSectionName, setSelectedSectionName] = useState("");
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SdmsStudentForm>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<SdmsStudentForm>({
     resolver: zodResolver(sdmsStudentSchema),
     defaultValues: {
       gender: "other",
@@ -70,6 +71,7 @@ export default function NewStudentPage() {
       isRepeater: "No",
       suspectedDuplicate: "No",
       entryStatus: "Active",
+      transportRequired: "No",
     },
   });
 
@@ -95,6 +97,7 @@ export default function NewStudentPage() {
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== "") formData.append(key, String(value));
       });
+      if (!formData.has("transportRequired")) formData.append("transportRequired", "No");
 
       await studentsApi.create(formData);
       toast({ title: "Success", description: "Student registered successfully" });
@@ -190,6 +193,21 @@ export default function NewStudentPage() {
             </FormField>
             <FormField label="Father Name">
               <Input {...register("fatherName")} />
+            </FormField>
+            <FormField label="School Transport" required>
+              <Select
+                value={watch("transportRequired") || "No"}
+                onValueChange={(value) => setValue("transportRequired", value as "Yes" | "No", { shouldValidate: true })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes — transport fee applies</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                If Yes, quarterly transport fee (11 months) will be added at fee collection.
+              </p>
             </FormField>
             <FormField label="Mother Name">
               <Input {...register("motherName")} />

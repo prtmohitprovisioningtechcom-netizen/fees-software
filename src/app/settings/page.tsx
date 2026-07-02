@@ -8,13 +8,18 @@ import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { settingsApi, usersApi } from "@/lib/api";
+import { compressImageToDataUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "@/components/ui/use-toast";
 import { FeePolicyEditor } from "@/components/settings/fee-policy-editor";
+import { SchoolHeader } from "@/components/shared/school-header";
+import { useBranding } from "@/lib/branding-context";
+import { parseSchoolBranding } from "@/lib/school-branding";
 import { DEFAULT_FEE_POLICY, type FeePolicy } from "@/lib/fee-policy";
 
 interface AppSettings {
@@ -36,8 +41,8 @@ interface UserOption {
 }
 
 const emptySettings: AppSettings = {
-  schoolName: "School ERP",
-  appName: "Fee Management",
+  schoolName: "",
+  appName: "",
   logo: "",
   address: "",
   phone: "",
@@ -48,6 +53,7 @@ const emptySettings: AppSettings = {
 export default function SettingsPage() {
   const router = useRouter();
   const { isSuperAdmin, loading: authLoading } = useAuth();
+  const { refresh: refreshBranding } = useBranding();
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -55,6 +61,7 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !isSuperAdmin) router.push("/dashboard");
@@ -63,32 +70,59 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!isSuperAdmin) return;
 
-    Promise.all([settingsApi.get(), usersApi.getPasswordTargets()]).then(([settingsRes, usersRes]) => {
-      const settingsData = (settingsRes as { data: AppSettings }).data;
-      const usersData = (usersRes as { data: UserOption[] }).data;
-      setSettings({ ...emptySettings, ...settingsData, feePolicy: settingsData.feePolicy || DEFAULT_FEE_POLICY });
-      setUsers(usersData);
-      setSelectedUserId(usersData[0]?._id || "");
-    });
+    Promise.all([settingsApi.get(), usersApi.getPasswordTargets()])
+      .then(([settingsRes, usersRes]) => {
+        const settingsData = (settingsRes as { data: AppSettings }).data;
+        const usersData = (usersRes as { data: UserOption[] }).data;
+        setSettings({
+          schoolName: settingsData.schoolName || "",
+          appName: settingsData.appName || "",
+          logo: settingsData.logo || "",
+          address: settingsData.address || "",
+          phone: settingsData.phone || "",
+          email: settingsData.email || "",
+          feePolicy: settingsData.feePolicy || DEFAULT_FEE_POLICY,
+        });
+        setUsers(usersData);
+        setSelectedUserId(usersData[0]?._id || "");
+      })
+      .finally(() => setSettingsLoading(false));
   }, [isSuperAdmin]);
 
-  const handleLogoChange = (file?: File) => {
+  const handleLogoChange = async (file?: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast({ title: "Invalid logo", description: "Please select an image file.", variant: "destructive" });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => setSettings((prev) => ({ ...prev, logo: String(reader.result || "") }));
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageToDataUrl(file);
+      setSettings((prev) => ({ ...prev, logo: compressed }));
+      toast({ title: "Logo ready", description: "Image compressed for upload." });
+    } catch (error) {
+      toast({
+        title: "Logo too large",
+        description: error instanceof Error ? error.message : "Could not process image",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
       const res = (await settingsApi.update(settings)) as { data: AppSettings; message: string };
-      setSettings({ ...emptySettings, ...res.data, feePolicy: res.data.feePolicy || DEFAULT_FEE_POLICY });
+      setSettings({
+        schoolName: res.data.schoolName || "",
+        appName: res.data.appName || "",
+        logo: res.data.logo || "",
+        address: res.data.address || "",
+        phone: res.data.phone || "",
+        email: res.data.email || "",
+        feePolicy: res.data.feePolicy || DEFAULT_FEE_POLICY,
+      });
+      await refreshBranding();
       toast({ title: "Saved", description: "Settings updated successfully" });
     } catch (error) {
       toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to save settings", variant: "destructive" });
@@ -120,6 +154,18 @@ export default function SettingsPage() {
   };
 
   if (!authLoading && !isSuperAdmin) return null;
+
+  if (settingsLoading) {
+    return (
+      <DashboardLayout>
+        <PageHeader title="Settings" description="Loading school settings..." breadcrumbs={[{ label: "Settings" }]} />
+        <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+          <Card><CardContent className="pt-6 space-y-4"><Skeleton className="h-20 w-20" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></CardContent></Card>
+          <Card><CardContent className="pt-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -161,19 +207,26 @@ export default function SettingsPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="App Name" required>
-                <Input value={settings.appName} onChange={(event) => setSettings({ ...settings, appName: event.target.value })} />
+                <Input placeholder="Enter app name" value={settings.appName} onChange={(event) => setSettings({ ...settings, appName: event.target.value })} />
               </FormField>
               <FormField label="School Name" required>
-                <Input value={settings.schoolName} onChange={(event) => setSettings({ ...settings, schoolName: event.target.value })} />
+                <Input
+                  placeholder="Enter full school name"
+                  value={settings.schoolName}
+                  onChange={(event) => setSettings({ ...settings, schoolName: event.target.value })}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Full name shown on sidebar, receipts, and prints.
+                </p>
               </FormField>
               <FormField label="Phone">
-                <Input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} />
+                <Input placeholder="School contact number" value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} />
               </FormField>
               <FormField label="Email">
-                <Input type="email" value={settings.email} onChange={(event) => setSettings({ ...settings, email: event.target.value })} />
+                <Input type="email" placeholder="school@example.com" value={settings.email} onChange={(event) => setSettings({ ...settings, email: event.target.value })} />
               </FormField>
               <FormField label="Address" className="md:col-span-2">
-                <Textarea value={settings.address} onChange={(event) => setSettings({ ...settings, address: event.target.value })} />
+                <Textarea placeholder="Full school address" value={settings.address} onChange={(event) => setSettings({ ...settings, address: event.target.value })} />
               </FormField>
             </div>
 
@@ -183,6 +236,24 @@ export default function SettingsPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Receipt Preview</CardTitle>
+              <p className="text-sm text-muted-foreground font-normal">
+                This is how school name, address, phone and email appear on fee receipts and sidebar.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <SchoolHeader
+                branding={parseSchoolBranding(settings)}
+                subtitle="Fee Payment Receipt"
+                variant="preview"
+                showLogo
+              />
+            </CardContent>
+          </Card>
 
         <Card>
           <CardHeader>
@@ -231,6 +302,7 @@ export default function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       <Card className="mt-6">

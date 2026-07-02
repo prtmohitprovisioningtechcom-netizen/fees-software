@@ -16,20 +16,38 @@ export async function apiClient<T>(
   const { token, headers, ...rest } = options;
 
   const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+  const hasBody = rest.body != null && rest.body !== "";
+  const requestHeaders: Record<string, string> = {
+    ...(hasBody && !(rest.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(headers as Record<string, string> | undefined),
+  };
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...rest,
-    headers: {
-      ...(rest.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      ...headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${endpoint}`, {
+      ...rest,
+      headers: requestHeaders,
+    });
+  } catch (error) {
+    const isNetworkError = error instanceof TypeError;
+    throw new Error(
+      isNetworkError
+        ? "Cannot reach server. Run npm run dev and refresh the page."
+        : error instanceof Error
+          ? error.message
+          : "Network error"
+    );
+  }
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(data.message || "Something went wrong");
+    const message =
+      res.status === 413
+        ? "Upload too large. Use a smaller logo image or save without changing the logo."
+        : (data as { message?: string }).message || "Something went wrong";
+    throw new Error(message);
   }
 
   return data;

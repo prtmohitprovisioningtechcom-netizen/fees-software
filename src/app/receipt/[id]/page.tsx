@@ -4,14 +4,15 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { feePaymentsApi } from "@/lib/api";
+import { feePaymentsApi, settingsApi } from "@/lib/api";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { parseSchoolBranding, getReceiptSchoolName } from "@/lib/school-branding";
+import { SchoolHeader } from "@/components/shared/school-header";
+import type { SchoolBranding } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-const SCHOOL_NAME = process.env.NEXT_PUBLIC_SCHOOL_NAME || "A.K. Sunshine Convent School";
 
 type Breakdown = {
   admissionFee?: number;
@@ -20,6 +21,7 @@ type Breakdown = {
   annualFee?: number;
   computerFee?: number;
   examFee?: number;
+  transportFee?: number;
   otherFee?: number;
   annualCharges?: number;
   grossTotal?: number;
@@ -46,7 +48,14 @@ function getStructureRows(b: Breakdown) {
   if (b.examFee) rows.push({ label: "Exam Fee", amount: b.examFee });
   if (b.computerFee) rows.push({ label: "ID Card / Diary / Syllabus", amount: b.computerFee });
   if (b.annualFee) rows.push({ label: "Annual / Development", amount: b.annualFee });
-  if (b.otherFee) rows.push({ label: "Tour / Other", amount: b.otherFee });
+  if (b.otherFee) rows.push({ label: "Form / Insurance (F.I.)", amount: b.otherFee });
+  if (b.transportFee) {
+    rows.push({
+      label: "Transport (Annual)",
+      amount: b.transportFee,
+      note: "11 months — Q1: 2mo, Q2–Q4: 3mo each",
+    });
+  }
   return rows;
 }
 
@@ -97,10 +106,28 @@ export default function ReceiptPage() {
   const id = params?.id ?? "";
   const { user } = useAuth();
   const [payment, setPayment] = useState<Record<string, unknown> | null>(null);
+  const [branding, setBranding] = useState<SchoolBranding>({
+    schoolName: "",
+    appName: "",
+    logo: "",
+    address: "",
+    phone: "",
+    email: "",
+  });
+  const [loading, setLoading] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    feePaymentsApi.getById(id).then((res) => setPayment((res as { data: Record<string, unknown> }).data));
+    Promise.all([
+      feePaymentsApi.getById(id),
+      settingsApi.get().catch(() => null),
+    ])
+      .then(([paymentRes, settingsRes]) => {
+        setPayment((paymentRes as { data: Record<string, unknown> }).data);
+        const settings = (settingsRes as { data?: Partial<SchoolBranding> } | null)?.data;
+        setBranding(parseSchoolBranding(settings));
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
   const data = useMemo(() => {
@@ -146,10 +173,35 @@ export default function ReceiptPage() {
     if (!payment || !data) return;
     const doc = new jsPDF();
     let y = 15;
+    const schoolName = getReceiptSchoolName(branding);
 
-    doc.setFontSize(16);
-    doc.text(SCHOOL_NAME, 105, y, { align: "center" });
-    y += 8;
+    if (schoolName) {
+      doc.setFontSize(14);
+      const nameLines = doc.splitTextToSize(schoolName, 175);
+      doc.text(nameLines, 105, y, { align: "center" });
+      y += nameLines.length * 5.5;
+    }
+    if (branding.schoolName && branding.appName && branding.schoolName !== branding.appName) {
+      doc.setFontSize(9);
+      doc.text(branding.appName, 105, y, { align: "center" });
+      y += 5;
+    }
+    y += 1;
+    doc.setFontSize(8);
+    if (branding.address) {
+      const addressLines = doc.splitTextToSize(branding.address, 170);
+      doc.text(addressLines, 105, y, { align: "center" });
+      y += addressLines.length * 4;
+    }
+    if (branding.phone) {
+      doc.text(`Phone: ${branding.phone}`, 105, y, { align: "center" });
+      y += 4;
+    }
+    if (branding.email) {
+      doc.text(`Email: ${branding.email}`, 105, y, { align: "center" });
+      y += 4;
+    }
+    y += 2;
     doc.setFontSize(11);
     doc.text("FEE PAYMENT RECEIPT", 105, y, { align: "center" });
     y += 12;
@@ -205,7 +257,7 @@ export default function ReceiptPage() {
     doc.save(`${payment.receiptNumber}.pdf`);
   };
 
-  if (!payment || !data) {
+  if (loading || !payment || !data) {
     return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Loading receipt...</div>;
   }
 
@@ -219,6 +271,7 @@ export default function ReceiptPage() {
           @page { margin: 12mm; size: A5 portrait; }
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .receipt-print { box-shadow: none !important; border: 1px solid #ccc !important; max-width: 100% !important; padding: 16px !important; }
+          .receipt-print h1 { font-size: 1.15rem !important; line-height: 1.35 !important; white-space: normal !important; word-break: break-word !important; }
           .no-print { display: none !important; }
         }
       `}</style>
@@ -234,10 +287,12 @@ export default function ReceiptPage() {
           className="receipt-print max-w-lg mx-auto bg-white rounded-lg shadow-md border p-6 print:shadow-none text-gray-900"
         >
           {/* Header */}
-          <div className="text-center border-b-2 border-gray-800 pb-3 mb-4">
-            <h1 className="text-lg font-bold uppercase tracking-wide">{SCHOOL_NAME}</h1>
-            <p className="text-sm font-semibold text-gray-600 mt-0.5">Fee Payment Receipt</p>
-          </div>
+          <SchoolHeader
+            branding={branding}
+            subtitle="Fee Payment Receipt"
+            variant="receipt"
+            showLogo={Boolean(branding.logo)}
+          />
 
           {/* Receipt meta */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-4">

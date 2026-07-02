@@ -38,6 +38,7 @@ interface FeeStructure {
   computerFee: number;
   examFee: number;
   otherFee: number;
+  transportFee: number;
   discount: number;
   totalFee: number;
 }
@@ -131,6 +132,7 @@ export default function FeeStructurePage() {
       computerFee: s.computerFee,
       examFee: s.examFee,
       otherFee: s.otherFee,
+      transportFee: s.transportFee || 0,
       discount: s.discount || 0,
     });
     setOpen(true);
@@ -189,6 +191,7 @@ export default function FeeStructurePage() {
                     <TableHead>Quarterly</TableHead>
                     <TableHead>Admission</TableHead>
                     <TableHead>Exam</TableHead>
+                    <TableHead>Transport/mo</TableHead>
                     <TableHead>Annual</TableHead>
                     <TableHead>Net (Old)</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -209,6 +212,7 @@ export default function FeeStructurePage() {
                       <TableCell className="font-medium text-primary">{formatCurrency(s.monthlyFee * 3)}</TableCell>
                       <TableCell>{formatCurrency(s.admissionFee)}</TableCell>
                       <TableCell>{formatCurrency(s.examFee)}</TableCell>
+                      <TableCell>{formatCurrency(s.transportFee || 0)}</TableCell>
                       <TableCell>{formatCurrency((s.annualFee || 0) + s.computerFee + s.otherFee)}</TableCell>
                       <TableCell>
                         <span className="inline-flex items-center gap-1 font-bold">

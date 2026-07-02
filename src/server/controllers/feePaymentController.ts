@@ -3,17 +3,9 @@ import { Types } from "mongoose";
 import { AcademicSession, FeePayment, Student, FeeStructure } from "../models";
 import { AuthRequest } from "../middleware/auth";
 import { calculateFee, generateReceiptNumber, createSessionFeeCache, getFeeStatusFromCache } from "../services/feeService";
+import { resolveAcademicSession } from "../services/sessionService";
 
-const resolveSessionId = async (sessionId?: string) => {
-  if (sessionId && Types.ObjectId.isValid(sessionId)) {
-    const session = await AcademicSession.findById(sessionId);
-    if (session) return session;
-  }
-  return (
-    (await AcademicSession.findOne({ isActive: true, isCurrent: true })) ||
-    (await AcademicSession.findOne({ isActive: true }).sort({ startDate: -1 }))
-  );
-};
+const resolveSessionId = resolveAcademicSession;
 
 export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
   try {
@@ -110,7 +102,8 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
         feeCache,
         student.classId._id.toString(),
         student._id.toString(),
-        student.feeDiscount || 0
+        student.feeDiscount || 0,
+        student.transportRequired
       );
       return {
         _id: student._id,
