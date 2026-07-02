@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, Save, Shield, Upload } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, Shield, Upload, CalendarRange } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { settingsApi, usersApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "@/components/ui/use-toast";
+import { FeePolicyEditor } from "@/components/settings/fee-policy-editor";
+import { DEFAULT_FEE_POLICY, type FeePolicy } from "@/lib/fee-policy";
 
 interface AppSettings {
   schoolName: string;
@@ -22,6 +24,7 @@ interface AppSettings {
   address: string;
   phone: string;
   email: string;
+  feePolicy?: FeePolicy;
 }
 
 interface UserOption {
@@ -39,6 +42,7 @@ const emptySettings: AppSettings = {
   address: "",
   phone: "",
   email: "",
+  feePolicy: DEFAULT_FEE_POLICY,
 };
 
 export default function SettingsPage() {
@@ -62,7 +66,7 @@ export default function SettingsPage() {
     Promise.all([settingsApi.get(), usersApi.getPasswordTargets()]).then(([settingsRes, usersRes]) => {
       const settingsData = (settingsRes as { data: AppSettings }).data;
       const usersData = (usersRes as { data: UserOption[] }).data;
-      setSettings({ ...emptySettings, ...settingsData });
+      setSettings({ ...emptySettings, ...settingsData, feePolicy: settingsData.feePolicy || DEFAULT_FEE_POLICY });
       setUsers(usersData);
       setSelectedUserId(usersData[0]?._id || "");
     });
@@ -84,7 +88,7 @@ export default function SettingsPage() {
     setSavingSettings(true);
     try {
       const res = (await settingsApi.update(settings)) as { data: AppSettings; message: string };
-      setSettings({ ...emptySettings, ...res.data });
+      setSettings({ ...emptySettings, ...res.data, feePolicy: res.data.feePolicy || DEFAULT_FEE_POLICY });
       toast({ title: "Saved", description: "Settings updated successfully" });
     } catch (error) {
       toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to save settings", variant: "destructive" });
@@ -121,7 +125,7 @@ export default function SettingsPage() {
     <DashboardLayout>
       <PageHeader
         title="Settings"
-        description="Manage school branding and reset Super Admin/Admin passwords."
+        description="School branding, quarterly fee policy, and admin passwords."
         breadcrumbs={[{ label: "Settings" }]}
       />
 
@@ -228,6 +232,30 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarRange className="h-5 w-5" />
+            Quarterly Fee Policy
+          </CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            Control which fee components are charged in each quarter. Changes apply to all classes and sessions.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {settings.feePolicy && (
+            <FeePolicyEditor
+              policy={settings.feePolicy}
+              onChange={(feePolicy) => setSettings((prev) => ({ ...prev, feePolicy }))}
+            />
+          )}
+          <Button onClick={handleSaveSettings} disabled={savingSettings}>
+            {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Fee Policy
+          </Button>
+        </CardContent>
+      </Card>
     </DashboardLayout>
   );
 }

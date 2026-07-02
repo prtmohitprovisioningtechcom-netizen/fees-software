@@ -3,7 +3,8 @@ import { Types } from "mongoose";
 import * as XLSX from "xlsx";
 import { AcademicSession, Student, FeePayment } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { createSessionFeeCache, getFeeStatusFromCache } from "../services/feeService";
+import { createSessionFeeCache, getFeeStatusFromCache, createSessionQuarterlyCache, buildStudentQuarterlyReport, aggregateQuarterlyTotals } from "../services/feeService";
+import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -129,8 +130,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
 export const getCollectionReport = async (req: AuthRequest, res: Response) => {
   try {
-    const { payments, summary } = await fetchCollectionReportData(req.query, req.user);
-    res.json({ success: true, data: { payments, summary } });
+    const { payments, summary, quarterlyStudents } = await fetchCollectionReportData(req.query, req.user);
+    res.json({ success: true, data: { payments, summary, quarterlyStudents } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch report", error: String(error) });
   }
@@ -156,6 +157,11 @@ const formatPaymentDate = (date: Date) => {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const quarterLabel = (q?: number | null) => {
+  if (q && q >= 1 && q <= 4) return QUARTER_LABELS[q as QuarterNumber];
+  return "Unassigned";
+};
+
 const buildReportRows = (payments: Awaited<ReturnType<typeof fetchCollectionReportData>>["payments"]) =>
   payments.map((p, index) => {
     const student = p.studentId as {
@@ -169,12 +175,13 @@ const buildReportRows = (payments: Awaited<ReturnType<typeof fetchCollectionRepo
     };
     const session = p.sessionId as { name?: string };
     const collectedBy = p.collectedBy as { name?: string };
-    const breakdown = (p.feeBreakdown || {}) as Record<string, number>;
+    const breakdown = (p.feeBreakdown || {}) as Record<string, number | boolean | undefined>;
 
     return {
       "S.No": index + 1,
       "Receipt No": p.receiptNumber,
       "Payment Date": formatPaymentDate(p.paymentDate),
+      Quarter: quarterLabel(p.quarter),
       Session: session?.name || "",
       "Reg. Number": student?.registrationNumber || "",
       "Admission No": student?.admissionNumber || "",
@@ -192,31 +199,84 @@ const buildReportRows = (payments: Awaited<ReturnType<typeof fetchCollectionRepo
       "Payment Mode": p.paymentMode.replace("_", " "),
       "Collected By": collectedBy?.name || "",
       Remarks: p.remarks || "",
-      "Admission Fee": breakdown.admissionFee ?? 0,
-      "Monthly Fee (×12)": breakdown.monthlyFee ?? 0,
-      "Annual Fee": breakdown.annualFee ?? 0,
-      "Computer Fee": breakdown.computerFee ?? 0,
-      "Exam Fee": breakdown.examFee ?? 0,
-      "Other Fee": breakdown.otherFee ?? 0,
-      "Gross Total": breakdown.grossTotal ?? p.totalFee,
-      "Total Discount": breakdown.totalDiscount ?? 0,
+      "Quarterly Tuition": Number(breakdown.quarterlyTuition) || 0,
+      "Admission Fee": Number(breakdown.admissionFee) || 0,
+      "Tuition (Annual)": Number(breakdown.monthlyFee) || 0,
+      "Annual / Development": Number(breakdown.annualFee) || 0,
+      "ID Card / Diary": Number(breakdown.computerFee) || 0,
+      "Exam Fee": Number(breakdown.examFee) || 0,
+      "Tour / Other": Number(breakdown.otherFee) || 0,
+      "Gross Total": Number(breakdown.grossTotal) || p.totalFee,
+      "Total Discount": Number(breakdown.totalDiscount) || 0,
+    };
+  });
+
+const buildQuarterlyStatusRows = (
+  students: Awaited<ReturnType<typeof fetchCollectionReportData>>["quarterlyStudents"]
+) =>
+  students.map((s, index) => {
+    const q1 = s.quarters.find((q) => q.quarter === 1);
+    const q2 = s.quarters.find((q) => q.quarter === 2);
+    const q3 = s.quarters.find((q) => q.quarter === 3);
+    const q4 = s.quarters.find((q) => q.quarter === 4);
+    const cell = (q?: { totalDue: number; paid: number; pending: number; status: string }) =>
+      q ? `${q.paid}/${q.totalDue} (${q.status})` : "—";
+
+    return {
+      "S.No": index + 1,
+      "Reg. Number": s.registrationNumber,
+      "Student Name": s.studentName,
+      Class: s.className,
+      Section: s.sectionName,
+      "Q1 Due": q1?.totalDue ?? 0,
+      "Q1 Paid": q1?.paid ?? 0,
+      "Q1 Pending": q1?.pending ?? 0,
+      "Q1 Status": q1?.status ?? "—",
+      "Q2 Due": q2?.totalDue ?? 0,
+      "Q2 Paid": q2?.paid ?? 0,
+      "Q2 Pending": q2?.pending ?? 0,
+      "Q2 Status": q2?.status ?? "—",
+      "Q3 Due": q3?.totalDue ?? 0,
+      "Q3 Paid": q3?.paid ?? 0,
+      "Q3 Pending": q3?.pending ?? 0,
+      "Q3 Status": q3?.status ?? "—",
+      "Q4 Due": q4?.totalDue ?? 0,
+      "Q4 Paid": q4?.paid ?? 0,
+      "Q4 Pending": q4?.pending ?? 0,
+      "Q4 Status": q4?.status ?? "—",
+      "Total Due": s.totalDue,
+      "Total Paid": s.totalPaid,
+      "Total Pending": s.totalPending,
+      "Overall Status": s.paymentStatus,
+      "Q1 Summary": cell(q1),
+      "Q2 Summary": cell(q2),
+      "Q3 Summary": cell(q3),
+      "Q4 Summary": cell(q4),
     };
   });
 
 export const downloadCollectionReportExcel = async (req: AuthRequest, res: Response) => {
   try {
-    const { payments, summary } = await fetchCollectionReportData(req.query, req.user);
+    const { payments, summary, quarterlyStudents } = await fetchCollectionReportData(req.query, req.user);
     const rows = buildReportRows(payments);
+    const quarterlyRows = buildQuarterlyStatusRows(quarterlyStudents);
 
+    const quarterFilter = (req.query.quarter as string) || "All";
     const summaryRows = [
+      { Metric: "Report Type", Value: "Quarterly Fee Collection Report" },
       { Metric: "Total Collections", Value: summary.totalCollections },
-      { Metric: "Total Amount (₹)", Value: summary.totalAmount },
+      { Metric: "Total Amount Collected (₹)", Value: summary.totalAmount },
       { Metric: "Report Generated", Value: new Date().toLocaleString("en-IN") },
       { Metric: "Collected By", Value: summary.collectedByName || "All" },
-      { Metric: "Start Date", Value: (req.query.startDate as string) || "All" },
-      { Metric: "End Date", Value: (req.query.endDate as string) || "All" },
-      { Metric: "Session Filter", Value: summary.sessionName || "All Sessions" },
+      { Metric: "Quarter Filter", Value: quarterFilter === "all" || !quarterFilter ? "All Quarters" : quarterLabel(Number(quarterFilter)) },
+      { Metric: "Session", Value: summary.sessionName || "All Sessions" },
       { Metric: "Class Filter", Value: summary.className || "All Classes" },
+      { Metric: "", Value: "" },
+      { Metric: "— Quarterly Collection —", Value: "" },
+      ...([1, 2, 3, 4] as QuarterNumber[]).map((q) => ({
+        Metric: QUARTER_LABELS[q],
+        Value: `Collected: ₹${summary.byQuarter[q] || 0} | Due: ₹${summary.quarterTotals[q]?.due || 0} | Pending: ₹${summary.quarterTotals[q]?.pending || 0}`,
+      })),
       { Metric: "", Value: "" },
       ...Object.entries(summary.byMode).map(([mode, amount]) => ({
         Metric: `By Mode - ${mode.replace("_", " ")}`,
@@ -226,6 +286,11 @@ export const downloadCollectionReportExcel = async (req: AuthRequest, res: Respo
 
     const workbook = XLSX.utils.book_new();
     const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+    const quarterlySheet = XLSX.utils.json_to_sheet(
+      quarterlyRows.length > 0
+        ? quarterlyRows
+        : [{ Message: "No students with fee structure found for selected filters" }]
+    );
     const dataSheet = XLSX.utils.json_to_sheet(
       rows.length > 0
         ? rows
@@ -233,10 +298,11 @@ export const downloadCollectionReportExcel = async (req: AuthRequest, res: Respo
     );
 
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-    XLSX.utils.book_append_sheet(workbook, dataSheet, "Fee Collections");
+    XLSX.utils.book_append_sheet(workbook, quarterlySheet, "Quarterly Status");
+    XLSX.utils.book_append_sheet(workbook, dataSheet, "Collections");
 
     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-    const filename = `fee-collection-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const filename = `quarterly-fee-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -250,14 +316,17 @@ async function fetchCollectionReportData(
   query: Record<string, unknown>,
   user?: { id: string; role: string; name?: string }
 ) {
-  const startDate = query.startDate as string | undefined;
-  const endDate = query.endDate as string | undefined;
+  const quarterQuery = query.quarter as string | undefined;
   const classId = query.classId as string | undefined;
   const sessionId = query.sessionId as string | undefined;
   const collectedByQuery = query.collectedBy as string | undefined;
 
-  const filter: Record<string, unknown> = {};
-  if (sessionId) filter.sessionId = sessionId;
+  const session = await resolveSessionId(sessionId);
+  if (!session) {
+    throw new Error("Academic session not found");
+  }
+
+  const filter: Record<string, unknown> = { sessionId: session._id };
 
   let collectedByName = "All Admins";
   if (user?.role === "admin") {
@@ -270,14 +339,9 @@ async function fetchCollectionReportData(
     collectedByName = collector?.name || "Selected Admin";
   }
 
-  if (startDate || endDate) {
-    filter.paymentDate = {};
-    if (startDate) (filter.paymentDate as Record<string, Date>).$gte = new Date(startDate);
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      (filter.paymentDate as Record<string, Date>).$lte = end;
-    }
+  if (quarterQuery && quarterQuery !== "all") {
+    const q = parseInt(quarterQuery, 10);
+    if (q >= 1 && q <= 4) filter.quarter = q;
   }
 
   const payments = await FeePayment.find(filter)
@@ -301,17 +365,56 @@ async function fetchCollectionReportData(
     );
   }
 
-  let sessionName = "All Sessions";
+  let sessionName = session.name;
   let className = "All Classes";
-  if (sessionId) {
-    const session = await AcademicSession.findById(sessionId).select("name");
-    sessionName = session?.name || sessionName;
-  }
   if (classId) {
     const { Class } = await import("../models");
     const cls = await Class.findById(classId).select("name");
     className = cls?.name || className;
   }
+
+  const byQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 } as Record<QuarterNumber, number>;
+  for (const p of filtered) {
+    if (p.quarter && p.quarter >= 1 && p.quarter <= 4) {
+      byQuarter[p.quarter as QuarterNumber] += p.currentPayment;
+    }
+  }
+
+  const studentFilter: Record<string, unknown> = { status: "active" };
+  if (classId) studentFilter.classId = classId;
+
+  const students = await Student.find(studentFilter)
+    .populate("classId", "name")
+    .populate("sectionId", "name")
+    .sort({ studentName: 1 });
+
+  const quarterlyCache = await createSessionQuarterlyCache(session._id.toString());
+  const quarterlyStudents = (
+    await Promise.all(
+      students.map(async (student) => {
+        const classIdStr = student.classId._id.toString();
+        const report = await buildStudentQuarterlyReport(
+          quarterlyCache,
+          classIdStr,
+          student._id.toString(),
+          student.feeDiscount || 0
+        );
+        if (!report) return null;
+
+        return {
+          _id: student._id.toString(),
+          studentName: student.studentName,
+          registrationNumber: student.registrationNumber,
+          admissionNumber: student.admissionNumber,
+          className: (student.classId as { name?: string })?.name || "—",
+          sectionName: (student.sectionId as { name?: string })?.name || "—",
+          ...report,
+        };
+      })
+    )
+  ).filter((s): s is NonNullable<typeof s> => s !== null);
+
+  const quarterTotals = aggregateQuarterlyTotals(quarterlyStudents);
 
   const summary = {
     totalCollections: filtered.length,
@@ -319,6 +422,8 @@ async function fetchCollectionReportData(
     sessionName,
     className,
     collectedByName,
+    byQuarter,
+    quarterTotals,
     byMode: filtered.reduce(
       (acc, p) => {
         acc[p.paymentMode] = (acc[p.paymentMode] || 0) + p.currentPayment;
@@ -328,7 +433,7 @@ async function fetchCollectionReportData(
     ),
   };
 
-  return { payments: filtered, summary };
+  return { payments: filtered, summary, quarterlyStudents };
 }
 
 export const getFeeStructuresSummary = async (_req: AuthRequest, res: Response) => {

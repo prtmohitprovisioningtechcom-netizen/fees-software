@@ -152,7 +152,7 @@ export default function FeeStructurePage() {
     <DashboardLayout>
       <PageHeader
         title="Fee Structure"
-        description="Manage fee structures for each class and session"
+        description="Quarterly tuition (×3) + annual charges. Set fees per class like the school fee chart."
         breadcrumbs={[{ label: "Fee Structure" }]}
         action={
           <Button onClick={openCreate} size="lg" className="shadow-sm">
@@ -185,14 +185,12 @@ export default function FeeStructurePage() {
                   <TableRow className="bg-muted/40">
                     <TableHead>Class</TableHead>
                     <TableHead>Session</TableHead>
-                    <TableHead>Admission</TableHead>
                     <TableHead>Monthly</TableHead>
-                    <TableHead>Annual</TableHead>
-                    <TableHead>Computer</TableHead>
+                    <TableHead>Quarterly</TableHead>
+                    <TableHead>Admission</TableHead>
                     <TableHead>Exam</TableHead>
-                    <TableHead>Other</TableHead>
-                    <TableHead>Discount</TableHead>
-                    <TableHead>Gross Total</TableHead>
+                    <TableHead>Annual</TableHead>
+                    <TableHead>Net (Old)</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -207,15 +205,13 @@ export default function FeeStructurePage() {
                       <TableCell>
                         <Badge variant="secondary">{s.sessionId?.name}</Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(s.admissionFee)}</TableCell>
                       <TableCell>{formatCurrency(s.monthlyFee)}</TableCell>
-                      <TableCell>{formatCurrency(s.annualFee || 0)}</TableCell>
-                      <TableCell>{formatCurrency(s.computerFee)}</TableCell>
+                      <TableCell className="font-medium text-primary">{formatCurrency(s.monthlyFee * 3)}</TableCell>
+                      <TableCell>{formatCurrency(s.admissionFee)}</TableCell>
                       <TableCell>{formatCurrency(s.examFee)}</TableCell>
-                      <TableCell>{formatCurrency(s.otherFee)}</TableCell>
-                      <TableCell className="text-emerald-600">{formatCurrency(s.discount || 0)}</TableCell>
+                      <TableCell>{formatCurrency((s.annualFee || 0) + s.computerFee + s.otherFee)}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center gap-1 font-bold text-primary">
+                        <span className="inline-flex items-center gap-1 font-bold">
                           <IndianRupee className="h-3.5 w-3.5" />
                           {formatCurrency(s.totalFee).replace("₹", "")}
                         </span>

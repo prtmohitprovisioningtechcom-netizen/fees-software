@@ -112,9 +112,12 @@ export const feePaymentsApi = {
     const query = new URLSearchParams(params).toString();
     return apiClient(`/fee-payments${query ? `?${query}` : ""}`);
   },
-  getStudentSummary: (studentId: string, sessionId?: string) => {
-    const query = sessionId ? `?sessionId=${sessionId}` : "";
-    return apiClient(`/fee-payments/student/${studentId}/summary${query}`);
+  getStudentSummary: (studentId: string, sessionId?: string, includeAdmission?: boolean) => {
+    const params = new URLSearchParams();
+    if (sessionId) params.set("sessionId", sessionId);
+    if (includeAdmission) params.set("includeAdmission", "true");
+    const query = params.toString();
+    return apiClient(`/fee-payments/student/${studentId}/summary${query ? `?${query}` : ""}`);
   },
   getStudentsOverview: (params?: Record<string, string>) => {
     const query = new URLSearchParams(params).toString();
@@ -149,7 +152,7 @@ export const dashboardApi = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `fee-collection-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.download = `quarterly-fee-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
     document.body.appendChild(link);
     link.click();
     link.remove();

@@ -1,5 +1,15 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IFeePolicyStored {
+  components?: {
+    key: string;
+    label: string;
+    enabled: boolean;
+    newStudentOnly?: boolean;
+  }[];
+  allocations?: Record<string, { quarter: number; percent: number }[]>;
+}
+
 export interface IAppSetting extends Document {
   schoolName: string;
   appName: string;
@@ -7,6 +17,7 @@ export interface IAppSetting extends Document {
   address?: string;
   phone?: string;
   email?: string;
+  feePolicy?: IFeePolicyStored;
   updatedAt: Date;
   createdAt: Date;
 }
@@ -19,6 +30,7 @@ const appSettingSchema = new Schema<IAppSetting>(
     address: { type: String, trim: true },
     phone: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true },
+    feePolicy: { type: Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );

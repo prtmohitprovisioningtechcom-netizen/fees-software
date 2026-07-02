@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
+  getNewStudentYearlyTotal,
+  getOldStudentYearlyTotal,
+  QUARTER_LABELS,
+} from "@/lib/fee-schedule";
+import { DEFAULT_FEE_POLICY, previewQuarterTotals, type FeePolicy } from "@/lib/fee-policy";
+import { settingsApi } from "@/lib/api";
+import {
   findPrefillSource,
   getClassesWithExistingStructure,
   type FeeStructureRecord,
@@ -47,14 +54,15 @@ const FEE_ROWS: {
   label: string;
   note?: string;
   multiply?: number;
+  quarterly?: boolean;
   isDiscount?: boolean;
 }[] = [
-  { key: "admissionFee", label: "Admission Fee", note: "One-time" },
-  { key: "monthlyFee", label: "Monthly Fee", note: "Per month × 12", multiply: 12 },
-  { key: "annualFee", label: "Annual Fee", note: "Yearly" },
-  { key: "computerFee", label: "Computer Fee" },
-  { key: "examFee", label: "Exam Fee" },
-  { key: "otherFee", label: "Other Fee" },
+  { key: "admissionFee", label: "Admission Pack", note: "New students — Prospectus + Reg + Admission" },
+  { key: "monthlyFee", label: "Monthly Tuition", note: "Base fee per month", quarterly: true },
+  { key: "annualFee", label: "Annual / Development", note: "Activity & development charges" },
+  { key: "computerFee", label: "ID Card / Diary / Syllabus", note: "Stationery & documents" },
+  { key: "examFee", label: "Exam Fee", note: "Yearly exam charges" },
+  { key: "otherFee", label: "Form / Insurance (F.I.)", note: "One-time annual charges" },
   { key: "discount", label: "Discount", note: "Applies to all students", isDiscount: true },
 ];
 
@@ -129,17 +137,12 @@ export function FeeStructureFormDialog({
   saving = false,
 }: FeeStructureFormDialogProps) {
   const [prefillSource, setPrefillSource] = useState<string | null>(null);
+  const [feePolicy, setFeePolicy] = useState<FeePolicy>(DEFAULT_FEE_POLICY);
   const lastPrefillSessionRef = useRef<string | null>(null);
 
-  const monthlyAnnual = form.monthlyFee * 12;
-  const grossTotal =
-    form.admissionFee +
-    form.annualFee +
-    form.computerFee +
-    form.examFee +
-    form.otherFee +
-    monthlyAnnual;
-  const totalFee = Math.max(0, grossTotal - (form.discount || 0));
+  const oldStudentTotal = getOldStudentYearlyTotal(form);
+  const newStudentTotal = getNewStudentYearlyTotal(form);
+  const totalFee = Math.max(0, oldStudentTotal - (form.discount || 0));
 
   const selectedSession = sessions.find((s) => s._id === form.sessionId)?.name;
   const existingForSession = form.sessionId
@@ -169,6 +172,14 @@ export function FeeStructureFormDialog({
       lastPrefillSessionRef.current = null;
       setPrefillSource(null);
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    settingsApi.get().then((res) => {
+      const data = (res as { data: { feePolicy?: FeePolicy } }).data;
+      if (data.feePolicy) setFeePolicy(data.feePolicy);
+    });
   }, [open]);
 
   useEffect(() => {
@@ -202,6 +213,19 @@ export function FeeStructureFormDialog({
       classIds: prev.classIds.filter((id) => !getClassesWithExistingStructure(existingStructures, sessionId).has(id)),
     }));
   };
+
+  const quarterPreview = previewQuarterTotals(
+    {
+      monthlyFee: form.monthlyFee,
+      admissionFee: form.admissionFee,
+      annualFee: form.annualFee,
+      computerFee: form.computerFee,
+      examFee: form.examFee,
+      otherFee: form.otherFee,
+    },
+    feePolicy,
+    true
+  );
 
   const isValid = form.classIds.length > 0 && form.sessionId;
 
@@ -362,7 +386,7 @@ export function FeeStructureFormDialog({
                 )}
 
                 <div className="rounded-md border divide-y">
-                  {FEE_ROWS.map(({ key, label, note, multiply, isDiscount }) => {
+                  {FEE_ROWS.map(({ key, label, note, quarterly, isDiscount }) => {
                     const amount = form[key];
                     return (
                       <div
@@ -375,9 +399,9 @@ export function FeeStructureFormDialog({
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{label}</p>
                           {note && <p className="text-[11px] text-muted-foreground">{note}</p>}
-                          {multiply && amount > 0 && (
-                            <p className="text-[11px] text-muted-foreground">
-                              {formatCurrency(amount)} × 12 = {formatCurrency(amount * 12)}
+                          {quarterly && amount > 0 && (
+                            <p className="text-[11px] text-primary font-medium mt-0.5">
+                              Quarterly (×3): {formatCurrency(amount * 3)} · Yearly (×12): {formatCurrency(amount * 12)}
                             </p>
                           )}
                         </div>
@@ -391,14 +415,39 @@ export function FeeStructureFormDialog({
                   })}
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg bg-muted/60 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold">Total annual fees</p>
-                    {form.discount > 0 && (
-                      <p className="text-xs text-emerald-600">Discount −{formatCurrency(form.discount)}</p>
-                    )}
+                {form.monthlyFee > 0 && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs space-y-2">
+                    <p className="font-semibold text-primary">Quarterly collection preview (from Settings policy)</p>
+                    {quarterPreview.map(({ quarter, total, lines }) => (
+                      <div key={quarter} className="border-t border-primary/10 pt-1.5 first:border-0 first:pt-0">
+                        <p className="font-medium">{QUARTER_LABELS[quarter as 1 | 2 | 3 | 4]} — {formatCurrency(total)}</p>
+                        <p className="text-muted-foreground">
+                          {lines.map((l) => `${l.label}: ${formatCurrency(l.amount)}`).join(" · ")}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-xl font-bold text-primary">{formatCurrency(totalFee)}</p>
+                )}
+
+                <div className="rounded-lg bg-muted/60 px-4 py-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Old student (yearly)</span>
+                    <span className="font-semibold">{formatCurrency(oldStudentTotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">New student (+ admission)</span>
+                    <span className="font-semibold">{formatCurrency(newStudentTotal)}</span>
+                  </div>
+                  {form.discount > 0 && (
+                    <div className="flex justify-between text-emerald-600 text-xs">
+                      <span>Discount</span>
+                      <span>− {formatCurrency(form.discount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="font-semibold">Net (old student)</span>
+                    <span className="text-lg font-bold text-primary">{formatCurrency(totalFee)}</span>
+                  </div>
                 </div>
               </div>
             )}

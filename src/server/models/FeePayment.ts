@@ -15,14 +15,24 @@ export interface IFeePayment extends Document {
   paymentMode: "cash" | "upi" | "card" | "cheque" | "bank_transfer";
   remarks?: string;
   paymentDate: Date;
+  quarter?: 1 | 2 | 3 | 4;
+  paymentType?: "quarterly" | "monthly" | "full_year" | "custom";
   collectedBy: Types.ObjectId;
   feeBreakdown: {
     admissionFee: number;
     monthlyFee: number;
+    quarterlyTuition?: number;
+    annualFee?: number;
     computerFee: number;
     examFee: number;
     transportFee: number;
     otherFee: number;
+    annualCharges?: number;
+    grossTotal?: number;
+    structureDiscount?: number;
+    studentDiscount?: number;
+    totalDiscount?: number;
+    includeAdmission?: boolean;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -48,14 +58,24 @@ const feePaymentSchema = new Schema<IFeePayment>(
     },
     remarks: { type: String, trim: true },
     paymentDate: { type: Date, default: Date.now },
+    quarter: { type: Number, enum: [1, 2, 3, 4] },
+    paymentType: { type: String, enum: ["quarterly", "monthly", "full_year", "custom"], default: "custom" },
     collectedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     feeBreakdown: {
       admissionFee: { type: Number, default: 0 },
       monthlyFee: { type: Number, default: 0 },
+      quarterlyTuition: { type: Number, default: 0 },
+      annualFee: { type: Number, default: 0 },
       computerFee: { type: Number, default: 0 },
       examFee: { type: Number, default: 0 },
       transportFee: { type: Number, default: 0 },
       otherFee: { type: Number, default: 0 },
+      annualCharges: { type: Number, default: 0 },
+      grossTotal: { type: Number, default: 0 },
+      structureDiscount: { type: Number, default: 0 },
+      studentDiscount: { type: Number, default: 0 },
+      totalDiscount: { type: Number, default: 0 },
+      includeAdmission: { type: Boolean, default: false },
     },
   },
   { timestamps: true }

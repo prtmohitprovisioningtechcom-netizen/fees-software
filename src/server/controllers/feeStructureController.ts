@@ -11,14 +11,17 @@ const buildTotalFee = (body: {
   examFee?: number;
   otherFee?: number;
 }) =>
-  getGrossStructureTotal({
-    admissionFee: Number(body.admissionFee) || 0,
-    monthlyFee: Number(body.monthlyFee) || 0,
-    annualFee: Number(body.annualFee) || 0,
-    computerFee: Number(body.computerFee) || 0,
-    examFee: Number(body.examFee) || 0,
-    otherFee: Number(body.otherFee) || 0,
-  });
+  getGrossStructureTotal(
+    {
+      admissionFee: Number(body.admissionFee) || 0,
+      monthlyFee: Number(body.monthlyFee) || 0,
+      annualFee: Number(body.annualFee) || 0,
+      computerFee: Number(body.computerFee) || 0,
+      examFee: Number(body.examFee) || 0,
+      otherFee: Number(body.otherFee) || 0,
+    },
+    false
+  );
 
 export const getFeeStructures = async (req: AuthRequest, res: Response) => {
   try {
@@ -64,7 +67,8 @@ export const createFeeStructure = async (req: AuthRequest, res: Response) => {
     const otherFee = Number(req.body.otherFee) || 0;
     const discount = Number(req.body.discount) || 0;
     const transportFee = 0;
-    const totalFee = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
+    const grossTotal = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
+    const totalFee = Math.max(0, grossTotal - discount);
 
     const structure = await FeeStructure.create({
       ...req.body,
@@ -101,7 +105,9 @@ export const updateFeeStructure = async (req: AuthRequest, res: Response) => {
     const otherFee = updates.otherFee ?? current.otherFee;
 
     updates.transportFee = 0;
-    updates.totalFee = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
+    const grossTotal = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
+    const discount = updates.discount ?? current.discount ?? 0;
+    updates.totalFee = Math.max(0, grossTotal - Number(discount));
 
     const structure = await FeeStructure.findByIdAndUpdate(req.params.id, updates, { new: true })
       .populate("classId", "name")

@@ -39,13 +39,10 @@ feeStructureSchema.index({ classId: 1, sessionId: 1 }, { unique: true });
 
 feeStructureSchema.pre("save", function (next) {
   this.transportFee = 0;
-  this.totalFee =
-    this.admissionFee +
-    this.monthlyFee * 12 +
-    this.annualFee +
-    this.computerFee +
-    this.examFee +
-    this.otherFee;
+  const tuition = this.monthlyFee * 12;
+  const annualCharges = this.examFee + this.computerFee + this.annualFee + this.otherFee;
+  const gross = tuition + annualCharges;
+  this.totalFee = Math.max(0, gross - (this.discount || 0));
   next();
 });
 

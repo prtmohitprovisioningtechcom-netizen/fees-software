@@ -1,27 +1,49 @@
 import { Types } from "mongoose";
 import { FeeStructure, FeePayment } from "../models";
 import { FeeCalculation } from "@/types";
+import {
+  finalizeQuarterSchedule,
+  getAnnualChargesTotal,
+  getGrossYearlyTotal,
+  getQuarterlyTuition,
+  getYearlyTuition,
+  sumSchedulePending,
+  type FeeStructureAmounts,
+  type QuarterNumber,
+  type QuarterScheduleItem,
+} from "@/lib/fee-schedule";
+import { mergeFeePolicy, type FeePolicy } from "@/lib/fee-policy";
+import { AppSetting } from "../models";
 
-type StructureLike = {
-  admissionFee: number;
-  monthlyFee: number;
-  annualFee?: number;
-  computerFee: number;
-  examFee: number;
-  otherFee: number;
-  discount?: number;
+export type StructureLike = FeeStructureAmounts;
+
+let cachedPolicy: { policy: FeePolicy; at: number } | null = null;
+const POLICY_CACHE_MS = 30_000;
+
+export const clearFeePolicyCache = () => {
+  cachedPolicy = null;
 };
 
-export const getGrossStructureTotal = (structure: StructureLike) =>
-  structure.admissionFee +
-  structure.monthlyFee * 12 +
-  (structure.annualFee || 0) +
-  structure.computerFee +
-  structure.examFee +
-  structure.otherFee;
+export const getFeePolicy = async (): Promise<FeePolicy> => {
+  const now = Date.now();
+  if (cachedPolicy && now - cachedPolicy.at < POLICY_CACHE_MS) {
+    return cachedPolicy.policy;
+  }
+  const settings = await AppSetting.findOne().select("feePolicy").lean();
+  const policy = mergeFeePolicy(settings?.feePolicy as FeePolicy | undefined);
+  cachedPolicy = { policy, at: now };
+  return policy;
+};
 
-export const computeNetFee = (structure: StructureLike, studentFeeDiscount = 0) => {
-  const grossTotal = getGrossStructureTotal(structure);
+export const getGrossStructureTotal = (structure: StructureLike, includeAdmission = false) =>
+  getGrossYearlyTotal(structure, includeAdmission);
+
+export const computeNetFee = (
+  structure: StructureLike,
+  studentFeeDiscount = 0,
+  includeAdmission = false
+) => {
+  const grossTotal = getGrossYearlyTotal(structure, includeAdmission);
   const structureDiscount = structure.discount || 0;
   const studentDiscount = studentFeeDiscount || 0;
   const totalDiscount = Math.min(grossTotal, structureDiscount + studentDiscount);
@@ -35,8 +57,9 @@ export const calculateFee = async (
   sessionId: string,
   classId: string,
   currentPayment: number,
-  transportRequired: boolean,
-  studentFeeDiscount = 0
+  _transportRequired: boolean,
+  studentFeeDiscount = 0,
+  includeAdmission = false
 ): Promise<FeeCalculation> => {
   const feeStructure = await FeeStructure.findOne({
     classId: new Types.ObjectId(classId),
@@ -47,35 +70,49 @@ export const calculateFee = async (
     throw new Error("Fee structure not found for this class and session");
   }
 
+  const structure = feeStructure.toObject() as StructureLike;
   const { grossTotal, structureDiscount, studentDiscount, totalDiscount, netTotal } = computeNetFee(
-    feeStructure,
-    studentFeeDiscount
+    structure,
+    studentFeeDiscount,
+    includeAdmission
   );
-
-  const feeBreakdown = {
-    admissionFee: feeStructure.admissionFee,
-    monthlyFee: feeStructure.monthlyFee * 12,
-    annualFee: feeStructure.annualFee || 0,
-    computerFee: feeStructure.computerFee,
-    examFee: feeStructure.examFee,
-    transportFee: 0,
-    otherFee: feeStructure.otherFee,
-    grossTotal,
-    structureDiscount,
-    studentDiscount,
-    totalDiscount,
-  };
 
   const payments = await FeePayment.find({
     studentId: new Types.ObjectId(studentId),
     sessionId: new Types.ObjectId(sessionId),
   });
 
-  const paidAmount = payments.reduce((sum, p) => sum + p.currentPayment, 0);
-  const remainingAmount = Math.max(0, netTotal - paidAmount);
-  const previousDue = remainingAmount;
+  const feePolicy = await getFeePolicy();
+
+  const quarterlySchedule = finalizeQuarterSchedule(
+    structure,
+    includeAdmission,
+    payments,
+    totalDiscount,
+    feePolicy
+  );
+
+  const feeBreakdown = {
+    admissionFee: includeAdmission ? structure.admissionFee : 0,
+    monthlyFee: getYearlyTuition(structure.monthlyFee),
+    quarterlyTuition: getQuarterlyTuition(structure.monthlyFee),
+    annualFee: structure.annualFee || 0,
+    computerFee: structure.computerFee,
+    examFee: structure.examFee,
+    transportFee: 0,
+    otherFee: structure.otherFee,
+    annualCharges: getAnnualChargesTotal(structure),
+    grossTotal,
+    structureDiscount,
+    studentDiscount,
+    totalDiscount,
+    includeAdmission,
+  };
+
+  const paidAmountBefore = payments.reduce((sum, p) => sum + p.currentPayment, 0);
+  const previousDue = Math.max(0, netTotal - paidAmountBefore);
   const balance = Math.max(0, previousDue - currentPayment);
-  const newPaidTotal = paidAmount + currentPayment;
+  const newPaidTotal = paidAmountBefore + currentPayment;
 
   let paymentStatus: "paid" | "partial" | "pending" = "pending";
   if (newPaidTotal >= netTotal) paymentStatus = "paid";
@@ -92,6 +129,8 @@ export const calculateFee = async (
     balance,
     paymentStatus,
     feeBreakdown,
+    quarterlySchedule,
+    includeAdmission,
   };
 };
 
@@ -147,7 +186,7 @@ export const createSessionFeeCache = async (sessionId: string): Promise<SessionF
   ]);
 
   return {
-    structuresByClass: new Map(structures.map((s) => [s.classId.toString(), s])),
+    structuresByClass: new Map(structures.map((s) => [s.classId.toString(), s as StructureLike])),
     paidByStudent: new Map(paidAgg.map((p) => [p._id.toString(), p.paidAmount])),
   };
 };
@@ -171,7 +210,7 @@ export const getFeeStatusFromCache = (
     };
   }
 
-  const { grossTotal, totalDiscount, netTotal } = computeNetFee(structure, studentFeeDiscount);
+  const { grossTotal, totalDiscount, netTotal } = computeNetFee(structure, studentFeeDiscount, false);
   const paidAmount = cache.paidByStudent.get(studentId) || 0;
   const pendingAmount = Math.max(0, netTotal - paidAmount);
 
@@ -194,7 +233,8 @@ export const getStudentSessionFeeStatus = async (
   studentId: string,
   sessionId: string,
   classId: string,
-  studentFeeDiscount = 0
+  studentFeeDiscount = 0,
+  includeAdmission = false
 ) => {
   const feeStructure = await FeeStructure.findOne({
     classId: new Types.ObjectId(classId),
@@ -225,7 +265,8 @@ export const getStudentSessionFeeStatus = async (
     { $group: { _id: null, paidAmount: { $sum: "$currentPayment" } } },
   ]);
 
-  const { grossTotal, totalDiscount, netTotal } = computeNetFee(feeStructure, studentFeeDiscount);
+  const structure = feeStructure as StructureLike;
+  const { grossTotal, totalDiscount, netTotal } = computeNetFee(structure, studentFeeDiscount, includeAdmission);
   const paidAmount = paidAgg[0]?.paidAmount || 0;
   const pendingAmount = Math.max(0, netTotal - paidAmount);
 
@@ -242,4 +283,123 @@ export const getStudentSessionFeeStatus = async (
     paymentStatus,
     hasFeeStructure: true,
   };
+};
+
+export type { QuarterScheduleItem, QuarterNumber };
+
+export type QuarterlyReportStudent = {
+  _id: string;
+  studentName: string;
+  registrationNumber: string;
+  admissionNumber?: string;
+  className: string;
+  sectionName: string;
+  quarters: {
+    quarter: QuarterNumber;
+    label: string;
+    totalDue: number;
+    paid: number;
+    pending: number;
+    status: "paid" | "partial" | "pending";
+  }[];
+  totalDue: number;
+  totalPaid: number;
+  totalPending: number;
+  paymentStatus: "paid" | "partial" | "pending";
+};
+
+export type SessionQuarterlyCache = {
+  structuresByClass: Map<string, StructureLike>;
+  paymentsByStudent: Map<string, { quarter?: number | null; currentPayment: number }[]>;
+  includeAdmissionByStudent: Map<string, boolean>;
+};
+
+export const createSessionQuarterlyCache = async (sessionId: string): Promise<SessionQuarterlyCache> => {
+  const sessionOid = new Types.ObjectId(sessionId);
+  const [structures, payments] = await Promise.all([
+    FeeStructure.find({ sessionId: sessionOid })
+      .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
+      .lean(),
+    FeePayment.find({ sessionId: sessionOid })
+      .select("studentId quarter currentPayment feeBreakdown.includeAdmission feeBreakdown.admissionFee")
+      .lean(),
+  ]);
+
+  const structuresByClass = new Map(structures.map((s) => [s.classId.toString(), s as StructureLike]));
+  const paymentsByStudent = new Map<string, { quarter?: number | null; currentPayment: number }[]>();
+  const includeAdmissionByStudent = new Map<string, boolean>();
+
+  for (const p of payments) {
+    const sid = p.studentId.toString();
+    if (!paymentsByStudent.has(sid)) paymentsByStudent.set(sid, []);
+    paymentsByStudent.get(sid)!.push({
+      quarter: p.quarter,
+      currentPayment: p.currentPayment,
+    });
+    const breakdown = p.feeBreakdown as { includeAdmission?: boolean; admissionFee?: number } | undefined;
+    if (breakdown?.includeAdmission || (breakdown?.admissionFee ?? 0) > 0) {
+      includeAdmissionByStudent.set(sid, true);
+    }
+  }
+
+  return { structuresByClass, paymentsByStudent, includeAdmissionByStudent };
+};
+
+export const buildStudentQuarterlyReport = async (
+  cache: SessionQuarterlyCache,
+  classId: string,
+  studentId: string,
+  studentFeeDiscount = 0
+): Promise<Omit<QuarterlyReportStudent, "_id" | "studentName" | "registrationNumber" | "admissionNumber" | "className" | "sectionName"> | null> => {
+  const structure = cache.structuresByClass.get(classId);
+  if (!structure) return null;
+
+  const includeAdmission = cache.includeAdmissionByStudent.get(studentId) || false;
+  const payments = cache.paymentsByStudent.get(studentId) || [];
+  const { totalDiscount } = computeNetFee(structure, studentFeeDiscount, includeAdmission);
+  const feePolicy = await getFeePolicy();
+  const schedule = finalizeQuarterSchedule(structure, includeAdmission, payments, totalDiscount, feePolicy);
+
+  const quarters = schedule.map((q) => ({
+    quarter: q.quarter,
+    label: q.label,
+    totalDue: q.totalDue,
+    paid: q.paid,
+    pending: q.pending,
+    status: q.status,
+  }));
+
+  const totalDue = schedule.reduce((s, q) => s + q.totalDue, 0);
+  const totalPaid = schedule.reduce((s, q) => s + q.paid, 0);
+  const totalPending = schedule.reduce((s, q) => s + q.pending, 0);
+
+  let paymentStatus: "paid" | "partial" | "pending" = "pending";
+  if (totalPaid >= totalDue && totalDue > 0) paymentStatus = "paid";
+  else if (totalPaid > 0) paymentStatus = "partial";
+
+  return { quarters, totalDue, totalPaid, totalPending, paymentStatus };
+};
+
+export const aggregateQuarterlyTotals = (
+  students: Pick<QuarterlyReportStudent, "quarters">[]
+): Record<QuarterNumber, { due: number; collected: number; pending: number; countPaid: number; countPending: number }> => {
+  const totals = {
+    1: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+    2: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+    3: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+    4: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+  } as Record<QuarterNumber, { due: number; collected: number; pending: number; countPaid: number; countPending: number }>;
+
+  for (const student of students) {
+    for (const q of student.quarters) {
+      const t = totals[q.quarter];
+      t.due += q.totalDue;
+      t.collected += q.paid;
+      t.pending += q.pending;
+      if (q.status === "paid") t.countPaid += 1;
+      else if (q.pending > 0) t.countPending += 1;
+    }
+  }
+
+  return totals;
 };

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Percent } from "lucide-react";
+import { Loader2, Percent, CalendarRange } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { feePaymentsApi, sessionsApi, studentsApi } from "@/lib/api";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { FeeCalculation } from "@/types";
 
@@ -38,16 +38,19 @@ function CollectFeePageContent() {
   const [sessionId, setSessionId] = useState(searchParams?.get("sessionId") || "");
   const [calculation, setCalculation] = useState<FeeCalculation | null>(null);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [feeStructure, setFeeStructure] = useState<{ admissionFee?: number } | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState("cash");
   const [remarks, setRemarks] = useState("");
   const [studentDiscount, setStudentDiscount] = useState("0");
+  const [includeAdmission, setIncludeAdmission] = useState(false);
+  const [selectedQuarter, setSelectedQuarter] = useState<number | null>(null);
 
   const loadSummary = useCallback(async () => {
     if (!studentId) return;
     setLoading(true);
     try {
-      const res = await feePaymentsApi.getStudentSummary(studentId, sessionId || undefined);
+      const res = await feePaymentsApi.getStudentSummary(studentId, sessionId || undefined, includeAdmission);
       const data = (res as { data: Record<string, unknown> }).data;
       const studentData = (data.student as Record<string, unknown>) ?? null;
       setStudent(studentData);
@@ -57,6 +60,7 @@ function CollectFeePageContent() {
       }
       setCalculation((data.calculation as FeeCalculation | null) ?? null);
       setPayments((data.payments as Record<string, unknown>[]) ?? []);
+      setFeeStructure((data.feeStructure as { admissionFee?: number }) ?? null);
       setStudentDiscount(String((studentData?.feeDiscount as number) || 0));
     } catch (error) {
       toast({
@@ -67,7 +71,7 @@ function CollectFeePageContent() {
     } finally {
       setLoading(false);
     }
-  }, [studentId, sessionId]);
+  }, [studentId, sessionId, includeAdmission]);
 
   useEffect(() => {
     sessionsApi.getAll().then((res) => {
@@ -113,6 +117,9 @@ function CollectFeePageContent() {
         paymentAmount: amount,
         paymentMode,
         remarks,
+        includeAdmission,
+        quarter: selectedQuarter || undefined,
+        paymentType: selectedQuarter ? "quarterly" : "custom",
       }) as { data: { _id: string } };
       toast({ title: "Success", description: "Fee collected successfully" });
       router.push(`/receipt/${res.data._id}`);
@@ -163,6 +170,18 @@ function CollectFeePageContent() {
   const sec = student?.sectionId as { name: string };
   const maxPayable = discountChanged ? previewNetDue() : (calculation?.previousDue || 0);
 
+  const selectQuarter = (quarter: number, quarterPending: number) => {
+    setSelectedQuarter(quarter);
+    const totalDue = discountChanged ? previewNetDue() : (calculation?.previousDue ?? 0);
+    setPaymentAmount(String(Math.min(quarterPending, totalDue)));
+  };
+
+  const quarterStatusColor = (status: string) => {
+    if (status === "paid") return "border-emerald-300 bg-emerald-50";
+    if (status === "partial") return "border-amber-300 bg-amber-50";
+    return "hover:border-primary/50";
+  };
+
   return (
     <DashboardLayout>
       <PageHeader
@@ -205,42 +224,113 @@ function CollectFeePageContent() {
           </Card>
 
           {calculation && (
-            <Card>
-              <CardHeader><CardTitle>Fee Breakdown — {session?.name}</CardTitle></CardHeader>
-              <CardContent>
-                <Table>
-                  <TableBody>
-                    <TableRow><TableCell>Admission Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.admissionFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Monthly Fee (×12)</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.monthlyFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Annual Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.annualFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Computer Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.computerFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Exam Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.examFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Other Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.otherFee)}</TableCell></TableRow>
-                    <TableRow className="font-medium"><TableCell>Gross Total</TableCell><TableCell className="text-right">{formatCurrency(calculation.grossTotal)}</TableCell></TableRow>
-                    {(calculation.feeBreakdown.structureDiscount || 0) > 0 && (
-                      <TableRow className="text-emerald-600">
-                        <TableCell>Class Default Discount</TableCell>
-                        <TableCell className="text-right">− {formatCurrency(calculation.feeBreakdown.structureDiscount)}</TableCell>
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CalendarRange className="h-4 w-4" />
+                    Quarterly Fee Schedule — {session?.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer rounded-lg border px-3 py-2 bg-muted/30">
+                    <input
+                      type="checkbox"
+                      checked={includeAdmission}
+                      onChange={(e) => {
+                        setIncludeAdmission(e.target.checked);
+                        setSelectedQuarter(null);
+                        setPaymentAmount("");
+                      }}
+                      className="rounded"
+                    />
+                    <span>
+                      New student — include admission pack ({formatCurrency(feeStructure?.admissionFee || 0)} in Q1)
+                    </span>
+                  </label>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {calculation.quarterlySchedule?.map((q) => (
+                      <button
+                        key={q.quarter}
+                        type="button"
+                        disabled={q.status === "paid"}
+                        onClick={() => selectQuarter(q.quarter, q.pending)}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition-colors",
+                          quarterStatusColor(q.status),
+                          selectedQuarter === q.quarter && "ring-2 ring-primary"
+                        )}
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="text-sm font-semibold">{q.label}</p>
+                          <Badge variant={q.status === "paid" ? "success" : q.status === "partial" ? "warning" : "secondary"}>
+                            {q.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground space-y-0.5">
+                          {(q.componentsDue || []).map((c) => (
+                            <span key={c.key} className="block">
+                              {c.label}: {formatCurrency(c.amount)}
+                            </span>
+                          ))}
+                        </p>
+                        <div className="flex justify-between mt-2 text-sm">
+                          <span>Due: <strong>{formatCurrency(q.totalDue)}</strong></span>
+                          <span className="text-amber-700 font-semibold">Pending: {formatCurrency(q.pending)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Tap a quarter to auto-fill payment. Components per quarter follow Settings → Quarterly Fee Policy.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle>Annual Fee Breakdown</CardTitle></CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableBody>
+                      <TableRow><TableCell>Monthly Tuition (×12)</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.monthlyFee)}</TableCell></TableRow>
+                      <TableRow><TableCell>Quarterly Tuition (×3)</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.quarterlyTuition || 0)}</TableCell></TableRow>
+                      {includeAdmission && (
+                        <TableRow><TableCell>Admission Pack (Q1)</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.admissionFee)}</TableCell></TableRow>
+                      )}
+                      <TableRow><TableCell>Exam Fee</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.examFee)}</TableCell></TableRow>
+                      <TableRow><TableCell>ID Card / Diary / Syllabus</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.computerFee)}</TableCell></TableRow>
+                      <TableRow><TableCell>Annual / Development</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.annualFee)}</TableCell></TableRow>
+                      <TableRow><TableCell>Tour / Other</TableCell><TableCell className="text-right">{formatCurrency(calculation.feeBreakdown.otherFee)}</TableCell></TableRow>
+                      <TableRow className="font-medium border-t">
+                        <TableCell>Yearly Gross Total</TableCell>
+                        <TableCell className="text-right">{formatCurrency(calculation.grossTotal)}</TableCell>
                       </TableRow>
-                    )}
-                    {(Number(studentDiscount) || calculation.feeBreakdown.studentDiscount) > 0 && (
-                      <TableRow className="text-emerald-600">
-                        <TableCell>Student Discount</TableCell>
-                        <TableCell className="text-right">
-                          − {formatCurrency(Number(studentDiscount) || calculation.feeBreakdown.studentDiscount)}
-                          {discountChanged && (
-                            <Badge variant="warning" className="ml-2 text-[10px]">unsaved</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    <TableRow className="font-bold"><TableCell>Net Total Fee</TableCell><TableCell className="text-right text-primary">{formatCurrency(discountChanged ? calculation.grossTotal - Math.min(calculation.grossTotal, (calculation.feeBreakdown.structureDiscount || 0) + (Number(studentDiscount) || 0)) : calculation.totalFee)}</TableCell></TableRow>
-                    <TableRow><TableCell>Paid Amount</TableCell><TableCell className="text-right text-emerald-600">{formatCurrency(calculation.paidAmount - (calculation.currentPayment || 0))}</TableCell></TableRow>
-                    <TableRow><TableCell>Pending / Due</TableCell><TableCell className="text-right text-amber-600 font-semibold">{formatCurrency(maxPayable)}</TableCell></TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                      {(calculation.feeBreakdown.structureDiscount || 0) > 0 && (
+                        <TableRow className="text-emerald-600">
+                          <TableCell>Class Default Discount</TableCell>
+                          <TableCell className="text-right">− {formatCurrency(calculation.feeBreakdown.structureDiscount)}</TableCell>
+                        </TableRow>
+                      )}
+                      {(Number(studentDiscount) || calculation.feeBreakdown.studentDiscount) > 0 && (
+                        <TableRow className="text-emerald-600">
+                          <TableCell>Student Discount</TableCell>
+                          <TableCell className="text-right">
+                            − {formatCurrency(Number(studentDiscount) || calculation.feeBreakdown.studentDiscount)}
+                            {discountChanged && (
+                              <Badge variant="warning" className="ml-2 text-[10px]">unsaved</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow className="font-bold"><TableCell>Net Total Fee</TableCell><TableCell className="text-right text-primary">{formatCurrency(discountChanged ? calculation.grossTotal - Math.min(calculation.grossTotal, (calculation.feeBreakdown.structureDiscount || 0) + (Number(studentDiscount) || 0)) : calculation.totalFee)}</TableCell></TableRow>
+                      <TableRow><TableCell>Paid Amount</TableCell><TableCell className="text-right text-emerald-600">{formatCurrency(calculation.paidAmount - (calculation.currentPayment || 0))}</TableCell></TableRow>
+                      <TableRow><TableCell>Pending / Due</TableCell><TableCell className="text-right text-amber-600 font-semibold">{formatCurrency(maxPayable)}</TableCell></TableRow>
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
           )}
         </div>
 
@@ -312,10 +402,16 @@ function CollectFeePageContent() {
                   min={1}
                   max={maxPayable}
                   value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder={`Max: ${formatCurrency(maxPayable)}`}
+                  onChange={(e) => {
+                    setPaymentAmount(e.target.value);
+                    setSelectedQuarter(null);
+                  }}
+                  placeholder={selectedQuarter ? `Quarter ${selectedQuarter} due` : `Max: ${formatCurrency(maxPayable)}`}
                 />
               </FormField>
+              {selectedQuarter && (
+                <p className="text-xs text-primary -mt-2">Collecting for Quarter {selectedQuarter}</p>
+              )}
               <FormField label="Payment Mode" required>
                 <Select value={paymentMode} onValueChange={setPaymentMode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -344,7 +440,10 @@ function CollectFeePageContent() {
                   <div key={p._id as string} className="flex justify-between items-center p-3 rounded-lg bg-muted text-sm">
                     <div>
                       <p className="font-medium">{p.receiptNumber as string}</p>
-                      <p className="text-muted-foreground">{formatDate(p.paymentDate as string)}</p>
+                      <p className="text-muted-foreground">
+                        {formatDate(p.paymentDate as string)}
+                        {p.quarter ? ` · Q${p.quarter}` : ""}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{formatCurrency(p.currentPayment as number)}</p>

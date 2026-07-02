@@ -115,17 +115,33 @@ export interface FeeCalculation {
   currentPayment: number;
   balance: number;
   paymentStatus: "paid" | "partial" | "pending";
+  includeAdmission?: boolean;
+  quarterlySchedule?: {
+    quarter: number;
+    label: string;
+    tuitionDue: number;
+    annualChargesDue: number;
+    admissionDue: number;
+    componentsDue?: { key: string; label: string; amount: number }[];
+    totalDue: number;
+    paid: number;
+    pending: number;
+    status: "paid" | "partial" | "pending";
+  }[];
   feeBreakdown: {
     admissionFee: number;
     monthlyFee: number;
+    quarterlyTuition?: number;
     annualFee: number;
     computerFee: number;
     examFee: number;
     transportFee: number;
     otherFee: number;
+    annualCharges?: number;
     grossTotal: number;
     structureDiscount: number;
     studentDiscount: number;
     totalDiscount: number;
+    includeAdmission?: boolean;
   };
 }

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "free-port": "node scripts/free-port.js",
+    "clean-next": "node scripts/clean-next.js",
     "predev": "node scripts/free-port.js",
     "dev": "tsx watch src/server/server.ts",
     "build": "next build",

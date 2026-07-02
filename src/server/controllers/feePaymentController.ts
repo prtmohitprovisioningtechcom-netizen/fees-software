@@ -35,6 +35,7 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     });
 
     let calculation: Awaited<ReturnType<typeof calculateFee>> | null = null;
+    const includeAdmission = req.query.includeAdmission === "true";
     if (feeStructure) {
       calculation = await calculateFee(
         student._id.toString(),
@@ -42,7 +43,8 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
         student.classId._id.toString(),
         0,
         student.transportRequired,
-        student.feeDiscount || 0
+        student.feeDiscount || 0,
+        includeAdmission
       );
     }
 
@@ -145,7 +147,7 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
 
 export const collectFee = async (req: AuthRequest, res: Response) => {
   try {
-    const { studentId, paymentAmount, paymentMode, remarks, sessionId: bodySessionId, feeDiscount } = req.body;
+    const { studentId, paymentAmount, paymentMode, remarks, sessionId: bodySessionId, feeDiscount, quarter, paymentType, includeAdmission } = req.body;
 
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
@@ -170,7 +172,8 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       student.classId.toString(),
       paymentAmount,
       student.transportRequired,
-      student.feeDiscount || 0
+      student.feeDiscount || 0,
+      Boolean(includeAdmission)
     );
 
     if (paymentAmount > calculation.previousDue) {
@@ -196,6 +199,8 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       paymentStatus: calculation.paymentStatus,
       paymentMode,
       remarks,
+      quarter: quarter || undefined,
+      paymentType: paymentType || (quarter ? "quarterly" : "custom"),
       collectedBy: req.user?.id,
       feeBreakdown: calculation.feeBreakdown,
     });
@@ -218,6 +223,7 @@ export const getPayment = async (req: AuthRequest, res: Response) => {
         path: "studentId",
         populate: [{ path: "classId", select: "name" }, { path: "sectionId", select: "name" }],
       })
+      .populate("sessionId", "name")
       .populate("collectedBy", "name");
 
     if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
