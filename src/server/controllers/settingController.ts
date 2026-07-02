@@ -21,6 +21,22 @@ const getOrCreateSettings = async () => {
   return AppSetting.create(defaultSettings);
 };
 
+export const getPublicBranding = async (_req: AuthRequest, res: Response) => {
+  try {
+    const settings = await getOrCreateSettings();
+    res.json({
+      success: true,
+      data: {
+        schoolName: settings.schoolName || "",
+        appName: settings.appName || "",
+        logo: settings.logo || "",
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch branding", error: String(error) });
+  }
+};
+
 export const getSettings = async (_req: AuthRequest, res: Response) => {
   try {
     const settings = await getOrCreateSettings();

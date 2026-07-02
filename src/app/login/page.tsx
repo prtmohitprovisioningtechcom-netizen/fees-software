@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,6 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormField } from "@/components/shared/form-field";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "@/components/ui/use-toast";
+import { settingsApi } from "@/lib/api";
+import { applySchoolFavicon, cacheSchoolFavicon, getCachedSchoolFavicon } from "@/lib/school-favicon";
+import { getSchoolDisplayName, parseSchoolBranding } from "@/lib/school-branding";
 
 const loginSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -22,6 +25,26 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [logo, setLogo] = useState("");
+  const [schoolTitle, setSchoolTitle] = useState("");
+
+  useEffect(() => {
+    settingsApi
+      .getBranding()
+      .then((res) => {
+        const branding = parseSchoolBranding((res as { data?: { schoolName?: string; appName?: string; logo?: string } }).data);
+        setLogo(branding.logo);
+        setSchoolTitle(getSchoolDisplayName(branding));
+        if (branding.logo) {
+          applySchoolFavicon(branding.logo);
+          cacheSchoolFavicon(branding.logo);
+        }
+      })
+      .catch(() => {
+        const cached = getCachedSchoolFavicon();
+        if (cached) setLogo(cached);
+      });
+  }, []);
 
   const {
     register,
@@ -50,11 +73,16 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40" />
       <Card className="w-full max-w-md relative animate-fade-in shadow-2xl border-0">
         <CardHeader className="text-center space-y-4 pb-2">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg">
-            <School className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt="School logo" className="h-full w-full object-cover" />
+            ) : (
+              <School className="h-8 w-8 text-primary-foreground" />
+            )}
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
+            <CardTitle className="text-2xl font-bold">{schoolTitle || "Sign in"}</CardTitle>
             <CardDescription className="mt-2">Sign in to your account to continue</CardDescription>
           </div>
         </CardHeader>

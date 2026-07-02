@@ -11,6 +11,7 @@ import feePaymentRoutes from "./routes/feePaymentRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
 import settingRoutes from "./routes/settingRoutes";
 import expenseRoutes from "./routes/expenseRoutes";
+import { getPublicBranding } from "./controllers/settingController";
 
 const createApp = () => {
   const app = express();
@@ -51,6 +52,7 @@ const createApp = () => {
   app.use("/api/students", studentRoutes);
   app.use("/api/fee-payments", feePaymentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.get("/api/settings/branding", getPublicBranding);
   app.use("/api/settings", settingRoutes);
   app.use("/api/expenses", expenseRoutes);
 

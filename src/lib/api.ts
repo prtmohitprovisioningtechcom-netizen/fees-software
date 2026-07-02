@@ -7,15 +7,18 @@ const API_URL =
 
 interface FetchOptions extends RequestInit {
   token?: string;
+  skipAuth?: boolean;
 }
 
 export async function apiClient<T>(
   endpoint: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const { token, headers, ...rest } = options;
+  const { token, skipAuth, headers, ...rest } = options;
 
-  const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+  const authToken = skipAuth
+    ? null
+    : token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
   const hasBody = rest.body != null && rest.body !== "";
   const requestHeaders: Record<string, string> = {
     ...(hasBody && !(rest.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
@@ -72,6 +75,7 @@ export const usersApi = {
 
 export const settingsApi = {
   get: () => apiClient("/settings"),
+  getBranding: () => apiClient("/settings/branding", { skipAuth: true }),
   update: (data: object) => apiClient("/settings", { method: "PUT", body: JSON.stringify(data) }),
 };
 
