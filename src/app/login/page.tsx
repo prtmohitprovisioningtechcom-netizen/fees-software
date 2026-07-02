@@ -4,16 +4,24 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { School, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FormField } from "@/components/shared/form-field";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "@/components/ui/use-toast";
 import { settingsApi } from "@/lib/api";
-import { applySchoolFavicon, cacheSchoolFavicon, getCachedSchoolFavicon } from "@/lib/school-favicon";
-import { getSchoolDisplayName, parseSchoolBranding } from "@/lib/school-branding";
+import { applySchoolFavicon, cacheSchoolFavicon } from "@/lib/school-favicon";
+import {
+  cacheSchoolBranding,
+  emptySchoolBranding,
+  getCachedSchoolBranding,
+  getSchoolDisplayName,
+  parseSchoolBranding,
+} from "@/lib/school-branding";
+import type { SchoolBranding } from "@/types";
 
 const loginSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -25,25 +33,29 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [logo, setLogo] = useState("");
-  const [schoolTitle, setSchoolTitle] = useState("");
+  const [branding, setBranding] = useState<SchoolBranding>(() => emptySchoolBranding());
+  const [brandingLoading, setBrandingLoading] = useState(true);
 
   useEffect(() => {
+    setBranding(getCachedSchoolBranding());
+
     settingsApi
       .getBranding()
       .then((res) => {
-        const branding = parseSchoolBranding((res as { data?: { schoolName?: string; appName?: string; logo?: string } }).data);
-        setLogo(branding.logo);
-        setSchoolTitle(getSchoolDisplayName(branding));
-        if (branding.logo) {
-          applySchoolFavicon(branding.logo);
-          cacheSchoolFavicon(branding.logo);
+        const nextBranding = parseSchoolBranding(
+          (res as { data?: { schoolName?: string; appName?: string; logo?: string } }).data
+        );
+        setBranding(nextBranding);
+        cacheSchoolBranding(nextBranding);
+        if (nextBranding.logo) {
+          applySchoolFavicon(nextBranding.logo);
+          cacheSchoolFavicon(nextBranding.logo);
         }
       })
       .catch(() => {
-        const cached = getCachedSchoolFavicon();
-        if (cached) setLogo(cached);
-      });
+        setBranding(getCachedSchoolBranding());
+      })
+      .finally(() => setBrandingLoading(false));
   }, []);
 
   const {
@@ -68,22 +80,33 @@ export default function LoginPage() {
     }
   };
 
+  const schoolTitle = getSchoolDisplayName(branding);
+  const showLogoArea = brandingLoading || Boolean(branding.logo);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40" />
       <Card className="w-full max-w-md relative animate-fade-in shadow-2xl border-0">
         <CardHeader className="text-center space-y-4 pb-2">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg">
-            {logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt="School logo" className="h-full w-full object-cover" />
-            ) : (
-              <School className="h-8 w-8 text-primary-foreground" />
-            )}
-          </div>
+          {showLogoArea ? (
+            <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl shadow-lg">
+              {branding.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={branding.logo} alt="School logo" className="h-full w-full object-contain" />
+              ) : (
+                <Skeleton className="h-20 w-20 rounded-2xl" />
+              )}
+            </div>
+          ) : null}
           <div>
-            <CardTitle className="text-2xl font-bold">{schoolTitle || "Sign in"}</CardTitle>
-            <CardDescription className="mt-2">Sign in to your account to continue</CardDescription>
+            {brandingLoading && !schoolTitle ? (
+              <Skeleton className="mx-auto mb-2 h-8 w-56" />
+            ) : schoolTitle ? (
+              <CardTitle className="text-2xl font-bold leading-snug">{schoolTitle}</CardTitle>
+            ) : null}
+            <CardDescription className={schoolTitle ? "mt-2" : ""}>
+              Sign in to your account to continue
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
