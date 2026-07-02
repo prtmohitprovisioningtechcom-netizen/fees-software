@@ -53,6 +53,21 @@ const emptySettings: AppSettings = {
 export default function SettingsPage() {
   const router = useRouter();
   const { isSuperAdmin, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !isSuperAdmin) router.push("/dashboard");
+  }, [authLoading, isSuperAdmin, router]);
+
+  if (!authLoading && !isSuperAdmin) return null;
+
+  return (
+    <DashboardLayout>
+      <SettingsContent />
+    </DashboardLayout>
+  );
+}
+
+function SettingsContent() {
   const { refresh: refreshBranding } = useBranding();
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -64,12 +79,6 @@ export default function SettingsPage() {
   const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !isSuperAdmin) router.push("/dashboard");
-  }, [authLoading, isSuperAdmin, router]);
-
-  useEffect(() => {
-    if (!isSuperAdmin) return;
-
     Promise.all([settingsApi.get(), usersApi.getPasswordTargets()])
       .then(([settingsRes, usersRes]) => {
         const settingsData = (settingsRes as { data: AppSettings }).data;
@@ -87,7 +96,7 @@ export default function SettingsPage() {
         setSelectedUserId(usersData[0]?._id || "");
       })
       .finally(() => setSettingsLoading(false));
-  }, [isSuperAdmin]);
+  }, []);
 
   const handleLogoChange = async (file?: File) => {
     if (!file) return;
@@ -153,22 +162,20 @@ export default function SettingsPage() {
     }
   };
 
-  if (!authLoading && !isSuperAdmin) return null;
-
   if (settingsLoading) {
     return (
-      <DashboardLayout>
+      <>
         <PageHeader title="Settings" description="Loading school settings..." breadcrumbs={[{ label: "Settings" }]} />
         <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
           <Card><CardContent className="pt-6 space-y-4"><Skeleton className="h-20 w-20" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></CardContent></Card>
           <Card><CardContent className="pt-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <PageHeader
         title="Settings"
         description="School branding, quarterly fee policy, and admin passwords."
@@ -328,6 +335,6 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
-    </DashboardLayout>
+    </>
   );
 }

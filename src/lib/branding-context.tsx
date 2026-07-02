@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { settingsApi } from "@/lib/api";
+import { applySchoolFavicon, cacheSchoolFavicon } from "@/lib/school-favicon";
 import { emptySchoolBranding, parseSchoolBranding } from "@/lib/school-branding";
 import type { SchoolBranding } from "@/types";
 
@@ -31,6 +32,12 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    applySchoolFavicon(branding.logo);
+    cacheSchoolFavicon(branding.logo);
+  }, [branding.logo, loaded]);
 
   return (
     <BrandingContext.Provider value={{ branding, loaded, refresh }}>

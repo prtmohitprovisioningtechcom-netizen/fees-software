@@ -96,8 +96,8 @@ export const updateSession = async (req: AuthRequest, res: Response) => {
 
 export const deleteSession = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    if (!Types.ObjectId.isValid(id)) {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!id || !Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid session id" });
     }
 
