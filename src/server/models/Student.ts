@@ -30,6 +30,7 @@ export interface IStudent extends Document {
   status: "active" | "inactive" | "left";
   previousSchool?: string;
   transportRequired: boolean;
+  transportRouteId?: Types.ObjectId;
   feeDiscount: number;
   initializedAtSdms?: string;
   studentPen?: string;
@@ -82,6 +83,7 @@ const studentSchema = new Schema<IStudent>(
     status: { type: String, enum: ["active", "inactive", "left"], default: "active" },
     previousSchool: { type: String, trim: true },
     transportRequired: { type: Boolean, default: false },
+    transportRouteId: { type: Schema.Types.ObjectId, ref: "TransportRoute" },
     feeDiscount: { type: Number, min: 0, default: 0 },
     initializedAtSdms: { type: String, trim: true },
     studentPen: { type: String, trim: true },

@@ -10,9 +10,6 @@ import { cn, formatCurrency } from "@/lib/utils";
 import {
   getNewStudentYearlyTotal,
   getOldStudentYearlyTotal,
-  getYearlyTransport,
-  TRANSPORT_MONTHS_BY_QUARTER,
-  TRANSPORT_YEARLY_MONTHS,
   previewQuarterSchedule,
 } from "@/lib/fee-schedule";
 import { DEFAULT_FEE_POLICY, type FeePolicy } from "@/lib/fee-policy";
@@ -33,7 +30,6 @@ export interface FeeStructureFormData {
   computerFee: number;
   examFee: number;
   otherFee: number;
-  transportFee: number;
   discount: number;
 }
 
@@ -53,7 +49,7 @@ interface FeeStructureFormDialogProps {
 const FEE_ROWS: {
   key: keyof Pick<
     FeeStructureFormData,
-    "admissionFee" | "monthlyFee" | "annualFee" | "computerFee" | "examFee" | "otherFee" | "transportFee" | "discount"
+    "admissionFee" | "monthlyFee" | "annualFee" | "computerFee" | "examFee" | "otherFee" | "discount"
   >;
   label: string;
   note?: string;
@@ -67,12 +63,6 @@ const FEE_ROWS: {
   { key: "computerFee", label: "ID Card / Diary / Syllabus", note: "Stationery & documents" },
   { key: "examFee", label: "Exam Fee", note: "Yearly exam charges" },
   { key: "otherFee", label: "Form / Insurance (F.I.)", note: "One-time annual charges" },
-  {
-    key: "transportFee",
-    label: "Monthly Transport",
-    note: `11 months/year — Q1: ${TRANSPORT_MONTHS_BY_QUARTER[1]}mo, Q2–Q4: ${TRANSPORT_MONTHS_BY_QUARTER[2]}mo each (if student uses transport)`,
-    quarterly: true,
-  },
   { key: "discount", label: "Discount", note: "Applies to all students", isDiscount: true },
 ];
 
@@ -148,7 +138,6 @@ export function FeeStructureFormDialog({
 }: FeeStructureFormDialogProps) {
   const [prefillSource, setPrefillSource] = useState<string | null>(null);
   const [feePolicy, setFeePolicy] = useState<FeePolicy>(DEFAULT_FEE_POLICY);
-  const [previewTransport, setPreviewTransport] = useState(true);
   const lastPrefillSessionRef = useRef<string | null>(null);
 
   const oldStudentTotal = getOldStudentYearlyTotal(form);
@@ -233,11 +222,10 @@ export function FeeStructureFormDialog({
       computerFee: form.computerFee,
       examFee: form.examFee,
       otherFee: form.otherFee,
-      transportFee: form.transportFee,
     },
     feePolicy,
     true,
-    previewTransport && form.transportFee > 0
+    null
   );
 
   const isValid = form.classIds.length > 0 && form.sessionId;
@@ -417,11 +405,6 @@ export function FeeStructureFormDialog({
                               Quarterly (×3): {formatCurrency(amount * 3)} · Yearly (×12): {formatCurrency(amount * 12)}
                             </p>
                           )}
-                          {key === "transportFee" && amount > 0 && (
-                            <p className="text-[11px] text-primary font-medium mt-0.5">
-                              Yearly (×{TRANSPORT_YEARLY_MONTHS}): {formatCurrency(getYearlyTransport(amount))} · Q1: {formatCurrency(amount * TRANSPORT_MONTHS_BY_QUARTER[1])} · Q2–Q4: {formatCurrency(amount * TRANSPORT_MONTHS_BY_QUARTER[2])} each
-                            </p>
-                          )}
                         </div>
                         <AmountInput
                           value={amount}
@@ -435,20 +418,7 @@ export function FeeStructureFormDialog({
 
                 {form.monthlyFee > 0 && (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-primary">Quarterly collection preview</p>
-                      {form.transportFee > 0 && (
-                        <label className="flex items-center gap-1.5 text-[11px] cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={previewTransport}
-                            onChange={(e) => setPreviewTransport(e.target.checked)}
-                            className="rounded"
-                          />
-                          Include transport
-                        </label>
-                      )}
-                    </div>
+                    <p className="font-semibold text-primary">Quarterly collection preview</p>
                     {quarterPreview.map((q) => (
                       <div key={q.quarter} className="border-t border-primary/10 pt-1.5 first:border-0 first:pt-0">
                         <p className="font-medium">{q.label} — {formatCurrency(q.totalDue)}</p>
@@ -526,7 +496,6 @@ const emptyForm: FeeStructureFormData = {
   computerFee: 0,
   examFee: 0,
   otherFee: 0,
-  transportFee: 0,
   discount: 0,
 };
 

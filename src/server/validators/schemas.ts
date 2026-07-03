@@ -74,6 +74,7 @@ export const studentSchema = z.object({
   status: z.enum(["active", "inactive", "left"]).optional(),
   previousSchool: z.string().optional(),
   transportRequired: z.coerce.boolean().optional(),
+  transportRouteId: z.string().optional(),
 });
 
 export const feePaymentSchema = z.object({

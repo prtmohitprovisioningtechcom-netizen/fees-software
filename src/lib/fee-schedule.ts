@@ -13,9 +13,13 @@ export type FeeStructureAmounts = {
   computerFee: number;
   examFee: number;
   otherFee: number;
-  transportFee?: number;
   discount?: number;
 };
+
+export type TransportInfo = {
+  monthlyFee: number;
+  routeName?: string;
+} | null;
 
 export type QuarterNumber = 1 | 2 | 3 | 4;
 
@@ -35,9 +39,10 @@ export const getYearlyTransport = (monthlyTransport: number) =>
 export const getTransportDueInQuarter = (monthlyTransport: number, quarter: QuarterNumber) =>
   monthlyTransport * TRANSPORT_MONTHS_BY_QUARTER[quarter];
 
-export const getTransportLabelForQuarter = (quarter: QuarterNumber) => {
+export const getTransportLabelForQuarter = (quarter: QuarterNumber, routeName?: string) => {
   const months = TRANSPORT_MONTHS_BY_QUARTER[quarter];
-  return `Transport (${months} month${months > 1 ? "s" : ""})`;
+  const base = `Transport (${months} month${months > 1 ? "s" : ""})`;
+  return routeName ? `${routeName} — ${base}` : base;
 };
 
 export interface QuarterScheduleItem {
@@ -79,11 +84,11 @@ export const getNewStudentYearlyTotal = (structure: FeeStructureAmounts) =>
 export const getGrossYearlyTotal = (
   structure: FeeStructureAmounts,
   includeAdmission: boolean,
-  transportRequired = false
+  transport: TransportInfo = null
 ) => {
   let total = includeAdmission ? getNewStudentYearlyTotal(structure) : getOldStudentYearlyTotal(structure);
-  if (transportRequired && (structure.transportFee || 0) > 0) {
-    total += getYearlyTransport(structure.transportFee || 0);
+  if (transport && transport.monthlyFee > 0) {
+    total += getYearlyTransport(transport.monthlyFee);
   }
   return total;
 };
@@ -92,9 +97,9 @@ export const getNetYearlyTotal = (
   structure: FeeStructureAmounts,
   includeAdmission: boolean,
   studentFeeDiscount = 0,
-  transportRequired = false
+  transport: TransportInfo = null
 ) => {
-  const gross = getGrossYearlyTotal(structure, includeAdmission, transportRequired);
+  const gross = getGrossYearlyTotal(structure, includeAdmission, transport);
   const structureDiscount = structure.discount || 0;
   const totalDiscount = Math.min(gross, structureDiscount + (studentFeeDiscount || 0));
   return Math.max(0, gross - totalDiscount);
@@ -113,10 +118,9 @@ export const buildQuarterSchedule = (
   includeAdmission: boolean,
   paidByQuarter: Partial<Record<QuarterNumber, number>> = {},
   policy: FeePolicy = DEFAULT_FEE_POLICY,
-  transportRequired = false
+  transport: TransportInfo = null
 ): QuarterScheduleItem[] => {
   const quarterlyTuition = getQuarterlyTuition(structure.monthlyFee);
-  const monthlyTransport = structure.transportFee || 0;
   const amounts = {
     admissionFee: structure.admissionFee,
     annualFee: structure.annualFee || 0,
@@ -133,11 +137,11 @@ export const buildQuarterSchedule = (
       includeAdmission,
       quarterlyTuition
     );
-    if (transportRequired && monthlyTransport > 0) {
+    if (transport && transport.monthlyFee > 0) {
       componentsDue.push({
         key: "transport",
-        label: getTransportLabelForQuarter(quarter),
-        amount: getTransportDueInQuarter(monthlyTransport, quarter),
+        label: getTransportLabelForQuarter(quarter, transport.routeName),
+        amount: getTransportDueInQuarter(transport.monthlyFee, quarter),
       });
     }
     const tuitionDue = quarterlyTuition;
@@ -234,9 +238,9 @@ export const finalizeQuarterSchedule = (
   payments: { quarter?: number | null; currentPayment: number }[],
   totalDiscount: number,
   policy: FeePolicy = DEFAULT_FEE_POLICY,
-  transportRequired = false
+  transport: TransportInfo = null
 ): QuarterScheduleItem[] => {
-  const gross = buildQuarterSchedule(structure, includeAdmission, {}, policy, transportRequired);
+  const gross = buildQuarterSchedule(structure, includeAdmission, {}, policy, transport);
   const withPayments = allocatePaymentsToSchedule(gross, payments);
   return applyDiscountToSchedule(withPayments, totalDiscount);
 };
@@ -245,8 +249,8 @@ export const previewQuarterSchedule = (
   structure: FeeStructureAmounts,
   policy: FeePolicy,
   includeAdmission: boolean,
-  transportRequired = false
-) => buildQuarterSchedule(structure, includeAdmission, {}, policy, transportRequired);
+  transport: TransportInfo = null
+) => buildQuarterSchedule(structure, includeAdmission, {}, policy, transport);
 
 export const getNextDueQuarter = (schedule: QuarterScheduleItem[]): QuarterScheduleItem | null =>
   schedule.find((q) => q.status !== "paid") || null;

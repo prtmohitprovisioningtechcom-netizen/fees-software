@@ -100,6 +100,15 @@ export const sessionsApi = {
   delete: (id: string) => apiClient(`/sessions/${id}`, { method: "DELETE" }),
 };
 
+export const transportRoutesApi = {
+  getAll: () => apiClient("/transport-routes"),
+  create: (data: { name: string; monthlyFee: number }) =>
+    apiClient("/transport-routes", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: { name?: string; monthlyFee?: number }) =>
+    apiClient(`/transport-routes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: string) => apiClient(`/transport-routes/${id}`, { method: "DELETE" }),
+};
+
 export const feeStructuresApi = {
   getAll: (params?: { classId?: string; sessionId?: string }) => {
     const query = new URLSearchParams(params as Record<string, string>).toString();

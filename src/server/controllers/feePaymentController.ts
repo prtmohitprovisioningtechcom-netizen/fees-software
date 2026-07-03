@@ -2,7 +2,7 @@ import { Response } from "express";
 import { Types } from "mongoose";
 import { AcademicSession, FeePayment, Student, FeeStructure } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { calculateFee, generateReceiptNumber, createSessionFeeCache, getFeeStatusFromCache } from "../services/feeService";
+import { calculateFee, generateReceiptNumber, createSessionFeeCache, getFeeStatusFromCache, resolveStudentTransport, buildStudentTransportMap } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 
 const resolveSessionId = resolveAcademicSession;
@@ -12,7 +12,8 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     const student = await Student.findById(req.params.studentId)
       .populate("classId", "name")
       .populate("sectionId", "name")
-      .populate("sessionId", "name");
+      .populate("sessionId", "name")
+      .populate("transportRouteId", "name monthlyFee");
 
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
 
@@ -29,12 +30,13 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     let calculation: Awaited<ReturnType<typeof calculateFee>> | null = null;
     const includeAdmission = req.query.includeAdmission === "true";
     if (feeStructure) {
+      const transport = await resolveStudentTransport(student.transportRequired, student.transportRouteId);
       calculation = await calculateFee(
         student._id.toString(),
         session._id.toString(),
         student.classId._id.toString(),
         0,
-        student.transportRequired,
+        transport,
         student.feeDiscount || 0,
         includeAdmission
       );
@@ -97,13 +99,15 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
       createSessionFeeCache(session._id.toString()),
     ]);
 
+    const transportMap = await buildStudentTransportMap(students);
+
     const data = students.map((student) => {
       const feeStatus = getFeeStatusFromCache(
         feeCache,
         student.classId._id.toString(),
         student._id.toString(),
         student.feeDiscount || 0,
-        student.transportRequired
+        transportMap.get(student._id.toString()) || null
       );
       return {
         _id: student._id,
@@ -164,7 +168,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       session._id.toString(),
       student.classId.toString(),
       paymentAmount,
-      student.transportRequired,
+      await resolveStudentTransport(student.transportRequired, student.transportRouteId),
       student.feeDiscount || 0,
       Boolean(includeAdmission)
     );

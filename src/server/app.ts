@@ -11,6 +11,7 @@ import feePaymentRoutes from "./routes/feePaymentRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
 import settingRoutes from "./routes/settingRoutes";
 import expenseRoutes from "./routes/expenseRoutes";
+import transportRouteRoutes from "./routes/transportRouteRoutes";
 import { getPublicBranding } from "./controllers/settingController";
 
 const createApp = () => {
@@ -55,6 +56,7 @@ const createApp = () => {
   app.get("/api/settings/branding", getPublicBranding);
   app.use("/api/settings", settingRoutes);
   app.use("/api/expenses", expenseRoutes);
+  app.use("/api/transport-routes", transportRouteRoutes);
 
   app.get("/api/health", (_req, res) => {
     res.json({ success: true, message: "API is running" });

@@ -22,6 +22,7 @@ type Breakdown = {
   computerFee?: number;
   examFee?: number;
   transportFee?: number;
+  transportRouteName?: string;
   otherFee?: number;
   annualCharges?: number;
   grossTotal?: number;
@@ -51,7 +52,7 @@ function getStructureRows(b: Breakdown) {
   if (b.otherFee) rows.push({ label: "Form / Insurance (F.I.)", amount: b.otherFee });
   if (b.transportFee) {
     rows.push({
-      label: "Transport (Annual)",
+      label: b.transportRouteName ? `Transport — ${b.transportRouteName} (Annual)` : "Transport (Annual)",
       amount: b.transportFee,
       note: "11 months — Q1: 2mo, Q2–Q4: 3mo each",
     });

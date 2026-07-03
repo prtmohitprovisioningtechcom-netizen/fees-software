@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { FeeStructure, FeePayment } from "../models";
+import { FeeStructure, FeePayment, TransportRoute } from "../models";
 import { FeeCalculation } from "@/types";
 import {
   finalizeQuarterSchedule,
@@ -12,11 +12,14 @@ import {
   type FeeStructureAmounts,
   type QuarterNumber,
   type QuarterScheduleItem,
+  type TransportInfo,
 } from "@/lib/fee-schedule";
 import { mergeFeePolicy, type FeePolicy } from "@/lib/fee-policy";
 import { AppSetting } from "../models";
 
 export type StructureLike = FeeStructureAmounts;
+
+export type { TransportInfo };
 
 let cachedPolicy: { policy: FeePolicy; at: number } | null = null;
 const POLICY_CACHE_MS = 30_000;
@@ -36,19 +39,61 @@ export const getFeePolicy = async (): Promise<FeePolicy> => {
   return policy;
 };
 
+export const resolveStudentTransport = async (
+  transportRequired: boolean,
+  transportRouteId?: Types.ObjectId | string | null
+): Promise<TransportInfo> => {
+  if (!transportRequired || !transportRouteId) return null;
+  const route = await TransportRoute.findOne({ _id: transportRouteId, isActive: true }).lean();
+  if (!route) return null;
+  return { monthlyFee: route.monthlyFee, routeName: route.name };
+};
+
+export const buildStudentTransportMap = async (
+  students: {
+    _id: Types.ObjectId | string;
+    transportRequired?: boolean;
+    transportRouteId?: Types.ObjectId | string | null;
+  }[]
+): Promise<Map<string, TransportInfo>> => {
+  const routeIds = students
+    .filter((s) => s.transportRequired && s.transportRouteId)
+    .map((s) => s.transportRouteId!.toString());
+  const uniqueIds = [...new Set(routeIds)];
+
+  const routes =
+    uniqueIds.length > 0
+      ? await TransportRoute.find({ _id: { $in: uniqueIds }, isActive: true }).lean()
+      : [];
+  const routeById = new Map(
+    routes.map((r) => [r._id.toString(), { monthlyFee: r.monthlyFee, routeName: r.name } as TransportInfo])
+  );
+
+  const map = new Map<string, TransportInfo>();
+  for (const student of students) {
+    const sid = student._id.toString();
+    if (!student.transportRequired || !student.transportRouteId) {
+      map.set(sid, null);
+      continue;
+    }
+    map.set(sid, routeById.get(student.transportRouteId.toString()) || null);
+  }
+  return map;
+};
+
 export const getGrossStructureTotal = (
   structure: StructureLike,
   includeAdmission = false,
-  transportRequired = false
-) => getGrossYearlyTotal(structure, includeAdmission, transportRequired);
+  transport: TransportInfo = null
+) => getGrossYearlyTotal(structure, includeAdmission, transport);
 
 export const computeNetFee = (
   structure: StructureLike,
   studentFeeDiscount = 0,
   includeAdmission = false,
-  transportRequired = false
+  transport: TransportInfo = null
 ) => {
-  const grossTotal = getGrossYearlyTotal(structure, includeAdmission, transportRequired);
+  const grossTotal = getGrossYearlyTotal(structure, includeAdmission, transport);
   const structureDiscount = structure.discount || 0;
   const studentDiscount = studentFeeDiscount || 0;
   const totalDiscount = Math.min(grossTotal, structureDiscount + studentDiscount);
@@ -62,7 +107,7 @@ export const calculateFee = async (
   sessionId: string,
   classId: string,
   currentPayment: number,
-  transportRequired: boolean,
+  transport: TransportInfo,
   studentFeeDiscount = 0,
   includeAdmission = false
 ): Promise<FeeCalculation> => {
@@ -80,7 +125,7 @@ export const calculateFee = async (
     structure,
     studentFeeDiscount,
     includeAdmission,
-    transportRequired
+    transport
   );
 
   const payments = await FeePayment.find({
@@ -96,10 +141,10 @@ export const calculateFee = async (
     payments,
     totalDiscount,
     feePolicy,
-    transportRequired
+    transport
   );
 
-  const yearlyTransport = transportRequired ? getYearlyTransport(structure.transportFee || 0) : 0;
+  const yearlyTransport = transport ? getYearlyTransport(transport.monthlyFee) : 0;
 
   const feeBreakdown = {
     admissionFee: includeAdmission ? structure.admissionFee : 0,
@@ -109,6 +154,7 @@ export const calculateFee = async (
     computerFee: structure.computerFee,
     examFee: structure.examFee,
     transportFee: yearlyTransport,
+    transportRouteName: transport?.routeName || "",
     otherFee: structure.otherFee,
     annualCharges: getAnnualChargesTotal(structure),
     grossTotal,
@@ -186,7 +232,7 @@ export const createSessionFeeCache = async (sessionId: string): Promise<SessionF
   const sessionOid = new Types.ObjectId(sessionId);
   const [structures, paidAgg] = await Promise.all([
     FeeStructure.find({ sessionId: sessionOid })
-      .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee transportFee discount")
+      .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
     FeePayment.aggregate<{ _id: Types.ObjectId; paidAmount: number }>([
       { $match: { sessionId: sessionOid } },
@@ -205,7 +251,7 @@ export const getFeeStatusFromCache = (
   classId: string,
   studentId: string,
   studentFeeDiscount = 0,
-  transportRequired = false
+  transport: TransportInfo = null
 ) => {
   const structure = cache.structuresByClass.get(classId);
   if (!structure) {
@@ -224,7 +270,7 @@ export const getFeeStatusFromCache = (
     structure,
     studentFeeDiscount,
     false,
-    transportRequired
+    transport
   );
   const paidAmount = cache.paidByStudent.get(studentId) || 0;
   const pendingAmount = Math.max(0, netTotal - paidAmount);
@@ -250,13 +296,13 @@ export const getStudentSessionFeeStatus = async (
   classId: string,
   studentFeeDiscount = 0,
   includeAdmission = false,
-  transportRequired = false
+  transport: TransportInfo = null
 ) => {
   const feeStructure = await FeeStructure.findOne({
     classId: new Types.ObjectId(classId),
     sessionId: new Types.ObjectId(sessionId),
   })
-    .select("admissionFee monthlyFee annualFee computerFee examFee otherFee transportFee discount")
+    .select("admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
     .lean();
 
   if (!feeStructure) {
@@ -286,7 +332,7 @@ export const getStudentSessionFeeStatus = async (
     structure,
     studentFeeDiscount,
     includeAdmission,
-    transportRequired
+    transport
   );
   const paidAmount = paidAgg[0]?.paidAmount || 0;
   const pendingAmount = Math.max(0, netTotal - paidAmount);
@@ -333,17 +379,21 @@ export type SessionQuarterlyCache = {
   structuresByClass: Map<string, StructureLike>;
   paymentsByStudent: Map<string, { quarter?: number | null; currentPayment: number }[]>;
   includeAdmissionByStudent: Map<string, boolean>;
-  transportByStudent: Map<string, boolean>;
+  transportByStudent: Map<string, TransportInfo>;
 };
 
 export const createSessionQuarterlyCache = async (
   sessionId: string,
-  students: { _id: { toString: () => string }; transportRequired?: boolean }[] = []
+  students: {
+    _id: { toString: () => string } | Types.ObjectId | string;
+    transportRequired?: boolean;
+    transportRouteId?: Types.ObjectId | string | null;
+  }[] = []
 ): Promise<SessionQuarterlyCache> => {
   const sessionOid = new Types.ObjectId(sessionId);
   const [structures, payments] = await Promise.all([
     FeeStructure.find({ sessionId: sessionOid })
-      .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee transportFee discount")
+      .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
     FeePayment.find({ sessionId: sessionOid })
       .select("studentId quarter currentPayment feeBreakdown.includeAdmission feeBreakdown.admissionFee")
@@ -367,8 +417,12 @@ export const createSessionQuarterlyCache = async (
     }
   }
 
-  const transportByStudent = new Map<string, boolean>(
-    students.map((s) => [s._id.toString(), !!s.transportRequired])
+  const transportByStudent = await buildStudentTransportMap(
+    students.map((s) => ({
+      _id: typeof s._id === "object" && "toString" in s._id ? s._id.toString() : String(s._id),
+      transportRequired: s.transportRequired,
+      transportRouteId: s.transportRouteId,
+    }))
   );
 
   return { structuresByClass, paymentsByStudent, includeAdmissionByStudent, transportByStudent };
@@ -384,9 +438,9 @@ export const buildStudentQuarterlyReport = async (
   if (!structure) return null;
 
   const includeAdmission = cache.includeAdmissionByStudent.get(studentId) || false;
-  const transportRequired = cache.transportByStudent.get(studentId) || false;
+  const transport = cache.transportByStudent.get(studentId) || null;
   const payments = cache.paymentsByStudent.get(studentId) || [];
-  const { totalDiscount } = computeNetFee(structure, studentFeeDiscount, includeAdmission, transportRequired);
+  const { totalDiscount } = computeNetFee(structure, studentFeeDiscount, includeAdmission, transport);
   const feePolicy = await getFeePolicy();
   const schedule = finalizeQuarterSchedule(
     structure,
@@ -394,7 +448,7 @@ export const buildStudentQuarterlyReport = async (
     payments,
     totalDiscount,
     feePolicy,
-    transportRequired
+    transport
   );
 
   const quarters = schedule.map((q) => ({

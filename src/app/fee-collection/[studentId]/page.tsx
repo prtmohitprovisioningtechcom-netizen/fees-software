@@ -222,7 +222,13 @@ function CollectFeePageContent() {
               <div className="flex justify-between"><span className="text-muted-foreground">Mobile</span><strong>{student?.mobileNumber as string}</strong></div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Transport</span>
-                <strong>{student?.transportRequired ? "Yes — fee applies" : "No"}</strong>
+                <strong>
+                  {student?.transportRequired
+                    ? (student?.transportRouteId as { name?: string } | undefined)?.name
+                      ? `${(student.transportRouteId as { name: string }).name} (${(student.transportRouteId as { monthlyFee?: number }).monthlyFee ?? ""}/mo)`
+                      : "Yes — route required"
+                    : "No"}
+                </strong>
               </div>
             </CardContent>
           </Card>

@@ -99,7 +99,14 @@ export default function ViewStudentPage() {
               <div><span className="text-muted-foreground">Section:</span> <strong>{sec?.name}</strong></div>
               <div><span className="text-muted-foreground">Session:</span> <strong>{sess?.name}</strong></div>
               <div><span className="text-muted-foreground">Admission Date:</span> <strong>{formatDate(student.admissionDate as string)}</strong></div>
-              <div><span className="text-muted-foreground">Transport:</span> <strong>{student.transportRequired ? "Yes" : "No"}</strong></div>
+              <div>
+                <span className="text-muted-foreground">Transport:</span>{" "}
+                <strong>
+                  {student.transportRequired
+                    ? (student.transportRouteId as { name?: string } | undefined)?.name || "Yes"
+                    : "No"}
+                </strong>
+              </div>
               <div><span className="text-muted-foreground">Previous School:</span> <strong>{(student.previousSchool as string) || "N/A"}</strong></div>
             </CardContent>
           </Card>

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { classesApi, sectionsApi, sessionsApi, studentsApi } from "@/lib/api";
+import { classesApi, sectionsApi, sessionsApi, studentsApi, transportRoutesApi } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 
 const editSchema = z.object({
@@ -35,6 +35,10 @@ const editSchema = z.object({
   pincode: z.string().regex(/^\d{6}$/),
   status: z.enum(["active", "inactive", "left"]),
   transportRequired: z.boolean(),
+  transportRouteId: z.string().optional(),
+}).refine((data) => !data.transportRequired || Boolean(data.transportRouteId?.trim()), {
+  message: "Select a transport route when school transport is enabled",
+  path: ["transportRouteId"],
 });
 
 type EditForm = z.infer<typeof editSchema>;
@@ -48,6 +52,7 @@ export default function EditStudentPage() {
   const [classes, setClasses] = useState<{ _id: string; name: string }[]>([]);
   const [sections, setSections] = useState<{ _id: string; name: string }[]>([]);
   const [sessions, setSessions] = useState<{ _id: string; name: string }[]>([]);
+  const [transportRoutes, setTransportRoutes] = useState<{ _id: string; name: string; monthlyFee: number }[]>([]);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<EditForm>({
     resolver: zodResolver(editSchema),
@@ -70,19 +75,23 @@ export default function EditStudentPage() {
       pincode: "",
       status: "active",
       transportRequired: false,
+      transportRouteId: "",
     },
   });
 
   const classId = watch("classId");
 
   useEffect(() => {
-    Promise.all([classesApi.getAll(), sessionsApi.getAll(), studentsApi.getById(id)]).then(
-      ([cRes, sRes, stRes]) => {
+    Promise.all([classesApi.getAll(), sessionsApi.getAll(), transportRoutesApi.getAll(), studentsApi.getById(id)]).then(
+      ([cRes, sRes, routesRes, stRes]) => {
         setClasses((cRes as { data: typeof classes }).data);
         setSessions((sRes as { data: typeof sessions }).data);
+        setTransportRoutes((routesRes as { data: typeof transportRoutes }).data);
         const st = (stRes as { data: Record<string, unknown> }).data;
         setRegNo(st.registrationNumber as string);
         const addr = st.address as { line1: string; city: string; state: string; pincode: string };
+        const routeRef = st.transportRouteId as { _id?: string } | string | undefined;
+        const routeId = typeof routeRef === "string" ? routeRef : routeRef?._id || "";
         reset({
           admissionNumber: st.admissionNumber as string,
           rollNumber: st.rollNumber as string,
@@ -102,6 +111,7 @@ export default function EditStudentPage() {
           pincode: addr.pincode,
           status: st.status as EditForm["status"],
           transportRequired: Boolean(st.transportRequired),
+          transportRouteId: routeId,
         });
       }
     );
@@ -209,12 +219,33 @@ export default function EditStudentPage() {
               <label className="flex items-center gap-2 text-sm cursor-pointer rounded-md border px-3 py-2">
                 <input
                   type="checkbox"
-                  {...register("transportRequired")}
+                  checked={watch("transportRequired")}
+                  onChange={(e) => {
+                    setValue("transportRequired", e.target.checked, { shouldValidate: true });
+                    if (!e.target.checked) setValue("transportRouteId", "", { shouldValidate: true });
+                  }}
                   className="rounded"
                 />
-                <span>Student uses school transport (11-month fee applies)</span>
+                <span>Student uses school transport</span>
               </label>
             </FormField>
+            {watch("transportRequired") ? (
+              <FormField label="Transport Route" required error={errors.transportRouteId?.message}>
+                <Select
+                  value={watch("transportRouteId") || ""}
+                  onValueChange={(value) => setValue("transportRouteId", value, { shouldValidate: true })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select village / route" /></SelectTrigger>
+                  <SelectContent>
+                    {transportRoutes.map((route) => (
+                      <SelectItem key={route._id} value={route._id}>
+                        {route.name} — {route.monthlyFee}/mo
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            ) : null}
             <FormField label="Address" required className="md:col-span-2" error={errors.addressLine1?.message}>
               <Input {...register("addressLine1")} />
             </FormField>

@@ -16,6 +16,7 @@ import {
   Layers,
   Settings,
   Wallet,
+  Bus,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const superAdminLinks: NavLink[] = [
   { href: "/sections", label: "Sections", icon: Layers },
   { href: "/sessions", label: "Sessions", icon: Calendar },
   { href: "/fee-structure", label: "Fee Structure", icon: IndianRupee },
+  { href: "/transport-routes", label: "Transport Routes", icon: Bus },
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/fee-collection", label: "Fee Collection", icon: Receipt },
   { href: "/expenses", label: "Expenses", icon: Wallet },

@@ -136,6 +136,7 @@ export interface FeeCalculation {
     computerFee: number;
     examFee: number;
     transportFee: number;
+    transportRouteName?: string;
     otherFee: number;
     annualCharges?: number;
     grossTotal: number;

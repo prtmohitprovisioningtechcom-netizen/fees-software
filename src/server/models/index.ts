@@ -8,3 +8,4 @@ export { default as FeePayment } from "./FeePayment";
 export { default as AppSetting } from "./AppSetting";
 export { default as ExpenseCategory } from "./ExpenseCategory";
 export { default as Expense } from "./Expense";
+export { default as TransportRoute } from "./TransportRoute";

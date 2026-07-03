@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { Types } from "mongoose";
 import * as XLSX from "xlsx";
-import { AcademicSession, Class, Section, Student } from "../models";
+import { AcademicSession, Class, Section, Student, TransportRoute } from "../models";
 import { AuthRequest } from "../middleware/auth";
 import { generateRegistrationNumber } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
@@ -56,7 +56,8 @@ export const getStudent = async (req: AuthRequest, res: Response) => {
       .populate("classId", "name")
       .populate("sectionId", "name")
       .populate("sessionId", "name")
-      .populate("createdBy", "name");
+      .populate("createdBy", "name")
+      .populate("transportRouteId", "name monthlyFee");
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
     res.json({ success: true, data: student });
   } catch (error) {
@@ -66,17 +67,50 @@ export const getStudent = async (req: AuthRequest, res: Response) => {
 
 const normalizeBoolean = (value: string) => ["yes", "true", "1", "y", "haan"].includes(value.trim().toLowerCase());
 
-const parseStudentBody = (body: Record<string, unknown>) => {
-  const data = { ...body };
-  if (typeof data.address === "string") {
-    data.address = JSON.parse(data.address as string);
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const resolveTransportRouteId = async (transportRequired: boolean, routeRef?: unknown) => {
+  if (!transportRequired) return undefined;
+  const ref = String(routeRef || "").trim();
+  if (!ref) {
+    throw new Error("Transport route is required when school transport is Yes");
   }
+  if (Types.ObjectId.isValid(ref)) {
+    const byId = await TransportRoute.findOne({ _id: ref, isActive: true });
+    if (byId) return byId._id;
+  }
+  const byName = await TransportRoute.findOne({
+    name: { $regex: `^${escapeRegex(ref)}$`, $options: "i" },
+    isActive: true,
+  });
+  if (!byName) throw new Error(`Transport route not found: ${ref}`);
+  return byName._id;
+};
+
+const normalizeStudentTransport = async (data: Record<string, unknown>) => {
   if (data.transportRequired !== undefined) {
     if (typeof data.transportRequired === "boolean") {
       data.transportRequired = data.transportRequired;
     } else {
       data.transportRequired = normalizeBoolean(String(data.transportRequired));
     }
+  } else {
+    data.transportRequired = false;
+  }
+
+  if (!data.transportRequired) {
+    data.transportRouteId = undefined;
+    return;
+  }
+
+  const routeRef = data.transportRouteId ?? data.transportRoute ?? data.transportRouteName;
+  data.transportRouteId = await resolveTransportRouteId(true, routeRef);
+};
+
+const parseStudentBody = (body: Record<string, unknown>) => {
+  const data = { ...body };
+  if (typeof data.address === "string") {
+    data.address = JSON.parse(data.address as string);
   }
   return data;
 };
@@ -281,6 +315,8 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
     const session = parsed.sessionId ? await findSession(String(parsed.sessionId)) : await getCurrentSession();
     if (!session) return res.status(400).json({ success: false, message: "Academic Session not found. Create or mark one active/current session." });
 
+    await normalizeStudentTransport(parsed);
+
     const student = await Student.create({
       ...parsed,
       registrationNumber,
@@ -304,7 +340,8 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
         pincode: "000000",
       },
       status: normalizeStatus(String(parsed.status || "active")),
-      transportRequired: normalizeBoolean(String(parsed.transportRequired || "")),
+      transportRequired: Boolean(parsed.transportRequired),
+      transportRouteId: parsed.transportRouteId,
       initializedAtSdms: String(parsed.initializedAtSdms || ""),
       studentPen,
       studentStateCode,
@@ -325,7 +362,7 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
       createdBy: req.user?.id,
     });
 
-    await student.populate(["classId", "sectionId", "sessionId"]);
+    await student.populate(["classId", "sectionId", "sessionId", { path: "transportRouteId", select: "name monthlyFee" }]);
     res.status(201).json({ success: true, message: "Student registered successfully", data: student });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to register student", error: String(error) });
@@ -404,6 +441,12 @@ export const importStudents = async (req: AuthRequest, res: Response) => {
         const session = sessionRef ? await findSession(sessionRef) : await getCurrentSession();
         if (!session) throw new Error("Academic Session not found. Create or mark one active/current session.");
 
+        const transportRequired = normalizeBoolean(getCell(row, ["Transport Required", "Transport", "transportRequired"]));
+        const transportRouteRef = getCell(row, ["Transport Route", "Village", "transportRoute"]);
+        const transportRouteId = transportRequired
+          ? await resolveTransportRouteId(true, transportRouteRef)
+          : undefined;
+
         const registrationNumber = await generateRegistrationNumber();
         const student = await Student.create({
           registrationNumber,
@@ -433,7 +476,8 @@ export const importStudents = async (req: AuthRequest, res: Response) => {
           },
           status: normalizeStatus(getCell(row, ["Status"])),
           previousSchool: getCell(row, ["Previous School", "previousSchool"]),
-          transportRequired: normalizeBoolean(getCell(row, ["Transport Required", "Transport", "transportRequired"])),
+          transportRequired,
+          transportRouteId,
           initializedAtSdms: getCell(row, ["Initialised at SDMS", "Initialized at SDMS"]),
           studentPen,
           studentStateCode,
@@ -496,10 +540,13 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
       updates.photo = getMongoPhoto(req.file);
     }
 
+    await normalizeStudentTransport(updates);
+
     const student = await Student.findByIdAndUpdate(req.params.id, updates, { new: true })
       .populate("classId", "name")
       .populate("sectionId", "name")
-      .populate("sessionId", "name");
+      .populate("sessionId", "name")
+      .populate("transportRouteId", "name monthlyFee");
 
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
     res.json({ success: true, message: "Student updated successfully", data: student });

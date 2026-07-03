@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import * as XLSX from "xlsx";
 import { AcademicSession, Student, FeePayment } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { createSessionFeeCache, getFeeStatusFromCache, createSessionQuarterlyCache, buildStudentQuarterlyReport, aggregateQuarterlyTotals } from "../services/feeService";
+import { createSessionFeeCache, getFeeStatusFromCache, createSessionQuarterlyCache, buildStudentQuarterlyReport, aggregateQuarterlyTotals, buildStudentTransportMap } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
 const startOfToday = () => {
@@ -74,10 +74,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
           .lean(),
         createSessionFeeCache(session._id.toString()),
         Student.find({ status: "active" })
-          .select("_id classId studentName registrationNumber feeDiscount")
+          .select("_id classId studentName registrationNumber feeDiscount transportRequired transportRouteId")
           .populate("classId", "name")
           .lean(),
-      ]);
+    ]);
+
+    const transportMap = await buildStudentTransportMap(activeStudents);
 
     const totalFeeCollected = totalCollectionAgg[0]?.total || 0;
     const todayCollection = todayCollectionAgg[0]?.total || 0;
@@ -89,7 +91,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         classId,
         student._id.toString(),
         (student as { feeDiscount?: number }).feeDiscount || 0,
-        (student as { transportRequired?: boolean }).transportRequired || false
+        transportMap.get(student._id.toString()) || null
       );
       return {
         _id: student._id.toString(),

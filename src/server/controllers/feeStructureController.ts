@@ -10,7 +10,6 @@ const buildTotalFee = (body: {
   computerFee?: number;
   examFee?: number;
   otherFee?: number;
-  transportFee?: number;
 }) =>
   getGrossStructureTotal(
     {
@@ -20,10 +19,9 @@ const buildTotalFee = (body: {
       computerFee: Number(body.computerFee) || 0,
       examFee: Number(body.examFee) || 0,
       otherFee: Number(body.otherFee) || 0,
-      transportFee: Number(body.transportFee) || 0,
     },
     false,
-    false
+    null
   );
 
 export const getFeeStructures = async (req: AuthRequest, res: Response) => {
@@ -68,9 +66,8 @@ export const createFeeStructure = async (req: AuthRequest, res: Response) => {
     const computerFee = Number(req.body.computerFee) || 0;
     const examFee = Number(req.body.examFee) || 0;
     const otherFee = Number(req.body.otherFee) || 0;
-    const transportFee = Number(req.body.transportFee) || 0;
     const discount = Number(req.body.discount) || 0;
-    const grossTotal = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee, transportFee });
+    const grossTotal = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
     const totalFee = Math.max(0, grossTotal - discount);
 
     const structure = await FeeStructure.create({
@@ -81,7 +78,7 @@ export const createFeeStructure = async (req: AuthRequest, res: Response) => {
       computerFee,
       examFee,
       otherFee,
-      transportFee,
+      transportFee: 0,
       discount,
       totalFee,
       createdBy: req.user?.id,
@@ -106,10 +103,9 @@ export const updateFeeStructure = async (req: AuthRequest, res: Response) => {
     const computerFee = updates.computerFee ?? current.computerFee;
     const examFee = updates.examFee ?? current.examFee;
     const otherFee = updates.otherFee ?? current.otherFee;
-    const transportFee = updates.transportFee ?? current.transportFee ?? 0;
 
-    updates.transportFee = transportFee;
-    const grossTotal = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee, transportFee });
+    updates.transportFee = 0;
+    const grossTotal = buildTotalFee({ admissionFee, monthlyFee, annualFee, computerFee, examFee, otherFee });
     const discount = updates.discount ?? current.discount ?? 0;
     updates.totalFee = Math.max(0, grossTotal - Number(discount));
 
