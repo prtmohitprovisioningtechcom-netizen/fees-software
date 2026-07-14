@@ -183,7 +183,7 @@ const buildReportRows = (payments: Awaited<ReturnType<typeof fetchCollectionRepo
     };
     const session = p.sessionId as { name?: string };
     const collectedBy = p.collectedBy as { name?: string };
-    const breakdown = (p.feeBreakdown || {}) as Record<string, number | boolean | undefined>;
+    const breakdown = (p.feeBreakdown || {}) as Record<string, number | boolean | string | undefined>;
 
     return {
       "S.No": index + 1,
