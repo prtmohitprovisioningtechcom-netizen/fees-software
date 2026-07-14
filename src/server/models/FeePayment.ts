@@ -15,6 +15,7 @@ export interface IFeePayment extends Document {
   paymentMode: "cash" | "upi" | "card" | "cheque" | "bank_transfer";
   remarks?: string;
   customSessionName?: string;
+  isStandalonePreviousDues?: boolean;
   paymentDate: Date;
   quarter?: 1 | 2 | 3 | 4;
   paymentType?: "quarterly" | "monthly" | "full_year" | "custom";
@@ -60,6 +61,7 @@ const feePaymentSchema = new Schema<IFeePayment>(
     },
     remarks: { type: String, trim: true },
     customSessionName: { type: String, trim: true },
+    isStandalonePreviousDues: { type: Boolean, default: false },
     paymentDate: { type: Date, default: Date.now },
     quarter: { type: Number, enum: [1, 2, 3, 4] },
     paymentType: { type: String, enum: ["quarterly", "monthly", "full_year", "custom"], default: "custom" },

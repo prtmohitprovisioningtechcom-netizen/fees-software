@@ -31,6 +31,11 @@ export type StructureLike = FeeStructureAmounts;
 
 export type { TransportInfo };
 
+/** Standalone previous-dues slips must not affect regular session balance math. */
+export const regularPaymentMatch = {
+  isStandalonePreviousDues: { $ne: true },
+};
+
 let cachedPolicy: { policy: FeePolicy; at: number } | null = null;
 const POLICY_CACHE_MS = 30_000;
 
@@ -141,6 +146,7 @@ export const calculateFee = async (
   const payments = await FeePayment.find({
     studentId: new Types.ObjectId(studentId),
     sessionId: new Types.ObjectId(sessionId),
+    ...regularPaymentMatch,
   });
 
   const feePolicy = await getFeePolicy();
@@ -245,7 +251,7 @@ export const createSessionFeeCache = async (sessionId: string): Promise<SessionF
       .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
     FeePayment.aggregate<{ _id: Types.ObjectId; paidAmount: number }>([
-      { $match: { sessionId: sessionOid } },
+      { $match: { sessionId: sessionOid, ...regularPaymentMatch } },
       { $group: { _id: "$studentId", paidAmount: { $sum: "$currentPayment" } } },
     ]),
   ]);
@@ -319,7 +325,11 @@ export const getStudentSessionArrears = async (
     const sid = session._id.toString();
     if (excludeSessionId && sid === excludeSessionId) continue;
 
-    const payments = await FeePayment.find({ studentId: studentOid, sessionId: session._id })
+    const payments = await FeePayment.find({
+      studentId: studentOid,
+      sessionId: session._id,
+      ...regularPaymentMatch,
+    })
       .select("currentPayment totalFee feeBreakdown")
       .lean();
 
@@ -395,6 +405,7 @@ export const getStudentSessionFeeStatus = async (
       $match: {
         studentId: new Types.ObjectId(studentId),
         sessionId: new Types.ObjectId(sessionId),
+        ...regularPaymentMatch,
       },
     },
     { $group: { _id: null, paidAmount: { $sum: "$currentPayment" } } },
@@ -468,7 +479,7 @@ export const createSessionQuarterlyCache = async (
     FeeStructure.find({ sessionId: sessionOid })
       .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
-    FeePayment.find({ sessionId: sessionOid })
+    FeePayment.find({ sessionId: sessionOid, ...regularPaymentMatch })
       .select("studentId quarter currentPayment feeBreakdown.includeAdmission feeBreakdown.admissionFee")
       .lean(),
   ]);

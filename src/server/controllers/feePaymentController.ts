@@ -10,6 +10,7 @@ import {
   resolveStudentTransport,
   buildStudentTransportMap,
   getStudentSessionArrears,
+  regularPaymentMatch,
 } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 
@@ -219,8 +220,8 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
         isActive: true,
       });
 
-      const anchorSession =
-        matchedSession || (await resolveSessionId(bodySessionId || student.sessionId.toString()));
+      const enrolledSession = await resolveSessionId(student.sessionId.toString());
+      const anchorSession = enrolledSession || (await resolveSessionId(bodySessionId || ""));
       if (!anchorSession) {
         return res.status(400).json({ success: false, message: "Academic session not found" });
       }
@@ -238,9 +239,26 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
 
       const transport = await resolveStudentTransport(student.transportRequired, student.transportRouteId);
       const amount = Number(paymentAmount);
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ success: false, message: "Payment amount must be greater than 0" });
+      }
 
       let paymentFields: Record<string, unknown>;
+      let isStandalonePreviousDues = false;
+
       if (matchedSession) {
+        const priorPayments = await FeePayment.find({
+          studentId: student._id,
+          sessionId: matchedSession._id,
+          ...regularPaymentMatch,
+        })
+          .select("feeBreakdown")
+          .lean();
+        const includeAdmissionForSession = priorPayments.some((p) => {
+          const b = p.feeBreakdown as { includeAdmission?: boolean; admissionFee?: number } | undefined;
+          return Boolean(b?.includeAdmission || (b?.admissionFee ?? 0) > 0);
+        });
+
         const calculation = await calculateFee(
           studentId,
           matchedSession._id.toString(),
@@ -248,8 +266,16 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
           amount,
           transport,
           student.feeDiscount || 0,
-          false
+          includeAdmissionForSession
         );
+
+        if (amount > calculation.previousDue) {
+          return res.status(400).json({
+            success: false,
+            message: `Payment amount cannot exceed due amount of ₹${calculation.previousDue}`,
+          });
+        }
+
         paymentFields = {
           sessionId: matchedSession._id,
           totalFee: calculation.totalFee,
@@ -262,6 +288,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
           feeBreakdown: calculation.feeBreakdown,
         };
       } else {
+        isStandalonePreviousDues = true;
         paymentFields = {
           sessionId: anchorSession._id,
           totalFee: amount,
@@ -285,6 +312,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
         paymentType: "custom",
         collectedBy: req.user?.id,
         customSessionName,
+        isStandalonePreviousDues,
         ...paymentFields,
       });
 
@@ -319,17 +347,22 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
     });
     if (!feeStructure) return res.status(404).json({ success: false, message: "Fee structure not found for this class and session" });
 
+    const amount = Number(paymentAmount);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: "Payment amount must be greater than 0" });
+    }
+
     const calculation = await calculateFee(
       studentId,
       session._id.toString(),
       student.classId.toString(),
-      paymentAmount,
+      amount,
       await resolveStudentTransport(student.transportRequired, student.transportRouteId),
       student.feeDiscount || 0,
       Boolean(includeAdmission)
     );
 
-    if (paymentAmount > calculation.previousDue) {
+    if (amount > calculation.previousDue) {
       return res.status(400).json({
         success: false,
         message: `Payment amount cannot exceed due amount of ₹${calculation.previousDue}`,

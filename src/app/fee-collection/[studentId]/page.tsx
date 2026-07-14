@@ -65,11 +65,7 @@ function matchSessionByName(name: string, sessions: Session[], excludeSessionId?
   const q = name.trim().toLowerCase();
   if (!q) return null;
   const candidates = sessions.filter((s) => s._id !== excludeSessionId);
-  return (
-    candidates.find((s) => s.name.trim().toLowerCase() === q) ||
-    candidates.find((s) => s.name.trim().toLowerCase().includes(q)) ||
-    null
-  );
+  return candidates.find((s) => s.name.trim().toLowerCase() === q) || null;
 }
 
 function CollectFeePageContent() {
@@ -251,6 +247,17 @@ function CollectFeePageContent() {
     }
     if (transportRequired && !transportRouteId) {
       toast({ title: "Transport route needed", description: "Select a route before collecting", variant: "destructive" });
+      return;
+    }
+    const currentCollectSessionId = session?._id || sessionId;
+    const matched = matchSessionByName(label, sessions, currentCollectSessionId);
+    const arrear = matched ? sessionArrears.find((a) => a.sessionId === matched._id) : undefined;
+    if (arrear && arrear.pendingAmount > 0 && amount > arrear.pendingAmount) {
+      toast({
+        title: "Amount too high",
+        description: `Pending for this session is ${formatCurrency(arrear.pendingAmount)}`,
+        variant: "destructive",
+      });
       return;
     }
     setSubmittingDueId(`prev-${label}`);
