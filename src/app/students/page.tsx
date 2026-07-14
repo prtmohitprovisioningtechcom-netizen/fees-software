@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Eye, Pencil, Trash2, Upload } from "lucide-react";
@@ -51,9 +51,11 @@ export default function StudentsPage() {
   const [classes, setClasses] = useState<{ _id: string; name: string }[]>([]);
   const [sections, setSections] = useState<{ _id: string; name: string }[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const prevStudentsRef = useRef<Student[]>([]);
 
   const fetchStudents = useCallback(async () => {
-    setLoading(true);
+    const isFirst = prevStudentsRef.current.length === 0;
+    if (isFirst) setLoading(true);
     try {
       const params: Record<string, string> = { page: String(page), limit: "10" };
       if (search) params.search = search;
@@ -64,9 +66,11 @@ export default function StudentsPage() {
         data: Student[];
         pagination: { total: number; totalPages: number };
       };
+      prevStudentsRef.current = res.data;
       setStudents(res.data);
       setPagination(res.pagination);
     } catch (error) {
+      if (prevStudentsRef.current.length) setStudents(prevStudentsRef.current);
       toast({ title: "Error", description: String(error), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -102,6 +106,9 @@ export default function StudentsPage() {
     }
     setDeleteId(null);
   };
+
+  const displayStudents = loading && prevStudentsRef.current.length > 0 ? prevStudentsRef.current : students;
+  const showEmptyLoading = loading && prevStudentsRef.current.length === 0;
 
   return (
     <DashboardLayout>
@@ -148,6 +155,9 @@ export default function StudentsPage() {
               </SelectContent>
             </Select>
           </div>
+          {loading && prevStudentsRef.current.length > 0 && (
+            <p className="mt-3 text-xs text-primary animate-pulse">Updating…</p>
+          )}
         </CardContent>
       </Card>
 
@@ -167,13 +177,13 @@ export default function StudentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {showEmptyLoading ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8">Loading...</TableCell></TableRow>
-              ) : students.length === 0 ? (
+              ) : displayStudents.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No students found</TableCell></TableRow>
               ) : (
-                students.map((student) => (
-                  <TableRow key={student._id}>
+                displayStudents.map((student) => (
+                  <TableRow key={student._id} className={loading ? "opacity-60" : ""}>
                     <TableCell className="font-medium">{student.registrationNumber}</TableCell>
                     <TableCell>{student.studentName}</TableCell>
                     <TableCell>{student.fatherName}</TableCell>

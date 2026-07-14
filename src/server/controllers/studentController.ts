@@ -87,7 +87,24 @@ const resolveTransportRouteId = async (transportRequired: boolean, routeRef?: un
   return byName._id;
 };
 
-const normalizeStudentTransport = async (data: Record<string, unknown>) => {
+const normalizeStudentTransport = async (
+  data: Record<string, unknown>,
+  options: { requireWhenMissing?: boolean } = {}
+) => {
+  const hasTransportField =
+    data.transportRequired !== undefined ||
+    data.transportRouteId !== undefined ||
+    data.transportRoute !== undefined ||
+    data.transportRouteName !== undefined;
+
+  if (!hasTransportField && !options.requireWhenMissing) {
+    delete data.transportRequired;
+    delete data.transportRouteId;
+    delete data.transportRoute;
+    delete data.transportRouteName;
+    return;
+  }
+
   if (data.transportRequired !== undefined) {
     if (typeof data.transportRequired === "boolean") {
       data.transportRequired = data.transportRequired;
@@ -99,7 +116,7 @@ const normalizeStudentTransport = async (data: Record<string, unknown>) => {
   }
 
   if (!data.transportRequired) {
-    data.transportRouteId = undefined;
+    data.transportRouteId = null;
     return;
   }
 
@@ -315,7 +332,7 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
     const session = parsed.sessionId ? await findSession(String(parsed.sessionId)) : await getCurrentSession();
     if (!session) return res.status(400).json({ success: false, message: "Academic Session not found. Create or mark one active/current session." });
 
-    await normalizeStudentTransport(parsed);
+    await normalizeStudentTransport(parsed, { requireWhenMissing: true });
 
     const student = await Student.create({
       ...parsed,

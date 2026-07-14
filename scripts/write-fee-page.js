@@ -1,4 +1,7 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+const feeCollectionPage = `"use client";
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,11 +13,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { feePaymentsApi, classesApi, sectionsApi, sessionsApi } from "@/lib/api";
+import { feePaymentsApi, classesApi, sectionsApi, sessionsApi, studentsApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { StudentFeeOverview } from "@/types";
-import { IndianRupee, Users, TrendingUp, AlertCircle, CheckCircle2, Bus } from "lucide-react";
+import { IndianRupee, Users, Percent, TrendingUp, AlertCircle, CheckCircle2, Bus } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface Session {
@@ -31,7 +36,7 @@ type TransportStudent = StudentFeeOverview & {
 function SkeletonRow() {
   return (
     <TableRow className="animate-pulse">
-      {[60, 140, 60, 60, 80, 70, 70, 70, 70, 90].map((w, i) => (
+      {[60, 140, 60, 60, 80, 70, 70, 70, 70, 70, 90].map((w, i) => (
         <TableCell key={i}>
           <div className="h-4 bg-muted rounded" style={{ width: w }} />
         </TableCell>
@@ -53,7 +58,7 @@ function SummaryCard({
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm">
-      <div className={`rounded-lg p-2 ${colorClass}`}>
+      <div className={\`rounded-lg p-2 \${colorClass}\`}>
         <Icon className="h-4 w-4 text-white" />
       </div>
       <div>
@@ -79,15 +84,17 @@ function FeeCollectionPageContent() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [classes, setClasses] = useState<{ _id: string; name: string }[]>([]);
   const [sections, setSections] = useState<{ _id: string; name: string }[]>([]);
+  const [discountStudent, setDiscountStudent] = useState<TransportStudent | null>(null);
+  const [discountValue, setDiscountValue] = useState("");
+  const [savingDiscount, setSavingDiscount] = useState(false);
   const prevDataRef = useRef<TransportStudent[]>([]);
   const [pageSummary, setPageSummary] = useState({ paid: 0, pending: 0 });
   const limit = 20;
 
   useEffect(() => {
-    Promise.all([sessionsApi.getAll(), classesApi.getAll()]).then(([sessionsRes, classesRes]) => {
-      const list = (sessionsRes as { data: Session[] }).data || [];
+    sessionsApi.getAll().then((res) => {
+      const list = (res as { data: Session[] }).data || [];
       setSessions(list);
-      setClasses((classesRes as { data: typeof classes }).data);
       if (!sessionId) {
         const current = list.find((s) => s.isCurrent) || list[0];
         if (current) setSessionId(current._id);
@@ -102,8 +109,7 @@ function FeeCollectionPageContent() {
       setLoading(false);
       return;
     }
-    const isFirst = prevDataRef.current.length === 0;
-    if (isFirst) setLoading(true);
+    setLoading(true);
     try {
       const params: Record<string, string> = {
         page: String(page),
@@ -140,6 +146,10 @@ function FeeCollectionPageContent() {
   }, [page, classFilter, sectionFilter, search, sessionId]);
 
   useEffect(() => {
+    classesApi.getAll().then((res) => setClasses((res as { data: typeof classes }).data));
+  }, []);
+
+  useEffect(() => {
     if (classFilter) {
       sectionsApi.getAll(classFilter).then((res) => setSections((res as { data: typeof sections }).data));
     } else {
@@ -149,7 +159,7 @@ function FeeCollectionPageContent() {
   }, [classFilter]);
 
   useEffect(() => {
-    const timer = setTimeout(fetchStudents, search ? 300 : 0);
+    const timer = setTimeout(fetchStudents, search ? 400 : 0);
     return () => clearTimeout(timer);
   }, [fetchStudents]);
 
@@ -169,6 +179,26 @@ function FeeCollectionPageContent() {
     return <Badge variant="secondary">Pending</Badge>;
   };
 
+  const openDiscountDialog = (student: TransportStudent) => {
+    setDiscountStudent(student);
+    setDiscountValue(String(student.feeDiscount || 0));
+  };
+
+  const saveDiscount = async () => {
+    if (!discountStudent) return;
+    setSavingDiscount(true);
+    try {
+      await studentsApi.updateFeeDiscount(discountStudent._id, Number(discountValue) || 0);
+      toast({ title: "Saved", description: "Student discount updated" });
+      setDiscountStudent(null);
+      fetchStudents();
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
+    } finally {
+      setSavingDiscount(false);
+    }
+  };
+
   const displayStudents = loading && prevDataRef.current.length > 0 ? prevDataRef.current : students;
   const showSkeleton = loading && prevDataRef.current.length === 0;
 
@@ -176,7 +206,7 @@ function FeeCollectionPageContent() {
     <DashboardLayout>
       <PageHeader
         title="Fee Collection"
-        description="Collect fees by session. Set transport and discount on the collect page."
+        description="View paid and pending fees by session, then collect payments."
         breadcrumbs={[{ label: "Fee Collection" }]}
       />
 
@@ -188,7 +218,7 @@ function FeeCollectionPageContent() {
               <SelectContent>
                 {sessions.map((s) => (
                   <SelectItem key={s._id} value={s._id}>
-                    {s.name}{s.isCurrent ? " ✓ Current" : ""}
+                    {s.name}{s.isCurrent ? " \u2713 Current" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -211,16 +241,16 @@ function FeeCollectionPageContent() {
           </div>
 
           {!loading && sessions.length === 0 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-3 flex items-center gap-1">
+            <p className="text-xs text-amber-600 mt-3 flex items-center gap-1">
               <AlertCircle className="h-3.5 w-3.5" />
-              No academic session found. Create one from Sessions first.
+              No academic session found. Create one from <strong>Sessions</strong> first.
             </p>
           )}
           {sessionName && sessions.length > 0 && (
             <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
               <Users className="h-3.5 w-3.5" />
-              {pagination.total} student{pagination.total !== 1 ? "s" : ""} — Session: <strong>{sessionName}</strong>
-              {loading && <span className="ml-2 text-primary animate-pulse">Updating…</span>}
+              {pagination.total} student{pagination.total !== 1 ? "s" : ""} \u2014 Session: <strong>{sessionName}</strong>
+              {loading && <span className="ml-2 text-primary animate-pulse">Updating\u2026</span>}
             </p>
           )}
         </CardContent>
@@ -228,7 +258,7 @@ function FeeCollectionPageContent() {
 
       {!showSkeleton && pagination.total > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <SummaryCard icon={Users} label="Total Students (session)" value={`${pagination.total}`} colorClass="bg-primary" />
+          <SummaryCard icon={Users} label="Total Students (session)" value={\`\${pagination.total}\`} colorClass="bg-primary" />
           <SummaryCard icon={TrendingUp} label="Collected (this page)" value={formatCurrency(pageSummary.paid)} colorClass="bg-emerald-500" />
           <SummaryCard icon={AlertCircle} label="Pending (this page)" value={formatCurrency(pageSummary.pending)} colorClass="bg-amber-500" />
         </div>
@@ -251,8 +281,8 @@ function FeeCollectionPageContent() {
                   </TableHead>
                   <TableHead className="text-right">Net Fee</TableHead>
                   <TableHead className="text-right">Discount</TableHead>
-                  <TableHead className="text-right text-emerald-700 dark:text-emerald-400">Paid</TableHead>
-                  <TableHead className="text-right text-amber-700 dark:text-amber-400">Pending</TableHead>
+                  <TableHead className="text-right text-emerald-700">Paid</TableHead>
+                  <TableHead className="text-right text-amber-700">Pending</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
@@ -279,25 +309,37 @@ function FeeCollectionPageContent() {
                       <TableCell>{s.sectionId?.name}</TableCell>
                       <TableCell>
                         {s.transportRequired ? (
-                          <Badge variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:bg-blue-950/40">
+                          <Badge variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700 bg-blue-50">
                             <Bus className="h-3 w-3" />
                             {s.transportRouteId?.name || "Yes"}
                           </Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground">\u2014</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {s.hasFeeStructure ? formatCurrency(s.totalFee) : "—"}
+                        {s.hasFeeStructure ? formatCurrency(s.totalFee) : "\u2014"}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {s.hasFeeStructure ? formatCurrency(s.totalDiscount) : "—"}
+                      <TableCell className="text-right">
+                        {s.hasFeeStructure ? (
+                          <button
+                            type="button"
+                            className="text-emerald-600 hover:underline text-sm tabular-nums"
+                            onClick={() => openDiscountDialog(s)}
+                            title="Set student discount"
+                          >
+                            {formatCurrency(s.totalDiscount)}
+                            {s.feeDiscount > 0 && (
+                              <span className="block text-[10px] text-muted-foreground">+{formatCurrency(s.feeDiscount)} student</span>
+                            )}
+                          </button>
+                        ) : "\u2014"}
                       </TableCell>
-                      <TableCell className="text-right text-emerald-600 dark:text-emerald-400 tabular-nums font-medium">
-                        {s.hasFeeStructure ? formatCurrency(s.paidAmount) : "—"}
+                      <TableCell className="text-right text-emerald-600 tabular-nums font-medium">
+                        {s.hasFeeStructure ? formatCurrency(s.paidAmount) : "\u2014"}
                       </TableCell>
-                      <TableCell className="text-right text-amber-600 dark:text-amber-400 tabular-nums font-semibold">
-                        {s.hasFeeStructure ? formatCurrency(s.pendingAmount) : "—"}
+                      <TableCell className="text-right text-amber-600 tabular-nums font-semibold">
+                        {s.hasFeeStructure ? formatCurrency(s.pendingAmount) : "\u2014"}
                       </TableCell>
                       <TableCell>
                         {s.hasFeeStructure ? statusBadge(s.paymentStatus) : (
@@ -305,13 +347,24 @@ function FeeCollectionPageContent() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => router.push(`/fee-collection/${s._id}?sessionId=${sessionId}`)}
-                        >
-                          <IndianRupee className="h-3.5 w-3.5" /> Collect
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:text-emerald-600"
+                            onClick={() => openDiscountDialog(s)}
+                            title="Student discount"
+                          >
+                            <Percent className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => router.push(\`/fee-collection/\${s._id}?sessionId=\${sessionId}\`)}
+                          >
+                            <IndianRupee className="h-3.5 w-3.5" /> Collect
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -324,6 +377,41 @@ function FeeCollectionPageContent() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!discountStudent} onOpenChange={(open) => !open && setDiscountStudent(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Student Discount</DialogTitle></DialogHeader>
+          {discountStudent && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>{discountStudent.studentName}</strong> \u2014 Extra discount (\u20b9) on top of class default discount.
+              </p>
+              <div className="text-sm space-y-1 rounded-lg bg-muted p-3">
+                <div className="flex justify-between">
+                  <span>Gross Fee</span>
+                  <span>{formatCurrency(discountStudent.grossTotal)}</span>
+                </div>
+                <div className="flex justify-between text-emerald-600">
+                  <span>Total Discount (after save)</span>
+                  <span>{formatCurrency(Math.min(discountStudent.grossTotal, (discountStudent.totalDiscount - discountStudent.feeDiscount) + (Number(discountValue) || 0)))}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                  <span>Net After Discount</span>
+                  <span className="text-primary">{formatCurrency(Math.max(0, discountStudent.grossTotal - Math.min(discountStudent.grossTotal, (discountStudent.totalDiscount - discountStudent.feeDiscount) + (Number(discountValue) || 0))))}</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Student Discount (\u20b9)</label>
+                <Input type="number" min={0} value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="mt-1" autoFocus />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDiscountStudent(null)}>Cancel</Button>
+                <Button onClick={saveDiscount} disabled={savingDiscount}>{savingDiscount ? "Saving..." : "Save Discount"}</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
@@ -343,3 +431,7 @@ export default function FeeCollectionPage() {
     </Suspense>
   );
 }
+`;
+
+fs.writeFileSync(path.join(__dirname, '../src/app/fee-collection/page.tsx'), feeCollectionPage, 'utf8');
+console.log('fee-collection/page.tsx written OK');

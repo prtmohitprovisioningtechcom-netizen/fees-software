@@ -80,6 +80,11 @@ export const studentSchema = z.object({
 export const feePaymentSchema = z.object({
   studentId: z.string().min(1, "Student is required"),
   sessionId: z.string().optional(),
+  sessionName: z.string().optional(),
+  previousDues: z
+    .union([z.boolean(), z.literal("true"), z.literal("false")])
+    .optional()
+    .transform((v) => v === true || v === "true"),
   feeDiscount: z.coerce.number().min(0).optional(),
   paymentAmount: z.coerce.number().min(1, "Payment amount must be greater than 0"),
   paymentMode: z.enum(["cash", "upi", "card", "cheque", "bank_transfer"]),

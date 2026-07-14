@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FormField } from "@/components/shared/form-field";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import { toast } from "@/components/ui/use-toast";
 import { settingsApi } from "@/lib/api";
 import { applySchoolFavicon, cacheSchoolFavicon } from "@/lib/school-favicon";
@@ -32,6 +33,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { resolved, toggle } = useTheme();
   const [loading, setLoading] = useState(false);
   const [branding, setBranding] = useState<SchoolBranding>(() => emptySchoolBranding());
   const [brandingLoading, setBrandingLoading] = useState(true);
@@ -84,7 +86,17 @@ export default function LoginPage() {
   const showLogoArea = brandingLoading || Boolean(branding.logo);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute right-4 top-4 z-10 text-white/80 hover:bg-white/10 hover:text-white"
+        onClick={toggle}
+        title={resolved === "dark" ? "Light mode" : "Dark mode"}
+      >
+        {resolved === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      </Button>
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40" />
       <Card className="w-full max-w-md relative animate-fade-in shadow-2xl border-0">
         <CardHeader className="text-center space-y-4 pb-2">

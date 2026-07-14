@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { FeeStructure, FeePayment, TransportRoute } from "../models";
+import { FeeStructure, FeePayment, TransportRoute, AcademicSession, AppSetting } from "../models";
 import { FeeCalculation } from "@/types";
 import {
   finalizeQuarterSchedule,
@@ -15,7 +15,17 @@ import {
   type TransportInfo,
 } from "@/lib/fee-schedule";
 import { mergeFeePolicy, type FeePolicy } from "@/lib/fee-policy";
-import { AppSetting } from "../models";
+
+export type SessionArrear = {
+  sessionId: string;
+  sessionName: string;
+  isCurrent: boolean;
+  startDate: Date;
+  totalFee: number;
+  paidAmount: number;
+  pendingAmount: number;
+  hasFeeStructure: boolean;
+};
 
 export type StructureLike = FeeStructureAmounts;
 
@@ -288,6 +298,69 @@ export const getFeeStatusFromCache = (
     paymentStatus,
     hasFeeStructure: true,
   };
+};
+
+/** Fee status for every session except the one currently being collected. */
+export const getStudentSessionArrears = async (
+  studentId: string,
+  classId: string,
+  _enrolledSessionId: string,
+  studentFeeDiscount = 0,
+  transport: TransportInfo = null,
+  excludeSessionId?: string
+): Promise<SessionArrear[]> => {
+  const studentOid = new Types.ObjectId(studentId);
+
+  const sessions = await AcademicSession.find({ isActive: true }).sort({ startDate: -1 }).lean();
+
+  const arrears: SessionArrear[] = [];
+
+  for (const session of sessions) {
+    const sid = session._id.toString();
+    if (excludeSessionId && sid === excludeSessionId) continue;
+
+    const payments = await FeePayment.find({ studentId: studentOid, sessionId: session._id })
+      .select("currentPayment totalFee feeBreakdown")
+      .lean();
+
+    const includeAdmission = payments.some((p) => {
+      const b = p.feeBreakdown as { includeAdmission?: boolean; admissionFee?: number } | undefined;
+      return Boolean(b?.includeAdmission || (b?.admissionFee ?? 0) > 0);
+    });
+
+    const status = await getStudentSessionFeeStatus(
+      studentId,
+      sid,
+      classId,
+      studentFeeDiscount,
+      includeAdmission,
+      transport
+    );
+
+    let totalFee = status.totalFee;
+    let paidAmount = status.paidAmount;
+    let pendingAmount = status.pendingAmount;
+    let hasFeeStructure = status.hasFeeStructure;
+
+    if (!hasFeeStructure && payments.length > 0) {
+      paidAmount = payments.reduce((sum, p) => sum + (p.currentPayment || 0), 0);
+      totalFee = Math.max(paidAmount, ...payments.map((p) => p.totalFee || 0));
+      pendingAmount = Math.max(0, totalFee - paidAmount);
+    }
+
+    arrears.push({
+      sessionId: sid,
+      sessionName: session.name,
+      isCurrent: Boolean(session.isCurrent),
+      startDate: session.startDate,
+      totalFee,
+      paidAmount,
+      pendingAmount,
+      hasFeeStructure,
+    });
+  }
+
+  return arrears;
 };
 
 export const getStudentSessionFeeStatus = async (

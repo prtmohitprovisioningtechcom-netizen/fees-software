@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { Printer, Download } from "lucide-react";
+import { Suspense, useEffect, useState, useMemo, useRef } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Printer, Download, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { feePaymentsApi, settingsApi } from "@/lib/api";
-import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { parseSchoolBranding, getReceiptSchoolName } from "@/lib/school-branding";
-import { SchoolHeader } from "@/components/shared/school-header";
 import type { SchoolBranding } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
@@ -33,18 +32,12 @@ type Breakdown = {
 };
 
 function getStructureRows(b: Breakdown) {
-  const rows: { label: string; amount: number; note?: string }[] = [];
+  const rows: { label: string; amount: number }[] = [];
   if (b.monthlyFee) {
-    const monthlyRate = Math.round(b.monthlyFee / 12);
-    const quarterly = b.quarterlyTuition || monthlyRate * 3;
-    rows.push({
-      label: "Tuition Fee (Annual)",
-      amount: b.monthlyFee,
-      note: `${formatCurrency(monthlyRate)}/month · ${formatCurrency(quarterly)} per quarter`,
-    });
+    rows.push({ label: "Tuition (Annual ×12)", amount: b.monthlyFee });
   }
   if (b.admissionFee && b.admissionFee > 0) {
-    rows.push({ label: "Admission Pack", amount: b.admissionFee, note: "Prospectus + Registration + Admission" });
+    rows.push({ label: "Admission Pack", amount: b.admissionFee });
   }
   if (b.examFee) rows.push({ label: "Exam Fee", amount: b.examFee });
   if (b.computerFee) rows.push({ label: "ID Card / Diary / Syllabus", amount: b.computerFee });
@@ -52,59 +45,303 @@ function getStructureRows(b: Breakdown) {
   if (b.otherFee) rows.push({ label: "Form / Insurance (F.I.)", amount: b.otherFee });
   if (b.transportFee) {
     rows.push({
-      label: b.transportRouteName ? `Transport — ${b.transportRouteName} (Annual)` : "Transport (Annual)",
+      label: b.transportRouteName ? `Transport — ${b.transportRouteName}` : "Transport (11 months)",
       amount: b.transportFee,
-      note: "11 months — Q1: 2mo, Q2–Q4: 3mo each",
     });
   }
   return rows;
 }
 
-function ReceiptSection({
-  title,
-  children,
-  className,
+function buildData(payment: Record<string, unknown> | null) {
+  if (!payment) return null;
+  const student = payment.studentId as Record<string, unknown>;
+  const cls = student.classId as { name: string };
+  const sec = student.sectionId as { name: string };
+  const session = payment.sessionId as { name: string } | null;
+  const customSessionName = payment.customSessionName as string | undefined;
+  const sessionDisplayName = customSessionName || session?.name || "—";
+  const breakdown = (payment.feeBreakdown || {}) as Breakdown;
+  const collectedBy = payment.collectedBy as { name: string };
+  const quarter = payment.quarter as number | undefined;
+  const currentPayment = payment.currentPayment as number;
+  const paidAmount = payment.paidAmount as number;
+  const paidBefore = paidAmount - currentPayment;
+
+  return {
+    student,
+    cls,
+    sec,
+    session,
+    sessionDisplayName,
+    customSessionName,
+    breakdown,
+    collectedBy,
+    quarter,
+    quarterLabel: quarter ? QUARTER_LABELS[quarter as QuarterNumber] : null,
+    structureRows: getStructureRows(breakdown),
+    currentPayment,
+    paidBefore,
+    paidAmount,
+    balance: payment.balance as number,
+    totalFee: payment.totalFee as number,
+    grossTotal: breakdown.grossTotal || (payment.totalFee as number) + (breakdown.totalDiscount || 0),
+    totalDiscount: breakdown.totalDiscount || 0,
+    structureDiscount: breakdown.structureDiscount || 0,
+    studentDiscount: breakdown.studentDiscount || 0,
+    paymentStatus: payment.paymentStatus as string,
+    remarks: payment.remarks as string | undefined,
+  };
+}
+
+type SlipData = NonNullable<ReturnType<typeof buildData>>;
+
+function FeeSlip({
+  data,
+  payment,
+  branding,
+  userName,
 }: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
+  data: SlipData;
+  payment: Record<string, unknown>;
+  branding: SchoolBranding;
+  userName?: string;
 }) {
+  const schoolName = getReceiptSchoolName(branding);
+  const isPaid = data.paymentStatus === "paid";
+  const statusLabel =
+    data.paymentStatus === "paid" ? "PAID" : data.paymentStatus === "partial" ? "PARTIAL" : "PENDING";
+
   return (
-    <div className={cn("mb-5", className)}>
-      <h2 className="text-xs font-bold uppercase tracking-wide text-gray-600 border-b border-gray-300 pb-1 mb-2">
-        {title}
-      </h2>
-      {children}
-    </div>
+    <article className="fee-slip mx-auto bg-white text-black shadow-md print:shadow-none">
+      {/* Top accent */}
+      <div className="h-1.5 bg-[#1e3a8a] print:bg-black" />
+
+      <div className="px-4 py-3 sm:px-5 sm:py-4">
+        {/* Header — school identity */}
+        <header className="flex items-start gap-3 border-b border-black/20 pb-2.5">
+          {branding.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={branding.logo}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded object-contain border border-black/10"
+            />
+          ) : (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-[#1e3a8a] text-white text-lg font-bold">
+              {(schoolName || "S").charAt(0)}
+            </div>
+          )}
+          <div className="min-w-0 flex-1 text-center">
+            <h1 className="text-[15px] sm:text-base font-extrabold uppercase leading-tight tracking-wide text-[#0f172a]">
+              {schoolName || "School Fee Receipt"}
+            </h1>
+            {(branding.address || branding.phone || branding.email) && (
+              <p className="mt-0.5 text-[9px] leading-snug text-neutral-600">
+                {[branding.address, branding.phone ? `Ph: ${branding.phone}` : "", branding.email]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+            <p className="mt-1 text-[11px] font-bold tracking-[0.15em] text-[#1e3a8a] uppercase">
+              Fee Payment Receipt
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <span
+              className={`inline-block rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wider ${
+                isPaid
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-amber-600 text-amber-700"
+              }`}
+            >
+              {statusLabel}
+            </span>
+          </div>
+        </header>
+
+        {/* Meta row */}
+        <div className="mt-2 grid grid-cols-4 gap-x-2 gap-y-1 border-b border-dashed border-black/15 pb-2 text-[10px]">
+          <div>
+            <p className="text-neutral-500 uppercase tracking-wide text-[8px]">Receipt No.</p>
+            <p className="font-bold font-mono text-[11px]">{payment.receiptNumber as string}</p>
+          </div>
+          <div>
+            <p className="text-neutral-500 uppercase tracking-wide text-[8px]">Date</p>
+            <p className="font-semibold">{formatDate(payment.paymentDate as string)}</p>
+          </div>
+          <div>
+            <p className="text-neutral-500 uppercase tracking-wide text-[8px]">Session</p>
+            <p className="font-semibold">{data.sessionDisplayName}</p>
+          </div>
+          <div>
+            <p className="text-neutral-500 uppercase tracking-wide text-[8px]">For</p>
+            <p className="font-semibold text-[#1e3a8a]">
+              {data.customSessionName ? "Previous Dues" : data.quarterLabel?.replace("Quarter ", "Q") || "Custom"}
+            </p>
+          </div>
+        </div>
+
+        {/* Student + Payment amount side by side */}
+        <div className="mt-2 grid grid-cols-[1.2fr_0.8fr] gap-2">
+          <section className="rounded border border-black/15 overflow-hidden">
+            <div className="bg-neutral-100 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-600 border-b border-black/10">
+              Student
+            </div>
+            <div className="px-2 py-1.5 text-[10px] space-y-0.5">
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500 shrink-0">Name</span>
+                <strong className="text-right truncate">{data.student.studentName as string}</strong>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500">Reg. No.</span>
+                <span className="font-mono">{data.student.registrationNumber as string}</span>
+              </div>
+              {(data.student.admissionNumber as string) ? (
+                <div className="flex justify-between gap-2">
+                  <span className="text-neutral-500">Adm. No.</span>
+                  <span>{data.student.admissionNumber as string}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500">Class</span>
+                <span>
+                  {data.cls?.name}
+                  {data.sec?.name ? ` / ${data.sec.name}` : ""}
+                </span>
+              </div>
+              {(data.student.fatherName as string) ? (
+                <div className="flex justify-between gap-2">
+                  <span className="text-neutral-500">Father</span>
+                  <span className="text-right truncate">{data.student.fatherName as string}</span>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="rounded border-2 border-[#1e3a8a] bg-[#1e3a8a]/[0.04] flex flex-col justify-center px-2.5 py-2 text-center">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-[#1e3a8a]">Amount Received</p>
+            <p className="mt-0.5 text-xl sm:text-2xl font-black tabular-nums text-[#1e3a8a] leading-none">
+              {formatCurrency(data.currentPayment)}
+            </p>
+            <p className="mt-1 text-[9px] capitalize text-neutral-600">
+              {(payment.paymentMode as string).replace("_", " ")}
+              {data.quarterLabel ? ` · ${data.quarterLabel.replace("Quarter ", "Q")}` : ""}
+            </p>
+          </section>
+        </div>
+
+        {/* Fee structure + Summary — 2 columns */}
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <section className="rounded border border-black/15 overflow-hidden">
+            <div className="bg-neutral-100 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-600 border-b border-black/10">
+              Annual Fee Structure
+            </div>
+            <table className="w-full text-[9px]">
+              <tbody>
+                {data.structureRows.length === 0 ? (
+                  <tr>
+                    <td className="px-2 py-1 text-neutral-400">—</td>
+                  </tr>
+                ) : (
+                  data.structureRows.map((row) => (
+                    <tr key={row.label} className="border-b border-dashed border-black/10 last:border-0">
+                      <td className="px-2 py-0.5 pr-1 text-neutral-700 leading-tight">{row.label}</td>
+                      <td className="px-2 py-0.5 text-right tabular-nums font-medium whitespace-nowrap">
+                        {formatCurrency(row.amount)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="rounded border border-black/15 overflow-hidden">
+            <div className="bg-neutral-100 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-600 border-b border-black/10">
+              Payment Summary
+            </div>
+            <div className="px-2 py-1 text-[9px] space-y-0.5">
+              <div className="flex justify-between gap-1">
+                <span className="text-neutral-500">Gross Total</span>
+                <span className="tabular-nums">{formatCurrency(data.grossTotal as number)}</span>
+              </div>
+              {data.structureDiscount > 0 && (
+                <div className="flex justify-between gap-1 text-emerald-700">
+                  <span>Class Discount</span>
+                  <span className="tabular-nums">− {formatCurrency(data.structureDiscount)}</span>
+                </div>
+              )}
+              {data.studentDiscount > 0 && (
+                <div className="flex justify-between gap-1 text-emerald-700">
+                  <span>Student Discount</span>
+                  <span className="tabular-nums">− {formatCurrency(data.studentDiscount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between gap-1 font-semibold border-t border-dashed border-black/15 pt-0.5">
+                <span>Net Annual Fee</span>
+                <span className="tabular-nums">{formatCurrency(data.totalFee)}</span>
+              </div>
+              <div className="flex justify-between gap-1">
+                <span className="text-neutral-500">Paid Before</span>
+                <span className="tabular-nums">{formatCurrency(data.paidBefore)}</span>
+              </div>
+              <div className="flex justify-between gap-1 font-bold text-[#1e3a8a] bg-[#1e3a8a]/[0.06] -mx-1 px-1 rounded">
+                <span>This Payment</span>
+                <span className="tabular-nums">{formatCurrency(data.currentPayment)}</span>
+              </div>
+              <div className="flex justify-between gap-1 font-semibold">
+                <span>Total Paid</span>
+                <span className="tabular-nums">{formatCurrency(data.paidAmount)}</span>
+              </div>
+              <div
+                className={`flex justify-between gap-1 font-bold border-t border-black/15 pt-0.5 ${
+                  data.balance === 0 ? "text-emerald-700" : "text-amber-700"
+                }`}
+              >
+                <span>Balance Due</span>
+                <span className="tabular-nums">{formatCurrency(data.balance)}</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {data.remarks ? (
+          <p className="mt-1.5 text-[9px] text-neutral-600">
+            <span className="font-semibold">Remarks:</span> {data.remarks}
+          </p>
+        ) : null}
+
+        {/* Signatures */}
+        <footer className="mt-3 grid grid-cols-2 gap-6 border-t border-dashed border-black/20 pt-2.5 text-[9px]">
+          <div>
+            <p className="text-neutral-500">Collected By</p>
+            <p className="mt-3 font-semibold border-t border-black/40 pt-0.5 inline-block min-w-[120px]">
+              {data.collectedBy?.name || userName || "—"}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-neutral-500">Parent / Guardian</p>
+            <p className="mt-3 font-semibold border-t border-black/40 pt-0.5 inline-block min-w-[120px] text-transparent select-none">
+              .
+            </p>
+          </div>
+        </footer>
+
+        <p className="mt-2 text-center text-[8px] text-neutral-400">
+          Computer-generated receipt · Please retain for records · {schoolName || "School Fee System"}
+        </p>
+      </div>
+    </article>
   );
 }
 
-function Row({ label, value, bold, highlight, negative }: {
-  label: string;
-  value: string;
-  bold?: boolean;
-  highlight?: boolean;
-  negative?: boolean;
-}) {
-  return (
-    <div className={cn(
-      "flex justify-between py-1.5 text-sm border-b border-dashed border-gray-200 last:border-0",
-      bold && "font-semibold",
-      highlight && "bg-primary/5 -mx-2 px-2 rounded"
-    )}>
-      <span className="text-gray-700">{label}</span>
-      <span className={cn(
-        "tabular-nums",
-        negative && "text-emerald-700",
-        highlight && "text-primary font-bold text-base"
-      )}>{value}</span>
-    </div>
-  );
-}
-
-export default function ReceiptPage() {
+function ReceiptPageContent() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const id = params?.id ?? "";
+  const shouldPrint = searchParams?.get("print") === "1";
+  const printedRef = useRef(false);
   const { user } = useAuth();
   const [payment, setPayment] = useState<Record<string, unknown> | null>(null);
   const [branding, setBranding] = useState<SchoolBranding>({
@@ -116,13 +353,9 @@ export default function ReceiptPage() {
     email: "",
   });
   const [loading, setLoading] = useState(true);
-  const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Promise.all([
-      feePaymentsApi.getById(id),
-      settingsApi.get().catch(() => null),
-    ])
+    Promise.all([feePaymentsApi.getById(id), settingsApi.get().catch(() => null)])
       .then(([paymentRes, settingsRes]) => {
         setPayment((paymentRes as { data: Record<string, unknown> }).data);
         const settings = (settingsRes as { data?: Partial<SchoolBranding> } | null)?.data;
@@ -131,316 +364,214 @@ export default function ReceiptPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const data = useMemo(() => {
-    if (!payment) return null;
-    const student = payment.studentId as Record<string, unknown>;
-    const cls = student.classId as { name: string };
-    const sec = student.sectionId as { name: string };
-    const session = payment.sessionId as { name: string } | null;
-    const breakdown = (payment.feeBreakdown || {}) as Breakdown;
-    const collectedBy = payment.collectedBy as { name: string };
-    const quarter = payment.quarter as number | undefined;
-    const currentPayment = payment.currentPayment as number;
-    const paidAmount = payment.paidAmount as number;
-    const paidBefore = paidAmount - currentPayment;
+  const data = useMemo(() => buildData(payment), [payment]);
 
-    return {
-      student,
-      cls,
-      sec,
-      session,
-      breakdown,
-      collectedBy,
-      quarter,
-      quarterLabel: quarter ? QUARTER_LABELS[quarter as QuarterNumber] : null,
-      structureRows: getStructureRows(breakdown),
-      currentPayment,
-      paidBefore,
-      paidAmount,
-      balance: payment.balance as number,
-      totalFee: payment.totalFee as number,
-      grossTotal: breakdown.grossTotal || (payment.totalFee as number) + (breakdown.totalDiscount || 0),
-      totalDiscount: breakdown.totalDiscount || 0,
-      structureDiscount: breakdown.structureDiscount || 0,
-      studentDiscount: breakdown.studentDiscount || 0,
-      paymentStatus: payment.paymentStatus as string,
-      remarks: payment.remarks as string | undefined,
-    };
-  }, [payment]);
+  useEffect(() => {
+    if (shouldPrint && !loading && payment && data && !printedRef.current) {
+      printedRef.current = true;
+      const timer = window.setTimeout(() => window.print(), 400);
+      return () => window.clearTimeout(timer);
+    }
+  }, [shouldPrint, loading, payment, data]);
 
   const handlePrint = () => window.print();
 
   const handleDownloadPDF = () => {
     if (!payment || !data) return;
-    const doc = new jsPDF();
-    let y = 15;
+    const doc = new jsPDF({ format: "a5", unit: "mm" });
+    const pageW = doc.internal.pageSize.getWidth();
+    let y = 8;
     const schoolName = getReceiptSchoolName(branding);
 
-    if (schoolName) {
-      doc.setFontSize(14);
-      const nameLines = doc.splitTextToSize(schoolName, 175);
-      doc.text(nameLines, 105, y, { align: "center" });
-      y += nameLines.length * 5.5;
+    doc.setDrawColor(30, 58, 138);
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, 0, pageW, 2.5, "F");
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    const nameLines = doc.splitTextToSize(schoolName || "Fee Receipt", pageW - 20);
+    doc.text(nameLines, pageW / 2, y + 4, { align: "center" });
+    y += 4 + nameLines.length * 5;
+
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    const contact = [branding.address, branding.phone ? `Ph: ${branding.phone}` : "", branding.email]
+      .filter(Boolean)
+      .join(" · ");
+    if (contact) {
+      const cLines = doc.splitTextToSize(contact, pageW - 16);
+      doc.text(cLines, pageW / 2, y, { align: "center" });
+      y += cLines.length * 3.2 + 1;
     }
-    if (branding.schoolName && branding.appName && branding.schoolName !== branding.appName) {
-      doc.setFontSize(9);
-      doc.text(branding.appName, 105, y, { align: "center" });
-      y += 5;
-    }
-    y += 1;
-    doc.setFontSize(8);
-    if (branding.address) {
-      const addressLines = doc.splitTextToSize(branding.address, 170);
-      doc.text(addressLines, 105, y, { align: "center" });
-      y += addressLines.length * 4;
-    }
-    if (branding.phone) {
-      doc.text(`Phone: ${branding.phone}`, 105, y, { align: "center" });
-      y += 4;
-    }
-    if (branding.email) {
-      doc.text(`Email: ${branding.email}`, 105, y, { align: "center" });
-      y += 4;
-    }
-    y += 2;
-    doc.setFontSize(11);
-    doc.text("FEE PAYMENT RECEIPT", 105, y, { align: "center" });
-    y += 12;
 
     doc.setFontSize(9);
-    doc.text(`Receipt: ${payment.receiptNumber}`, 14, y);
-    doc.text(`Date: ${formatDate(payment.paymentDate as string)}`, 120, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 58, 138);
+    doc.text("FEE PAYMENT RECEIPT", pageW / 2, y, { align: "center" });
+    doc.setTextColor(0, 0, 0);
     y += 6;
-    if (data.session?.name) doc.text(`Session: ${data.session.name}`, 14, y);
-    if (data.quarterLabel) doc.text(`Quarter: ${data.quarterLabel}`, 120, y);
-    y += 8;
 
-    doc.text(`Student: ${data.student.studentName}`, 14, y);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Receipt: ${payment.receiptNumber}`, 8, y);
+    doc.text(`Date: ${formatDate(payment.paymentDate as string)}`, pageW - 8, y, { align: "right" });
+    y += 4;
+    doc.text(`Session: ${data.sessionDisplayName}`, 8, y);
+    doc.text(
+      `For: ${data.customSessionName ? "Previous Dues" : data.quarterLabel || "Custom"}`,
+      pageW - 8,
+      y,
+      { align: "right" }
+    );
     y += 5;
-    doc.text(`Reg No: ${data.student.registrationNumber}  |  Class: ${data.cls?.name}-${data.sec?.name}`, 14, y);
-    y += 8;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Student: ${data.student.studentName}`, 8, y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `Reg: ${data.student.registrationNumber}  |  ${data.cls?.name}-${data.sec?.name}${
+        data.student.fatherName ? `  |  Father: ${data.student.fatherName}` : ""
+      }`,
+      8,
+      y
+    );
+    y += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(30, 58, 138);
+    doc.text(`Amount Received: ${formatCurrency(data.currentPayment)}`, pageW / 2, y, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    y += 3;
+    doc.text(`Mode: ${(payment.paymentMode as string).replace("_", " ")}`, pageW / 2, y, { align: "center" });
+    y += 5;
 
     autoTable(doc, {
       startY: y,
-      head: [["Annual Fee Structure", "Amount"]],
+      head: [["Particular", "Amount"]],
       body: data.structureRows.map((r) => [r.label, formatCurrency(r.amount)]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [60, 60, 60] },
+      styles: { fontSize: 7.5, cellPadding: 1.2 },
+      headStyles: { fillColor: [30, 58, 138], textColor: 255, fontSize: 7 },
+      columnStyles: { 1: { halign: "right", cellWidth: 28 } },
+      margin: { left: 8, right: 8 },
+      theme: "grid",
     });
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 3;
 
     const summaryRows: string[][] = [
-      ["Yearly Gross Total", formatCurrency(data.grossTotal as number)],
+      ["Gross Total", formatCurrency(data.grossTotal as number)],
     ];
-    if (data.structureDiscount > 0) summaryRows.push(["Class Discount", `− ${formatCurrency(data.structureDiscount)}`]);
-    if (data.studentDiscount > 0) summaryRows.push(["Student Discount", `− ${formatCurrency(data.studentDiscount)}`]);
-    summaryRows.push(["Net Annual Fee", formatCurrency(data.totalFee)]);
-    summaryRows.push(["Paid Before This Receipt", formatCurrency(data.paidBefore)]);
-    summaryRows.push(["This Payment Received", formatCurrency(data.currentPayment)]);
-    summaryRows.push(["Total Paid Till Date", formatCurrency(data.paidAmount)]);
-    summaryRows.push(["Balance Due", formatCurrency(data.balance)]);
+    if (data.structureDiscount > 0) summaryRows.push(["Class Discount", `- ${formatCurrency(data.structureDiscount)}`]);
+    if (data.studentDiscount > 0) summaryRows.push(["Student Discount", `- ${formatCurrency(data.studentDiscount)}`]);
+    summaryRows.push(
+      ["Net Annual Fee", formatCurrency(data.totalFee)],
+      ["Paid Before", formatCurrency(data.paidBefore)],
+      ["THIS PAYMENT", formatCurrency(data.currentPayment)],
+      ["Total Paid", formatCurrency(data.paidAmount)],
+      ["Balance Due", formatCurrency(data.balance)],
+      ["Status", data.paymentStatus.toUpperCase()]
+    );
 
     autoTable(doc, {
       startY: y,
       head: [["Payment Summary", ""]],
       body: summaryRows,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [37, 99, 235] },
+      styles: { fontSize: 7.5, cellPadding: 1.2 },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7 },
+      columnStyles: { 1: { halign: "right", cellWidth: 30 } },
+      margin: { left: 8, right: 8 },
+      theme: "grid",
     });
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
-    doc.text(`Payment Mode: ${(payment.paymentMode as string).replace("_", " ")}`, 14, y);
-    y += 5;
-    doc.text(`Collected By: ${data.collectedBy?.name || user?.name}`, 14, y);
-    y += 5;
-    doc.text(`Status: ${(data.paymentStatus as string).toUpperCase()}`, 14, y);
+    doc.setFontSize(8);
+    doc.text(`Collected By: ${data.collectedBy?.name || user?.name || "—"}`, 8, y);
+    doc.text("Parent Signature: _______________", pageW - 8, y, { align: "right" });
 
     doc.save(`${payment.receiptNumber}.pdf`);
   };
 
   if (loading || !payment || !data) {
-    return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Loading receipt...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-100">
+        <div className="text-center space-y-3">
+          <div className="mx-auto h-9 w-9 rounded-full border-4 border-[#1e3a8a] border-t-transparent animate-spin" />
+          <p className="text-sm text-neutral-500">Loading receipt…</p>
+        </div>
+      </div>
+    );
   }
-
-  const statusLabel =
-    data.paymentStatus === "paid" ? "Fully Paid" : data.paymentStatus === "partial" ? "Partially Paid" : "Pending";
 
   return (
     <>
       <style>{`
+        .fee-slip {
+          width: 100%;
+          max-width: 148mm;
+        }
         @media print {
-          @page { margin: 12mm; size: A5 portrait; }
-          body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .receipt-print { box-shadow: none !important; border: 1px solid #ccc !important; max-width: 100% !important; padding: 16px !important; }
-          .receipt-print h1 { font-size: 1.15rem !important; line-height: 1.35 !important; white-space: normal !important; word-break: break-word !important; }
+          @page {
+            size: A5 portrait;
+            margin: 6mm;
+          }
+          html, body {
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           .no-print { display: none !important; }
+          .fee-slip {
+            max-width: none !important;
+            width: 100% !important;
+            box-shadow: none !important;
+          }
+          .print-area {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
+            min-height: auto !important;
+          }
         }
       `}</style>
 
-      <div className="min-h-screen bg-muted p-4 print:p-0 print:bg-white">
-        <div className="max-w-lg mx-auto mb-4 flex gap-2 no-print">
-          <Button onClick={handlePrint}><Printer className="h-4 w-4 mr-2" /> Print Slip</Button>
-          <Button variant="outline" onClick={handleDownloadPDF}><Download className="h-4 w-4 mr-2" /> Download PDF</Button>
+      <div className="print-area min-h-screen bg-neutral-100 p-4 print:bg-white print:p-0">
+        <div className="no-print mx-auto mb-4 flex max-w-[148mm] flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back
+          </Button>
+          <Button size="sm" onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" /> Print Slip
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+            <Download className="mr-2 h-4 w-4" /> PDF
+          </Button>
+          <span className="ml-auto text-[11px] text-neutral-500">Single-page A5 fee slip</span>
         </div>
 
-        <div
-          ref={receiptRef}
-          className="receipt-print max-w-lg mx-auto bg-white rounded-lg shadow-md border p-6 print:shadow-none text-gray-900"
-        >
-          {/* Header */}
-          <SchoolHeader
-            branding={branding}
-            subtitle="Fee Payment Receipt"
-            variant="receipt"
-            showLogo={Boolean(branding.logo)}
-          />
-
-          {/* Receipt meta */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-4">
-            <div>
-              <span className="text-gray-500 text-xs">Receipt No.</span>
-              <p className="font-bold font-mono">{payment.receiptNumber as string}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-gray-500 text-xs">Date</span>
-              <p className="font-semibold">{formatDate(payment.paymentDate as string)}</p>
-            </div>
-            {data.session?.name && (
-              <div>
-                <span className="text-gray-500 text-xs">Session</span>
-                <p className="font-semibold">{data.session.name}</p>
-              </div>
-            )}
-            {data.quarterLabel && (
-              <div className="text-right">
-                <span className="text-gray-500 text-xs">Payment For</span>
-                <p className="font-semibold text-primary">{data.quarterLabel}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Student */}
-          <div className="bg-gray-50 border rounded-md p-3 mb-4 text-sm space-y-1">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Student</span>
-              <strong>{data.student.studentName as string}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Reg. No.</span>
-              <span>{data.student.registrationNumber as string}</span>
-            </div>
-            {(data.student.admissionNumber as string) && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Admission No.</span>
-                <span>{data.student.admissionNumber as string}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Class</span>
-              <span>{data.cls?.name} — {data.sec?.name}</span>
-            </div>
-            {(data.student.fatherName as string) && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Father&apos;s Name</span>
-                <span>{data.student.fatherName as string}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Annual structure */}
-          <ReceiptSection title="Annual Fee Structure">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-300">
-                  <th className="text-left py-1 font-semibold text-gray-600">Particular</th>
-                  <th className="text-right py-1 font-semibold text-gray-600">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.structureRows.length === 0 ? (
-                  <tr><td colSpan={2} className="py-2 text-gray-500 text-center">—</td></tr>
-                ) : (
-                  data.structureRows.map((row) => (
-                    <tr key={row.label} className="border-b border-dashed border-gray-200">
-                      <td className="py-1.5 pr-2">
-                        <div>{row.label}</div>
-                        {row.note && <div className="text-[10px] text-gray-500">{row.note}</div>}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums font-medium whitespace-nowrap">
-                        {formatCurrency(row.amount)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </ReceiptSection>
-
-          {/* This payment - highlighted */}
-          <div className="border-2 border-primary rounded-lg p-3 mb-4 bg-primary/5">
-            <p className="text-xs font-bold uppercase text-primary mb-2">Amount Received (This Receipt)</p>
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-700">
-                {data.quarterLabel ? `Quarterly fee — ${data.quarterLabel}` : "Fee payment"}
-                <div className="text-xs text-gray-500 capitalize mt-0.5">
-                  Mode: {(payment.paymentMode as string).replace("_", " ")}
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-primary tabular-nums">
-                {formatCurrency(data.currentPayment)}
-              </p>
-            </div>
-          </div>
-
-          {/* Account summary */}
-          <ReceiptSection title="Payment Summary">
-            <Row label="Yearly Gross Total" value={formatCurrency(data.grossTotal as number)} />
-            {data.structureDiscount > 0 && (
-              <Row label="Class Discount" value={`− ${formatCurrency(data.structureDiscount)}`} negative />
-            )}
-            {data.studentDiscount > 0 && (
-              <Row label="Student Discount" value={`− ${formatCurrency(data.studentDiscount)}`} negative />
-            )}
-            {(data.totalDiscount as number) > 0 && (
-              <Row label="Total Discount" value={`− ${formatCurrency(data.totalDiscount as number)}`} negative />
-            )}
-            <Row label="Net Annual Fee" value={formatCurrency(data.totalFee)} bold />
-            <Row label="Paid Before This Receipt" value={formatCurrency(data.paidBefore)} />
-            <Row label="This Payment" value={formatCurrency(data.currentPayment)} highlight />
-            <Row label="Total Paid Till Date" value={formatCurrency(data.paidAmount)} bold />
-            <Row
-              label="Balance Due"
-              value={formatCurrency(data.balance)}
-              bold
-              highlight={data.balance === 0}
-            />
-            <Row label="Fee Status" value={statusLabel} bold />
-          </ReceiptSection>
-
-          {data.remarks && (
-            <ReceiptSection title="Remarks">
-              <p className="text-sm text-gray-700">{data.remarks}</p>
-            </ReceiptSection>
-          )}
-
-          {/* Footer */}
-          <div className="border-t pt-4 mt-2 grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-gray-500 text-xs">Collected By</p>
-              <p className="font-semibold">{data.collectedBy?.name || user?.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-gray-500 text-xs">Parent / Guardian</p>
-              <div className="border-b border-gray-400 mt-6 mb-1" />
-              <p className="text-[10px] text-gray-400">Signature</p>
-            </div>
-          </div>
-
-          <p className="text-center text-[10px] text-gray-400 mt-4">
-            Computer-generated receipt. Please keep for your records.
-          </p>
-        </div>
+        <FeeSlip data={data} payment={payment} branding={branding} userName={user?.name} />
       </div>
     </>
+  );
+}
+
+function ReceiptLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-neutral-100">
+      <div className="text-center space-y-3">
+        <div className="mx-auto h-9 w-9 rounded-full border-4 border-[#1e3a8a] border-t-transparent animate-spin" />
+        <p className="text-sm text-neutral-500">Loading receipt…</p>
+      </div>
+    </div>
+  );
+}
+
+export default function ReceiptPage() {
+  return (
+    <Suspense fallback={<ReceiptLoading />}>
+      <ReceiptPageContent />
+    </Suspense>
   );
 }

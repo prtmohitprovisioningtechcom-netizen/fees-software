@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { classesApi, sectionsApi, studentsApi, transportRoutesApi } from "@/lib/api";
+import { classesApi, sectionsApi, studentsApi } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 
 const sdmsStudentSchema = z
@@ -42,16 +42,10 @@ const sdmsStudentSchema = z
     mbuStatus: z.string().optional(),
     apaarId: z.string().optional(),
     apaarStatus: z.string().optional(),
-    transportRequired: z.enum(["Yes", "No"]).optional(),
-    transportRouteId: z.string().optional(),
   })
   .refine((data) => data.admissionNumber || data.studentPen || data.studentStateCode || data.aadharNumber, {
     message: "Admission Number, Student PEN, State Code or AADHAAR No. required",
     path: ["admissionNumber"],
-  })
-  .refine((data) => data.transportRequired !== "Yes" || Boolean(data.transportRouteId?.trim()), {
-    message: "Select a transport route when school transport is Yes",
-    path: ["transportRouteId"],
   });
 
 type SdmsStudentForm = z.infer<typeof sdmsStudentSchema>;
@@ -65,9 +59,8 @@ export default function NewStudentPage() {
   const [sections, setSections] = useState<{ _id: string; name: string }[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedSectionName, setSelectedSectionName] = useState("");
-  const [transportRoutes, setTransportRoutes] = useState<{ _id: string; name: string; monthlyFee: number }[]>([]);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<SdmsStudentForm>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SdmsStudentForm>({
     resolver: zodResolver(sdmsStudentSchema),
     defaultValues: {
       gender: "other",
@@ -77,13 +70,11 @@ export default function NewStudentPage() {
       isRepeater: "No",
       suspectedDuplicate: "No",
       entryStatus: "Active",
-      transportRequired: "No",
     },
   });
 
   useEffect(() => {
     classesApi.getAll().then((res) => setClasses((res as { data: typeof classes }).data));
-    transportRoutesApi.getAll().then((res) => setTransportRoutes((res as { data: typeof transportRoutes }).data));
   }, []);
 
   useEffect(() => {
@@ -104,7 +95,7 @@ export default function NewStudentPage() {
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== "") formData.append(key, String(value));
       });
-      if (!formData.has("transportRequired")) formData.append("transportRequired", "No");
+      formData.append("transportRequired", "No");
 
       await studentsApi.create(formData);
       toast({ title: "Success", description: "Student registered successfully" });
@@ -124,7 +115,7 @@ export default function NewStudentPage() {
     <DashboardLayout>
       <PageHeader
         title="Student Registration"
-        description="Register student using SDMS fields. Same fields are supported in Excel upload."
+        description="Register student using SDMS fields. Set transport and fees later at Fee Collection."
         breadcrumbs={[{ label: "Students", href: "/students" }, { label: "Register" }]}
       />
 
@@ -201,41 +192,6 @@ export default function NewStudentPage() {
             <FormField label="Father Name">
               <Input {...register("fatherName")} />
             </FormField>
-            <FormField label="School Transport" required>
-              <Select
-                value={watch("transportRequired") || "No"}
-                onValueChange={(value) => {
-                  setValue("transportRequired", value as "Yes" | "No", { shouldValidate: true });
-                  if (value === "No") setValue("transportRouteId", "", { shouldValidate: true });
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Yes">Yes — transport fee applies</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-            {watch("transportRequired") === "Yes" ? (
-              <FormField label="Transport Route" required error={errors.transportRouteId?.message}>
-                <Select
-                  value={watch("transportRouteId") || ""}
-                  onValueChange={(value) => setValue("transportRouteId", value, { shouldValidate: true })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select village / route" /></SelectTrigger>
-                  <SelectContent>
-                    {transportRoutes.map((route) => (
-                      <SelectItem key={route._id} value={route._id}>
-                        {route.name} — {route.monthlyFee}/mo
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Quarterly transport fee is added automatically based on the selected route.
-                </p>
-              </FormField>
-            ) : null}
             <FormField label="Mother Name">
               <Input {...register("motherName")} />
             </FormField>

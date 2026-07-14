@@ -14,6 +14,7 @@ export interface IFeePayment extends Document {
   paymentStatus: "paid" | "partial" | "pending";
   paymentMode: "cash" | "upi" | "card" | "cheque" | "bank_transfer";
   remarks?: string;
+  customSessionName?: string;
   paymentDate: Date;
   quarter?: 1 | 2 | 3 | 4;
   paymentType?: "quarterly" | "monthly" | "full_year" | "custom";
@@ -26,6 +27,7 @@ export interface IFeePayment extends Document {
     computerFee: number;
     examFee: number;
     transportFee: number;
+    transportRouteName?: string;
     otherFee: number;
     annualCharges?: number;
     grossTotal?: number;
@@ -57,6 +59,7 @@ const feePaymentSchema = new Schema<IFeePayment>(
       required: true,
     },
     remarks: { type: String, trim: true },
+    customSessionName: { type: String, trim: true },
     paymentDate: { type: Date, default: Date.now },
     quarter: { type: Number, enum: [1, 2, 3, 4] },
     paymentType: { type: String, enum: ["quarterly", "monthly", "full_year", "custom"], default: "custom" },
@@ -69,6 +72,7 @@ const feePaymentSchema = new Schema<IFeePayment>(
       computerFee: { type: Number, default: 0 },
       examFee: { type: Number, default: 0 },
       transportFee: { type: Number, default: 0 },
+      transportRouteName: { type: String, default: "" },
       otherFee: { type: Number, default: 0 },
       annualCharges: { type: Number, default: 0 },
       grossTotal: { type: Number, default: 0 },

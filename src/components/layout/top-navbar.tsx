@@ -1,8 +1,9 @@
 "use client";
 
-import { Menu, X, LogOut, Phone, Mail, MapPin } from "lucide-react";
+import { Menu, X, LogOut, Phone, Mail, MapPin, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useBranding } from "@/lib/branding-context";
+import { useTheme } from "@/lib/theme-context";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ type TopNavbarProps = {
 export function TopNavbar({ onMenuToggle, mobileOpen }: TopNavbarProps) {
   const { user, logout } = useAuth();
   const { branding, loaded } = useBranding();
+  const { resolved, toggle } = useTheme();
   const roleLabel = user?.role === "super_admin" ? "Super Admin" : "Admin";
 
   return (
@@ -50,6 +52,15 @@ export function TopNavbar({ onMenuToggle, mobileOpen }: TopNavbarProps) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={toggle}
+            title={resolved === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
           <div className="hidden text-right sm:block">
             <p className="text-xs font-medium leading-none text-sidebar-foreground">{user?.name}</p>
             <p className="mt-0.5 text-[10px] text-sidebar-foreground/60">{roleLabel}</p>

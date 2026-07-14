@@ -2,10 +2,38 @@ import { Response } from "express";
 import { Types } from "mongoose";
 import { AcademicSession, FeePayment, Student, FeeStructure } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { calculateFee, generateReceiptNumber, createSessionFeeCache, getFeeStatusFromCache, resolveStudentTransport, buildStudentTransportMap } from "../services/feeService";
+import {
+  calculateFee,
+  generateReceiptNumber,
+  createSessionFeeCache,
+  getFeeStatusFromCache,
+  resolveStudentTransport,
+  buildStudentTransportMap,
+  getStudentSessionArrears,
+} from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 
 const resolveSessionId = resolveAcademicSession;
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const emptyFeeBreakdown = (amount: number) => ({
+  admissionFee: 0,
+  monthlyFee: 0,
+  quarterlyTuition: 0,
+  annualFee: 0,
+  computerFee: 0,
+  examFee: 0,
+  transportFee: 0,
+  transportRouteName: "",
+  otherFee: amount,
+  annualCharges: 0,
+  grossTotal: amount,
+  structureDiscount: 0,
+  studentDiscount: 0,
+  totalDiscount: 0,
+  includeAdmission: false,
+});
 
 export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
   try {
@@ -27,10 +55,10 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
       sessionId: session._id,
     });
 
+    const transport = await resolveStudentTransport(student.transportRequired, student.transportRouteId);
     let calculation: Awaited<ReturnType<typeof calculateFee>> | null = null;
     const includeAdmission = req.query.includeAdmission === "true";
     if (feeStructure) {
-      const transport = await resolveStudentTransport(student.transportRequired, student.transportRouteId);
       calculation = await calculateFee(
         student._id.toString(),
         session._id.toString(),
@@ -42,9 +70,23 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
       );
     }
 
-    const payments = await FeePayment.find({ studentId: student._id, sessionId: session._id })
-      .populate("collectedBy", "name")
-      .sort({ paymentDate: -1 });
+    const sessionRef = student.sessionId as unknown as { _id?: { toString: () => string }; toString: () => string };
+    const enrolledSessionId = sessionRef._id ? sessionRef._id.toString() : sessionRef.toString();
+
+    const [payments, sessionArrears] = await Promise.all([
+      FeePayment.find({ studentId: student._id })
+        .populate("collectedBy", "name")
+        .populate("sessionId", "name")
+        .sort({ paymentDate: -1 }),
+      getStudentSessionArrears(
+        student._id.toString(),
+        student.classId._id.toString(),
+        enrolledSessionId,
+        student.feeDiscount || 0,
+        transport,
+        session._id.toString()
+      ),
+    ]);
 
     res.json({
       success: true,
@@ -54,6 +96,7 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
         feeStructure,
         calculation,
         payments,
+        sessionArrears,
       },
     });
   } catch (error) {
@@ -93,6 +136,7 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
       Student.find(filter)
         .populate("classId", "name")
         .populate("sectionId", "name")
+        .populate("transportRouteId", "name monthlyFee")
         .sort({ studentName: 1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -120,6 +164,8 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
         sectionId: student.sectionId,
         sessionId: session._id,
         sessionName: session.name,
+        transportRequired: student.transportRequired,
+        transportRouteId: student.transportRouteId,
         grossTotal: feeStatus.grossTotal,
         totalDiscount: feeStatus.totalDiscount,
         feeDiscount: student.feeDiscount || 0,
@@ -144,10 +190,120 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
 
 export const collectFee = async (req: AuthRequest, res: Response) => {
   try {
-    const { studentId, paymentAmount, paymentMode, remarks, sessionId: bodySessionId, feeDiscount, quarter, paymentType, includeAdmission } = req.body;
+    const {
+      studentId,
+      paymentAmount,
+      paymentMode,
+      remarks,
+      sessionId: bodySessionId,
+      sessionName,
+      previousDues,
+      feeDiscount,
+      quarter,
+      paymentType,
+      includeAdmission,
+    } = req.body;
 
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+
+    const customSessionName = String(sessionName || "").trim();
+    if (previousDues && customSessionName) {
+      if (feeDiscount !== undefined && feeDiscount !== null && feeDiscount !== "") {
+        student.feeDiscount = Math.max(0, Number(feeDiscount) || 0);
+        await student.save();
+      }
+
+      const matchedSession = await AcademicSession.findOne({
+        name: { $regex: new RegExp(`^${escapeRegex(customSessionName)}$`, "i") },
+        isActive: true,
+      });
+
+      const anchorSession =
+        matchedSession || (await resolveSessionId(bodySessionId || student.sessionId.toString()));
+      if (!anchorSession) {
+        return res.status(400).json({ success: false, message: "Academic session not found" });
+      }
+
+      let feeStructure = await FeeStructure.findOne({
+        classId: student.classId,
+        sessionId: matchedSession?._id ?? anchorSession._id,
+      });
+      if (!feeStructure) {
+        feeStructure = await FeeStructure.findOne({ classId: student.classId });
+      }
+      if (!feeStructure) {
+        return res.status(404).json({ success: false, message: "Fee structure not found for this class" });
+      }
+
+      const transport = await resolveStudentTransport(student.transportRequired, student.transportRouteId);
+      const amount = Number(paymentAmount);
+
+      let paymentFields: Record<string, unknown>;
+      if (matchedSession) {
+        const calculation = await calculateFee(
+          studentId,
+          matchedSession._id.toString(),
+          student.classId.toString(),
+          amount,
+          transport,
+          student.feeDiscount || 0,
+          false
+        );
+        paymentFields = {
+          sessionId: matchedSession._id,
+          totalFee: calculation.totalFee,
+          paidAmount: calculation.paidAmount,
+          remainingAmount: calculation.remainingAmount,
+          previousDue: calculation.previousDue,
+          currentPayment: calculation.currentPayment,
+          balance: calculation.balance,
+          paymentStatus: calculation.paymentStatus,
+          feeBreakdown: calculation.feeBreakdown,
+        };
+      } else {
+        paymentFields = {
+          sessionId: anchorSession._id,
+          totalFee: amount,
+          paidAmount: amount,
+          remainingAmount: 0,
+          previousDue: amount,
+          currentPayment: amount,
+          balance: 0,
+          paymentStatus: "paid",
+          feeBreakdown: emptyFeeBreakdown(amount),
+        };
+      }
+
+      const receiptNumber = await generateReceiptNumber();
+      const payment = await FeePayment.create({
+        receiptNumber,
+        studentId: new Types.ObjectId(studentId),
+        feeStructureId: feeStructure._id,
+        paymentMode,
+        remarks: remarks || `Previous session dues — ${customSessionName}`,
+        paymentType: "custom",
+        collectedBy: req.user?.id,
+        customSessionName,
+        ...paymentFields,
+      });
+
+      await payment.populate([
+        { path: "studentId", populate: [{ path: "classId" }, { path: "sectionId" }] },
+        { path: "collectedBy", select: "name" },
+      ]);
+
+      return res.status(201).json({
+        success: true,
+        message: "Previous session fee collected successfully",
+        data: {
+          _id: payment._id.toString(),
+          id: payment._id.toString(),
+          receiptNumber: payment.receiptNumber,
+          customSessionName,
+        },
+      });
+    }
 
     if (feeDiscount !== undefined && feeDiscount !== null && feeDiscount !== "") {
       student.feeDiscount = Math.max(0, Number(feeDiscount) || 0);
@@ -180,6 +336,12 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    let resolvedQuarter = quarter ? Number(quarter) : undefined;
+    if (!resolvedQuarter) {
+      const oldestPending = (calculation.quarterlySchedule || []).find((q) => q.pending > 0);
+      if (oldestPending) resolvedQuarter = oldestPending.quarter;
+    }
+
     const receiptNumber = await generateReceiptNumber();
 
     const payment = await FeePayment.create({
@@ -196,8 +358,8 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       paymentStatus: calculation.paymentStatus,
       paymentMode,
       remarks,
-      quarter: quarter || undefined,
-      paymentType: paymentType || (quarter ? "quarterly" : "custom"),
+      quarter: resolvedQuarter || undefined,
+      paymentType: paymentType || (resolvedQuarter ? "quarterly" : "custom"),
       collectedBy: req.user?.id,
       feeBreakdown: calculation.feeBreakdown,
     });
@@ -207,7 +369,15 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       { path: "collectedBy", select: "name" },
     ]);
 
-    res.status(201).json({ success: true, message: "Fee collected successfully", data: payment });
+    res.status(201).json({
+      success: true,
+      message: "Fee collected successfully",
+      data: {
+        _id: payment._id.toString(),
+        id: payment._id.toString(),
+        receiptNumber: payment.receiptNumber,
+      },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to collect fee", error: String(error) });
   }
