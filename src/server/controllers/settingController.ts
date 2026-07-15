@@ -30,6 +30,9 @@ export const getPublicBranding = async (_req: AuthRequest, res: Response) => {
         schoolName: settings.schoolName || "",
         appName: settings.appName || "",
         logo: settings.logo || "",
+        address: settings.address || "",
+        phone: settings.phone || "",
+        email: settings.email || "",
       },
     });
   } catch (error) {
