@@ -90,6 +90,8 @@ const feePaymentSchema = new Schema<IFeePayment>(
 feePaymentSchema.index({ sessionId: 1, studentId: 1 });
 feePaymentSchema.index({ sessionId: 1, paymentDate: -1 });
 feePaymentSchema.index({ collectedBy: 1, sessionId: 1 });
+feePaymentSchema.index({ sessionId: 1, quarter: 1 });
+feePaymentSchema.index({ studentId: 1, sessionId: 1, paymentDate: -1 });
 
 const FeePayment: Model<IFeePayment> =
   mongoose.models.FeePayment || mongoose.model<IFeePayment>("FeePayment", feePaymentSchema);

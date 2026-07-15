@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { BrandingProvider } from "@/lib/branding-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { SchoolFaviconBootstrap } from "@/components/shared/school-favicon-bootstrap";
 import { Toaster } from "@/components/ui/toaster";
@@ -33,9 +34,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
-            <SchoolFaviconBootstrap />
-            {children}
-            <Toaster />
+            <BrandingProvider>
+              <SchoolFaviconBootstrap />
+              {children}
+              <Toaster />
+            </BrandingProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

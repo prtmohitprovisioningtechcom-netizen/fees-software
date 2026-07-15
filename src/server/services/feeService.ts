@@ -193,25 +193,35 @@ export const calculateFee = async (
     throw new Error("Fee structure not found for this class and session");
   }
 
-  const structure = feeStructure.toObject() as StructureLike;
-  const { grossTotal, structureDiscount, studentDiscount, totalDiscount, netTotal } = computeNetFee(
-    structure,
-    studentFeeDiscount,
-    includeAdmission,
-    transport
-  );
-
   const payments = await FeePayment.find({
     studentId: new Types.ObjectId(studentId),
     sessionId: new Types.ObjectId(sessionId),
     ...regularPaymentMatch,
-  });
+  })
+    .select("currentPayment quarter feeBreakdown.includeAdmission feeBreakdown.admissionFee")
+    .lean();
+
+  const effectiveIncludeAdmission =
+    includeAdmission ||
+    payments.some((payment) => {
+      const breakdown = payment.feeBreakdown as
+        | { includeAdmission?: boolean; admissionFee?: number }
+        | undefined;
+      return Boolean(breakdown?.includeAdmission || (breakdown?.admissionFee ?? 0) > 0);
+    });
+  const structure = feeStructure.toObject() as StructureLike;
+  const { grossTotal, structureDiscount, studentDiscount, totalDiscount, netTotal } = computeNetFee(
+    structure,
+    studentFeeDiscount,
+    effectiveIncludeAdmission,
+    transport
+  );
 
   const feePolicy = await getFeePolicy();
 
   const quarterlySchedule = finalizeQuarterSchedule(
     structure,
-    includeAdmission,
+    effectiveIncludeAdmission,
     payments,
     totalDiscount,
     feePolicy,
@@ -221,7 +231,7 @@ export const calculateFee = async (
   const yearlyTransport = transport ? getYearlyTransport(transport.monthlyFee) : 0;
 
   const feeBreakdown = {
-    admissionFee: includeAdmission ? structure.admissionFee : 0,
+    admissionFee: effectiveIncludeAdmission ? structure.admissionFee : 0,
     monthlyFee: getYearlyTuition(structure.monthlyFee),
     quarterlyTuition: getQuarterlyTuition(structure.monthlyFee),
     annualFee: structure.annualFee || 0,
@@ -235,7 +245,7 @@ export const calculateFee = async (
     structureDiscount,
     studentDiscount,
     totalDiscount,
-    includeAdmission,
+    includeAdmission: effectiveIncludeAdmission,
   };
 
   const paidAmountBefore = payments.reduce((sum, p) => sum + p.currentPayment, 0);
@@ -259,7 +269,7 @@ export const calculateFee = async (
     paymentStatus,
     feeBreakdown,
     quarterlySchedule,
-    includeAdmission,
+    includeAdmission: effectiveIncludeAdmission,
   };
 };
 
@@ -374,45 +384,54 @@ export const getStudentSessionArrears = async (
   excludeSessionId?: string
 ): Promise<SessionArrear[]> => {
   const studentOid = new Types.ObjectId(studentId);
+  const classOid = new Types.ObjectId(classId);
+  const [sessions, structures, payments] = await Promise.all([
+    AcademicSession.find({ isActive: true }).sort({ startDate: -1 }).lean(),
+    FeeStructure.find({ classId: classOid })
+      .select("sessionId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
+      .lean(),
+    FeePayment.find({ studentId: studentOid, ...regularPaymentMatch })
+      .select("sessionId currentPayment totalFee feeBreakdown.includeAdmission feeBreakdown.admissionFee")
+      .lean(),
+  ]);
 
-  const sessions = await AcademicSession.find({ isActive: true }).sort({ startDate: -1 }).lean();
+  const structuresBySession = new Map(
+    structures.map((structure) => [structure.sessionId.toString(), structure as StructureLike])
+  );
+  const paymentsBySession = new Map<string, typeof payments>();
+  for (const payment of payments) {
+    const sid = payment.sessionId.toString();
+    const sessionPayments = paymentsBySession.get(sid) || [];
+    sessionPayments.push(payment);
+    paymentsBySession.set(sid, sessionPayments);
+  }
 
   const arrears: SessionArrear[] = [];
-
   for (const session of sessions) {
     const sid = session._id.toString();
     if (excludeSessionId && sid === excludeSessionId) continue;
 
-    const payments = await FeePayment.find({
-      studentId: studentOid,
-      sessionId: session._id,
-      ...regularPaymentMatch,
-    })
-      .select("currentPayment totalFee feeBreakdown")
-      .lean();
-
-    const includeAdmission = payments.some((p) => {
+    const sessionPayments = paymentsBySession.get(sid) || [];
+    const includeAdmission = sessionPayments.some((p) => {
       const b = p.feeBreakdown as { includeAdmission?: boolean; admissionFee?: number } | undefined;
       return Boolean(b?.includeAdmission || (b?.admissionFee ?? 0) > 0);
     });
+    const structure = structuresBySession.get(sid);
+    const paidAmount = sessionPayments.reduce((sum, payment) => sum + (payment.currentPayment || 0), 0);
 
-    const status = await getStudentSessionFeeStatus(
-      studentId,
-      sid,
-      classId,
-      studentFeeDiscount,
-      includeAdmission,
-      transport
-    );
-
-    let totalFee = status.totalFee;
-    let paidAmount = status.paidAmount;
-    let pendingAmount = status.pendingAmount;
-    let hasFeeStructure = status.hasFeeStructure;
-
-    if (!hasFeeStructure && payments.length > 0) {
-      paidAmount = payments.reduce((sum, p) => sum + (p.currentPayment || 0), 0);
-      totalFee = Math.max(paidAmount, ...payments.map((p) => p.totalFee || 0));
+    let totalFee = 0;
+    let pendingAmount = 0;
+    const hasFeeStructure = Boolean(structure);
+    if (structure) {
+      totalFee = computeNetFee(
+        structure,
+        studentFeeDiscount,
+        includeAdmission,
+        transport
+      ).netTotal;
+      pendingAmount = Math.max(0, totalFee - paidAmount);
+    } else if (sessionPayments.length > 0) {
+      totalFee = Math.max(paidAmount, ...sessionPayments.map((p) => p.totalFee || 0));
       pendingAmount = Math.max(0, totalFee - paidAmount);
     }
 

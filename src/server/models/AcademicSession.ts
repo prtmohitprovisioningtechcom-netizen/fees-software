@@ -21,6 +21,9 @@ const sessionSchema = new Schema<IAcademicSession>(
   { timestamps: true }
 );
 
+sessionSchema.index({ isActive: 1, startDate: -1 });
+sessionSchema.index({ isActive: 1, isCurrent: 1 });
+
 const AcademicSession: Model<IAcademicSession> =
   mongoose.models.AcademicSession || mongoose.model<IAcademicSession>("AcademicSession", sessionSchema);
 export default AcademicSession;

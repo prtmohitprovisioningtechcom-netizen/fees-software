@@ -106,6 +106,8 @@ const studentSchema = new Schema<IStudent>(
 );
 
 studentSchema.index({ studentName: "text", registrationNumber: "text", admissionNumber: "text", fatherName: "text" });
+studentSchema.index({ status: 1, studentName: 1 });
+studentSchema.index({ status: 1, classId: 1, sectionId: 1 });
 
 const Student: Model<IStudent> = mongoose.models.Student || mongoose.model<IStudent>("Student", studentSchema);
 export default Student;

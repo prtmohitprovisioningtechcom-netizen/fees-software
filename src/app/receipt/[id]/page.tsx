@@ -10,8 +10,6 @@ import { parseSchoolBranding, getReceiptSchoolName } from "@/lib/school-branding
 import type { SchoolBranding } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 type Breakdown = {
   admissionFee?: number;
@@ -376,8 +374,12 @@ function ReceiptPageContent() {
 
   const handlePrint = () => window.print();
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!payment || !data) return;
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF({ format: "a5", unit: "mm" });
     const pageW = doc.internal.pageSize.getWidth();
     let y = 8;

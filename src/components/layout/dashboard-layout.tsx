@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { BrandingProvider } from "@/lib/branding-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,22 +41,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   if (!token) return null;
 
   return (
-    <BrandingProvider>
-      <div className="flex min-h-screen">
-        <Sidebar mobileOpen={mobileOpen} onNavigate={() => setMobileOpen(false)} />
+    <div className="flex min-h-screen">
+      <Sidebar mobileOpen={mobileOpen} onNavigate={() => setMobileOpen(false)} />
 
-        {mobileOpen ? (
-          <div
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-            onClick={() => setMobileOpen(false)}
-          />
-        ) : null}
+      {mobileOpen ? (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      ) : null}
 
-        <div className="flex min-h-screen flex-1 flex-col lg:ml-52">
-          <TopNavbar mobileOpen={mobileOpen} onMenuToggle={() => setMobileOpen((v) => !v)} />
-          <main className="flex-1 p-4 pt-16 lg:p-6 lg:pt-16">{children}</main>
-        </div>
+      <div className="flex min-h-screen flex-1 flex-col lg:ml-52">
+        <TopNavbar mobileOpen={mobileOpen} onMenuToggle={() => setMobileOpen((v) => !v)} />
+        <main className="flex-1 p-4 pt-16 lg:p-6 lg:pt-16">{children}</main>
       </div>
-    </BrandingProvider>
+    </div>
   );
 }

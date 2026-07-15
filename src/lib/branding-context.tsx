@@ -3,7 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { settingsApi } from "@/lib/api";
 import { applySchoolFavicon, cacheSchoolFavicon } from "@/lib/school-favicon";
-import { cacheSchoolBranding, emptySchoolBranding, parseSchoolBranding } from "@/lib/school-branding";
+import {
+  cacheSchoolBranding,
+  getCachedSchoolBranding,
+  parseSchoolBranding,
+} from "@/lib/school-branding";
 import type { SchoolBranding } from "@/types";
 
 interface BrandingContextValue {
@@ -15,15 +19,15 @@ interface BrandingContextValue {
 const BrandingContext = createContext<BrandingContextValue | undefined>(undefined);
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
-  const [branding, setBranding] = useState<SchoolBranding>(emptySchoolBranding());
-  const [loaded, setLoaded] = useState(false);
+  const [branding, setBranding] = useState<SchoolBranding>(() => getCachedSchoolBranding());
+  const [loaded, setLoaded] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
-      const res = (await settingsApi.get()) as { data?: Partial<SchoolBranding> };
+      const res = (await settingsApi.getBranding()) as { data?: Partial<SchoolBranding> };
       setBranding(parseSchoolBranding(res.data));
     } catch {
-      setBranding(emptySchoolBranding());
+      // Keep cached branding when the network is temporarily unavailable.
     } finally {
       setLoaded(true);
     }

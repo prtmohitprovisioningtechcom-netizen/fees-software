@@ -404,7 +404,34 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    let resolvedQuarter = quarter ? Number(quarter) : undefined;
+    let resolvedQuarter = quarter !== undefined && quarter !== null && quarter !== ""
+      ? Number(quarter)
+      : undefined;
+    if (
+      resolvedQuarter !== undefined &&
+      (!Number.isInteger(resolvedQuarter) || resolvedQuarter < 1 || resolvedQuarter > 4)
+    ) {
+      return res.status(400).json({ success: false, message: "Valid quarter (1–4) is required" });
+    }
+
+    if (resolvedQuarter) {
+      const selectedSchedule = (calculation.quarterlySchedule || []).find(
+        (item) => item.quarter === resolvedQuarter
+      );
+      if (!selectedSchedule || selectedSchedule.status === "paid" || selectedSchedule.pending <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Quarter ${resolvedQuarter} fee is already fully paid`,
+        });
+      }
+      if (amount > selectedSchedule.pending) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment amount cannot exceed Quarter ${resolvedQuarter} due of ₹${selectedSchedule.pending}`,
+        });
+      }
+    }
+
     if (!resolvedQuarter) {
       const oldestPending = (calculation.quarterlySchedule || []).find((q) => q.pending > 0);
       if (oldestPending) resolvedQuarter = oldestPending.quarter;

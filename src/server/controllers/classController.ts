@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { Class } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { EXCEL_IMPORT_CLASS_DESC } from "../constants/classes";
+import { compareSchoolClassNames, EXCEL_IMPORT_CLASS_DESC } from "../constants/classes";
 
 const excelImportClassFilter = {
   isActive: true,
@@ -10,7 +10,8 @@ const excelImportClassFilter = {
 
 export const getClasses = async (_req: AuthRequest, res: Response) => {
   try {
-    const classes = await Class.find(excelImportClassFilter).sort({ name: 1 });
+    const classes = await Class.find(excelImportClassFilter);
+    classes.sort((a, b) => compareSchoolClassNames(a.name, b.name));
     res.json({ success: true, data: classes });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch classes", error: String(error) });

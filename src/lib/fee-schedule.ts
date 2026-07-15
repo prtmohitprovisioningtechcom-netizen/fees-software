@@ -231,7 +231,7 @@ export const applyDiscountToSchedule = (
   });
 };
 
-/** Full pipeline: gross quarters → allocate payments → apply discount */
+/** Full pipeline: gross quarters → apply discount → allocate payments */
 export const finalizeQuarterSchedule = (
   structure: FeeStructureAmounts,
   includeAdmission: boolean,
@@ -241,8 +241,8 @@ export const finalizeQuarterSchedule = (
   transport: TransportInfo = null
 ): QuarterScheduleItem[] => {
   const gross = buildQuarterSchedule(structure, includeAdmission, {}, policy, transport);
-  const withPayments = allocatePaymentsToSchedule(gross, payments);
-  return applyDiscountToSchedule(withPayments, totalDiscount);
+  const discounted = applyDiscountToSchedule(gross, totalDiscount);
+  return allocatePaymentsToSchedule(discounted, payments);
 };
 
 export const previewQuarterSchedule = (

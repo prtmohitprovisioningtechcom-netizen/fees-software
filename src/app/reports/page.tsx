@@ -92,7 +92,7 @@ export default function ReportsPage() {
   const [sessions, setSessions] = useState<{ _id: string; name: string; isCurrent?: boolean }[]>([]);
   const [collectors, setCollectors] = useState<Collector[]>([]);
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading] = useState<"monthly" | "quarterly" | null>(null);
   const [activeTab, setActiveTab] = useState<"status" | "collections">("status");
   const [filters, setFilters] = useState({
     quarter: "",
@@ -152,11 +152,14 @@ export default function ReportsPage() {
       .finally(() => setLoading(false));
   }, [buildParams, filters.sessionId]);
 
-  const handleDownload = async () => {
-    setDownloading(true);
+  const handleDownload = async (reportBasis: "monthly" | "quarterly") => {
+    setDownloading(reportBasis);
     try {
-      await dashboardApi.downloadReportsExcel(buildParams);
-      toast({ title: "Downloaded", description: "Quarterly Excel report saved successfully" });
+      await dashboardApi.downloadReportsExcel(buildParams, reportBasis);
+      toast({
+        title: "Downloaded",
+        description: `${reportBasis === "monthly" ? "Monthly" : "Quarterly"} Excel report saved successfully`,
+      });
     } catch (error) {
       toast({
         title: "Download failed",
@@ -164,7 +167,7 @@ export default function ReportsPage() {
         variant: "destructive",
       });
     } finally {
-      setDownloading(false);
+      setDownloading(null);
     }
   };
 
@@ -184,10 +187,27 @@ export default function ReportsPage() {
         description={reportDescription}
         breadcrumbs={[{ label: isSuperAdmin ? "Reports" : "My Reports" }]}
         action={
-          <Button onClick={handleDownload} disabled={downloading || loading || !filters.sessionId || sessions.length === 0}>
-            {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-            Download Excel
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleDownload("monthly")}
+              disabled={Boolean(downloading) || loading || !filters.sessionId || sessions.length === 0}
+            >
+              {downloading === "monthly"
+                ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                : <Download className="h-4 w-4 mr-2" />}
+              Monthly Excel
+            </Button>
+            <Button
+              onClick={() => handleDownload("quarterly")}
+              disabled={Boolean(downloading) || loading || !filters.sessionId || sessions.length === 0}
+            >
+              {downloading === "quarterly"
+                ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                : <Download className="h-4 w-4 mr-2" />}
+              Quarterly Excel
+            </Button>
+          </div>
         }
       />
 

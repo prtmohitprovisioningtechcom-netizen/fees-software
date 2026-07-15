@@ -36,6 +36,7 @@ const feeStructureSchema = new Schema<IFeeStructure>(
 );
 
 feeStructureSchema.index({ classId: 1, sessionId: 1 }, { unique: true });
+feeStructureSchema.index({ sessionId: 1 });
 
 feeStructureSchema.pre("save", function (next) {
   const tuition = this.monthlyFee * 12;

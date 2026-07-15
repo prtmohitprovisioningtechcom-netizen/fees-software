@@ -44,6 +44,7 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -58,7 +59,7 @@ export default function StudentsPage() {
     if (isFirst) setLoading(true);
     try {
       const params: Record<string, string> = { page: String(page), limit: "10" };
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       if (classFilter) params.classId = classFilter;
       if (sectionFilter) params.sectionId = sectionFilter;
 
@@ -75,7 +76,7 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, classFilter, sectionFilter]);
+  }, [page, debouncedSearch, classFilter, sectionFilter]);
 
   useEffect(() => {
     classesApi.getAll().then((res) => setClasses((res as { data: typeof classes }).data));
@@ -91,8 +92,12 @@ export default function StudentsPage() {
   }, [classFilter]);
 
   useEffect(() => {
-    const timer = setTimeout(fetchStudents, 300);
+    const timer = setTimeout(() => setDebouncedSearch(search), search ? 300 : 0);
     return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    void fetchStudents();
   }, [fetchStudents]);
 
   const handleDelete = async () => {

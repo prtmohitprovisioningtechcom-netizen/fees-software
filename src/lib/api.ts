@@ -56,6 +56,27 @@ export async function apiClient<T>(
   return data;
 }
 
+const REFERENCE_CACHE_MS = 5 * 60 * 1000;
+const referenceRequests = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
+
+const cachedReferenceRequest = <T>(key: string, request: () => Promise<T>): Promise<T> => {
+  const cached = referenceRequests.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise as Promise<T>;
+
+  const promise = request().catch((error) => {
+    referenceRequests.delete(key);
+    throw error;
+  });
+  referenceRequests.set(key, { expiresAt: Date.now() + REFERENCE_CACHE_MS, promise });
+  return promise;
+};
+
+const clearReferenceCache = (prefix: string) => {
+  for (const key of referenceRequests.keys()) {
+    if (key.startsWith(prefix)) referenceRequests.delete(key);
+  }
+};
+
 export const authApi = {
   login: (email: string, password: string) =>
     apiClient("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
@@ -80,10 +101,22 @@ export const settingsApi = {
 };
 
 export const classesApi = {
-  getAll: () => apiClient("/classes"),
-  create: (data: object) => apiClient("/classes", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: object) => apiClient(`/classes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: string) => apiClient(`/classes/${id}`, { method: "DELETE" }),
+  getAll: () => cachedReferenceRequest("classes", () => apiClient("/classes")),
+  create: async (data: object) => {
+    const result = await apiClient("/classes", { method: "POST", body: JSON.stringify(data) });
+    clearReferenceCache("classes");
+    return result;
+  },
+  update: async (id: string, data: object) => {
+    const result = await apiClient(`/classes/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    clearReferenceCache("classes");
+    return result;
+  },
+  delete: async (id: string) => {
+    const result = await apiClient(`/classes/${id}`, { method: "DELETE" });
+    clearReferenceCache("classes");
+    return result;
+  },
 };
 
 export const sectionsApi = {
@@ -94,10 +127,22 @@ export const sectionsApi = {
 };
 
 export const sessionsApi = {
-  getAll: () => apiClient("/sessions"),
-  create: (data: object) => apiClient("/sessions", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: object) => apiClient(`/sessions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: string) => apiClient(`/sessions/${id}`, { method: "DELETE" }),
+  getAll: () => cachedReferenceRequest("sessions", () => apiClient("/sessions")),
+  create: async (data: object) => {
+    const result = await apiClient("/sessions", { method: "POST", body: JSON.stringify(data) });
+    clearReferenceCache("sessions");
+    return result;
+  },
+  update: async (id: string, data: object) => {
+    const result = await apiClient(`/sessions/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    clearReferenceCache("sessions");
+    return result;
+  },
+  delete: async (id: string) => {
+    const result = await apiClient(`/sessions/${id}`, { method: "DELETE" });
+    clearReferenceCache("sessions");
+    return result;
+  },
 };
 
 export const transportRoutesApi = {
@@ -172,8 +217,13 @@ export const dashboardApi = {
     return apiClient(`/dashboard/reports${query ? `?${query}` : ""}`);
   },
   getReportCollectors: () => apiClient("/dashboard/reports/collectors"),
-  downloadReportsExcel: async (params?: Record<string, string>) => {
-    const query = new URLSearchParams(params).toString();
+  downloadReportsExcel: async (
+    params?: Record<string, string>,
+    reportBasis: "monthly" | "quarterly" = "quarterly"
+  ) => {
+    const searchParams = new URLSearchParams(params);
+    searchParams.set("reportBasis", reportBasis);
+    const query = searchParams.toString();
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const base = typeof window !== "undefined" ? "/api" : process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
     const res = await fetch(`${base}/dashboard/reports/export${query ? `?${query}` : ""}`, {
@@ -187,7 +237,7 @@ export const dashboardApi = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `quarterly-fee-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.download = `${reportBasis}-fee-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
     document.body.appendChild(link);
     link.click();
     link.remove();

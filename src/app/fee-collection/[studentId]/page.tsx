@@ -68,6 +68,47 @@ function matchSessionByName(name: string, sessions: Session[], excludeSessionId?
   return candidates.find((s) => s.name.trim().toLowerCase() === q) || null;
 }
 
+function buildDiscountPreviewSchedule(calculation: FeeCalculation, studentDiscount: number) {
+  const schedule = calculation.quarterlySchedule || [];
+  const structureDiscount = calculation.feeBreakdown.structureDiscount || 0;
+  const totalDiscount = Math.min(
+    calculation.grossTotal,
+    structureDiscount + Math.max(0, studentDiscount)
+  );
+  if (totalDiscount === calculation.totalDiscount || schedule.length === 0) return schedule;
+
+  const grossQuarterDues = schedule.map((quarter) => {
+    const componentTotal = (quarter.componentsDue || []).reduce(
+      (sum, component) => sum + component.amount,
+      0
+    );
+    return componentTotal > 0 ? componentTotal : quarter.totalDue;
+  });
+  const grossSum = grossQuarterDues.reduce((sum, amount) => sum + amount, 0);
+  if (grossSum <= 0) return schedule;
+
+  const netSum = Math.max(0, grossSum - totalDiscount);
+  let assignedNet = 0;
+
+  return schedule.map((quarter, index) => {
+    const totalDue =
+      index === schedule.length - 1
+        ? Math.max(0, netSum - assignedNet)
+        : Math.round((grossQuarterDues[index] / grossSum) * netSum);
+    if (index < schedule.length - 1) assignedNet += totalDue;
+
+    const pending = Math.max(0, totalDue - quarter.paid);
+    const status =
+      totalDue > 0 && quarter.paid >= totalDue
+        ? "paid"
+        : quarter.paid > 0
+          ? "partial"
+          : "pending";
+
+    return { ...quarter, totalDue, pending, status } as typeof quarter;
+  });
+}
+
 function CollectFeePageContent() {
   const params = useParams<{ studentId: string }>();
   const searchParams = useSearchParams();
@@ -117,6 +158,9 @@ function CollectFeePageContent() {
         setSessionId((data.session as { _id: string })._id);
       }
       setCalculation(calc);
+      if (calc?.includeAdmission && !includeAdmission) {
+        setIncludeAdmission(true);
+      }
       setPayments((data.payments as Record<string, unknown>[]) ?? []);
       setFeeStructure((data.feeStructure as { admissionFee?: number }) ?? null);
       setSessionArrears((data.sessionArrears as SessionArrear[]) || []);
@@ -291,7 +335,7 @@ function CollectFeePageContent() {
     if (!calculation) return 0;
     const gross = calculation.grossTotal;
     const structureDiscount = calculation.feeBreakdown.structureDiscount || 0;
-    const newStudentDiscount = Number(studentDiscount) || 0;
+    const newStudentDiscount = Math.max(0, Number(studentDiscount) || 0);
     const totalDiscount = Math.min(gross, structureDiscount + newStudentDiscount);
     const netTotal = gross - totalDiscount;
     const paidBefore = calculation.paidAmount - (calculation.currentPayment || 0);
@@ -310,6 +354,9 @@ function CollectFeePageContent() {
 
   const displayStudent = student ?? prevStudentRef.current;
   const displayCalc = calculation ?? prevCalcRef.current;
+  const displaySchedule = displayCalc
+    ? buildDiscountPreviewSchedule(displayCalc, Number(studentDiscount) || 0)
+    : [];
   const isInitialLoad = loading && !displayStudent;
   const selectedRoute = routes.find((r) => r._id === transportRouteId);
 
@@ -357,6 +404,7 @@ function CollectFeePageContent() {
   const maxPayable = discountChanged ? previewNetDue() : (displayCalc?.previousDue || 0);
 
   const selectQuarter = (quarter: number, quarterPending: number) => {
+    if (quarterPending <= 0) return;
     const totalDue = discountChanged ? previewNetDue() : (displayCalc?.previousDue ?? 0);
     setSelectedQuarter(quarter);
     setPaymentAmount(String(Math.min(quarterPending, totalDue)));
@@ -521,15 +569,17 @@ function CollectFeePageContent() {
                   </label>
 
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {displayCalc.quarterlySchedule?.map((q) => (
+                    {displaySchedule.map((q) => (
                       <button
                         key={q.quarter}
                         type="button"
-                        disabled={q.status === "paid"}
+                        disabled={q.status === "paid" || q.pending <= 0}
                         onClick={() => selectQuarter(q.quarter, q.pending)}
                         className={cn(
                           "rounded-lg border p-3 text-left transition-colors",
                           quarterStatusColor(q.status),
+                          (q.status === "paid" || q.pending <= 0) &&
+                            "cursor-not-allowed opacity-60",
                           selectedQuarter === q.quarter && "ring-2 ring-primary"
                         )}
                       >
@@ -708,7 +758,7 @@ function CollectFeePageContent() {
                         <TableCell>Net Total Fee</TableCell>
                         <TableCell className="text-right text-primary">
                           {formatCurrency(discountChanged
-                            ? displayCalc.grossTotal - Math.min(displayCalc.grossTotal, (displayCalc.feeBreakdown.structureDiscount || 0) + (Number(studentDiscount) || 0))
+                            ? displayCalc.grossTotal - Math.min(displayCalc.grossTotal, (displayCalc.feeBreakdown.structureDiscount || 0) + Math.max(0, Number(studentDiscount) || 0))
                             : displayCalc.totalFee)}
                         </TableCell>
                       </TableRow>
@@ -754,6 +804,7 @@ function CollectFeePageContent() {
                     onChange={(e) => {
                       setStudentDiscount(e.target.value);
                       setSelectedQuarter(null);
+                      setPaymentAmount("");
                     }}
                     placeholder="0"
                   />
