@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { feePaymentsApi, classesApi, sectionsApi, sessionsApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { StudentFeeOverview } from "@/types";
-import { IndianRupee, Users, TrendingUp, AlertCircle, CheckCircle2, Bus } from "lucide-react";
+import { IndianRupee, Users, TrendingUp, AlertCircle, CheckCircle2, Bus, Pencil } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface Session {
@@ -140,12 +140,18 @@ function FeeCollectionPageContent() {
   }, [page, classFilter, sectionFilter, search, sessionId]);
 
   useEffect(() => {
-    if (classFilter) {
-      sectionsApi.getAll(classFilter).then((res) => setSections((res as { data: typeof sections }).data));
-    } else {
+    if (!classFilter) {
       setSections([]);
       setSectionFilter("");
+      return;
     }
+    sectionsApi
+      .getAll(classFilter)
+      .then((res) => setSections((res as { data: typeof sections }).data || []))
+      .catch(() => {
+        setSections([]);
+        setSectionFilter("");
+      });
   }, [classFilter]);
 
   useEffect(() => {
@@ -155,6 +161,18 @@ function FeeCollectionPageContent() {
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
+    setPage(1);
+  };
+
+  const handleClassChange = (value: string) => {
+    const next = value === "all" ? "" : value;
+    setClassFilter(next);
+    setSectionFilter("");
+    setPage(1);
+  };
+
+  const handleSectionChange = (value: string) => {
+    setSectionFilter(value === "all" ? "" : value);
     setPage(1);
   };
 
@@ -176,36 +194,61 @@ function FeeCollectionPageContent() {
     <DashboardLayout>
       <PageHeader
         title="Fee Collection"
-        description="Collect fees by session. Set transport and discount on the collect page."
+        description="Collect fees by session. Edit student or set transport/discount on collect page."
         breadcrumbs={[{ label: "Fee Collection" }]}
       />
 
       <Card className="mb-5 shadow-sm">
         <CardContent className="pt-5 pb-4">
           <div className="grid gap-3 md:grid-cols-4">
-            <Select value={sessionId} onValueChange={(v) => { setSessionId(v); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="Select Session / Year" /></SelectTrigger>
+            <Select
+              value={sessionId || undefined}
+              onValueChange={(v) => {
+                setSessionId(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Session / Year" />
+              </SelectTrigger>
               <SelectContent>
                 {sessions.map((s) => (
                   <SelectItem key={s._id} value={s._id}>
-                    {s.name}{s.isCurrent ? " ✓ Current" : ""}
+                    {s.name}
+                    {s.isCurrent ? " ✓ Current" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <SearchInput value={search} onChange={handleSearchChange} placeholder="Search name, reg no, mobile..." />
-            <Select value={classFilter} onValueChange={(v) => { setClassFilter(v === "all" ? "" : v); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="All Classes" /></SelectTrigger>
+            <Select value={classFilter || "all"} onValueChange={handleClassChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Classes</SelectItem>
-                {classes.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
+                {classes.map((c) => (
+                  <SelectItem key={c._id} value={c._id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={sectionFilter} onValueChange={(v) => { setSectionFilter(v === "all" ? "" : v); setPage(1); }} disabled={!classFilter}>
-              <SelectTrigger><SelectValue placeholder="All Sections" /></SelectTrigger>
+            <Select
+              value={sectionFilter || "all"}
+              onValueChange={handleSectionChange}
+              disabled={!classFilter}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Sections" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sections</SelectItem>
-                {sections.map((s) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
+                {sections.map((s) => (
+                  <SelectItem key={s._id} value={s._id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -265,8 +308,8 @@ function FeeCollectionPageContent() {
                     <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                       {sessions.length === 0
                         ? "Create an academic session first (Sessions menu)"
-                        : search.trim()
-                          ? "No matching students found"
+                        : search.trim() || classFilter || sectionFilter
+                          ? "No students match these filters"
                           : "No students registered yet"}
                     </TableCell>
                   </TableRow>
@@ -305,13 +348,23 @@ function FeeCollectionPageContent() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => router.push(`/fee-collection/${s._id}?sessionId=${sessionId}`)}
-                        >
-                          <IndianRupee className="h-3.5 w-3.5" /> Collect
-                        </Button>
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1"
+                            onClick={() => router.push(`/students/${s._id}/edit`)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => router.push(`/fee-collection/${s._id}?sessionId=${sessionId}`)}
+                          >
+                            <IndianRupee className="h-3.5 w-3.5" /> Collect
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

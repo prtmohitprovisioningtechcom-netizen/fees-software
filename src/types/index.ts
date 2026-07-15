@@ -28,6 +28,11 @@ export interface DashboardStats {
   todayCollection: number;
   recentPayments: RecentPayment[];
   pendingStudents: PendingStudent[];
+  quarterTotals?: Record<
+    number,
+    { due: number; collected: number; pending: number; countPaid: number; countPending: number }
+  >;
+  collectedByQuarter?: Record<number, number>;
 }
 
 export interface PendingStudent {
@@ -103,6 +108,7 @@ export interface RecentPayment {
   paymentDate: string;
   paymentMode: string;
   paymentStatus: string;
+  quarter?: number | null;
 }
 
 export interface FeeCalculation {

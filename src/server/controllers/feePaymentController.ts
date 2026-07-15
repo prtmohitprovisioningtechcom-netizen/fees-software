@@ -108,20 +108,28 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
 
 export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const search = (req.query.search as string) || "";
-    const classId = req.query.classId as string;
-    const sectionId = req.query.sectionId as string;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const search = ((req.query.search as string) || "").trim();
+    const classIdRaw = (req.query.classId as string) || "";
+    const sectionIdRaw = (req.query.sectionId as string) || "";
 
     const session = await resolveSessionId(req.query.sessionId as string);
     if (!session) {
       return res.status(400).json({ success: false, message: "Academic session not found" });
     }
 
+    const parseOid = (value: string) => {
+      if (!value || value === "all" || value === "undefined" || value === "null") return null;
+      return /^[a-fA-F0-9]{24}$/.test(value) ? new Types.ObjectId(value) : null;
+    };
+
+    const classOid = parseOid(classIdRaw);
+    const sectionOid = parseOid(sectionIdRaw);
+
     const filter: Record<string, unknown> = { status: "active" };
-    if (classId) filter.classId = classId;
-    if (sectionId) filter.sectionId = sectionId;
+    if (classOid) filter.classId = classOid;
+    if (sectionOid) filter.sectionId = sectionOid;
     if (search) {
       filter.$or = [
         { studentName: { $regex: search, $options: "i" } },
@@ -132,28 +140,51 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
       ];
     }
 
-    const total = await Student.countDocuments(filter);
-    const [students, feeCache] = await Promise.all([
+    const [total, students, feeCache] = await Promise.all([
+      Student.countDocuments(filter),
       Student.find(filter)
+        .select(
+          "registrationNumber admissionNumber studentName fatherName mobileNumber classId sectionId transportRequired transportRouteId feeDiscount"
+        )
         .populate("classId", "name")
         .populate("sectionId", "name")
         .populate("transportRouteId", "name monthlyFee")
         .sort({ studentName: 1 })
         .skip((page - 1) * limit)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
       createSessionFeeCache(session._id.toString()),
     ]);
 
+    // Uses populated routes in-memory — no extra route query / no CastError
     const transportMap = await buildStudentTransportMap(students);
 
     const data = students.map((student) => {
-      const feeStatus = getFeeStatusFromCache(
-        feeCache,
-        student.classId._id.toString(),
-        student._id.toString(),
-        student.feeDiscount || 0,
-        transportMap.get(student._id.toString()) || null
-      );
+      const classIdStr =
+        student.classId && typeof student.classId === "object" && "_id" in student.classId
+          ? String((student.classId as { _id: unknown })._id)
+          : student.classId
+            ? String(student.classId)
+            : null;
+
+      const feeStatus = classIdStr
+        ? getFeeStatusFromCache(
+            feeCache,
+            classIdStr,
+            student._id.toString(),
+            student.feeDiscount || 0,
+            transportMap.get(student._id.toString()) || null
+          )
+        : {
+            grossTotal: 0,
+            totalDiscount: 0,
+            totalFee: 0,
+            paidAmount: 0,
+            pendingAmount: 0,
+            paymentStatus: "pending" as const,
+            hasFeeStructure: false,
+          };
+
       return {
         _id: student._id,
         registrationNumber: student.registrationNumber,
@@ -161,8 +192,8 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
         studentName: student.studentName,
         fatherName: student.fatherName,
         mobileNumber: student.mobileNumber,
-        classId: student.classId,
-        sectionId: student.sectionId,
+        classId: student.classId || { _id: "", name: "—" },
+        sectionId: student.sectionId || { _id: "", name: "—" },
         sessionId: session._id,
         sessionName: session.name,
         transportRequired: student.transportRequired,
@@ -182,10 +213,14 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
       success: true,
       data,
       session: { _id: session._id, name: session.name },
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch student fees", error: String(error) });
+    console.error("getStudentsFeeOverview:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to fetch student fees",
+    });
   }
 };
 

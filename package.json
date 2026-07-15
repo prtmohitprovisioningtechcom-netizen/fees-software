@@ -7,6 +7,7 @@
     "clean-next": "node scripts/clean-next.js",
     "predev": "node scripts/free-port.js",
     "dev": "tsx watch src/server/server.ts",
+    "dev:fresh": "node scripts/free-port.js && node scripts/clean-next.js && tsx watch src/server/server.ts",
     "build": "next build",
     "start": "cross-env NODE_ENV=production tsx src/server/server.ts",
     "seed": "tsx src/server/seed.ts"

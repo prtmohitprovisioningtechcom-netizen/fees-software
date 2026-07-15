@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Percent, CalendarRange, Receipt, Bus, History } from "lucide-react";
+import { Loader2, Percent, CalendarRange, Receipt, Bus, History, Pencil } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -379,7 +379,15 @@ function CollectFeePageContent() {
         action={
           <div className="flex items-center gap-2">
             {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            <Select value={sessionId} onValueChange={setSessionId}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => router.push(`/students/${studentId}/edit`)}
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit Student
+            </Button>
+            <Select value={sessionId || undefined} onValueChange={setSessionId}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Select Session" />
               </SelectTrigger>

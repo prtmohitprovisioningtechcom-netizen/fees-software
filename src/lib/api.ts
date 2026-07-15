@@ -163,6 +163,10 @@ export const dashboardApi = {
     const query = sessionId ? `?sessionId=${sessionId}` : "";
     return apiClient(`/dashboard/stats${query}`);
   },
+  getQuarterDetails: (sessionId: string, quarter: number) => {
+    const params = new URLSearchParams({ sessionId, quarter: String(quarter) });
+    return apiClient(`/dashboard/quarter-details?${params}`);
+  },
   getReports: (params?: Record<string, string>) => {
     const query = new URLSearchParams(params).toString();
     return apiClient(`/dashboard/reports${query ? `?${query}` : ""}`);

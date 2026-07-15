@@ -37,6 +37,13 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
           recentPayments: [],
           pendingStudents: [],
           needsSession: true,
+          quarterTotals: {
+            1: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+            2: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+            3: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+            4: { due: 0, collected: 0, pending: 0, countPaid: 0, countPending: 0 },
+          },
+          collectedByQuarter: { 1: 0, 2: 0, 3: 0, 4: 0 },
         },
       });
     }
@@ -84,15 +91,35 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const totalFeeCollected = totalCollectionAgg[0]?.total || 0;
     const todayCollection = todayCollectionAgg[0]?.total || 0;
 
+    const refId = (ref: unknown): string | null => {
+      if (!ref) return null;
+      if (typeof ref === "string") return ref;
+      if (typeof ref === "object" && ref !== null && "_id" in ref && (ref as { _id: unknown })._id != null) {
+        return String((ref as { _id: unknown })._id);
+      }
+      const asStr = String(ref);
+      return asStr && asStr !== "[object Object]" ? asStr : null;
+    };
+
     const studentFeeStatuses = activeStudents.map((student) => {
-      const classId = (student.classId as { _id: Types.ObjectId })._id.toString();
-      const status = getFeeStatusFromCache(
-        feeCache,
-        classId,
-        student._id.toString(),
-        (student as { feeDiscount?: number }).feeDiscount || 0,
-        transportMap.get(student._id.toString()) || null
-      );
+      const classId = refId(student.classId);
+      const status = classId
+        ? getFeeStatusFromCache(
+            feeCache,
+            classId,
+            student._id.toString(),
+            (student as { feeDiscount?: number }).feeDiscount || 0,
+            transportMap.get(student._id.toString()) || null
+          )
+        : {
+            grossTotal: 0,
+            totalDiscount: 0,
+            totalFee: 0,
+            paidAmount: 0,
+            pendingAmount: 0,
+            paymentStatus: "pending" as const,
+            hasFeeStructure: false,
+          };
       return {
         _id: student._id.toString(),
         studentName: student.studentName,
@@ -108,6 +135,43 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       .sort((a, b) => b.pendingAmount - a.pendingAmount)
       .slice(0, 10);
 
+    const quarterlyCache = await createSessionQuarterlyCache(
+      session._id.toString(),
+      activeStudents.map((s) => ({
+        _id: s._id,
+        transportRequired: (s as { transportRequired?: boolean }).transportRequired,
+        transportRouteId: (s as { transportRouteId?: Types.ObjectId | string | null }).transportRouteId,
+      }))
+    );
+
+    const quarterlyStudents = (
+      await Promise.all(
+        activeStudents.map(async (s) => {
+          const cid = refId(s.classId);
+          if (!cid) return null;
+          return buildStudentQuarterlyReport(
+            quarterlyCache,
+            cid,
+            s._id.toString(),
+            (s as { feeDiscount?: number }).feeDiscount || 0
+          );
+        })
+      )
+    ).filter(Boolean) as NonNullable<Awaited<ReturnType<typeof buildStudentQuarterlyReport>>>[];
+
+    const quarterTotals = aggregateQuarterlyTotals(quarterlyStudents);
+
+    // Collected amounts per quarter from actual payments (reliable for cash counters)
+    const byQuarterAgg = await FeePayment.aggregate<{ _id: number; total: number }>([
+      { $match: isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch },
+      { $match: { quarter: { $in: [1, 2, 3, 4] } } },
+      { $group: { _id: "$quarter", total: { $sum: "$currentPayment" } } },
+    ]);
+    const collectedByQuarter: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const row of byQuarterAgg) {
+      if (row._id >= 1 && row._id <= 4) collectedByQuarter[row._id] = row.total;
+    }
+
     const formattedRecent = recentPayments.map((p) => ({
       _id: p._id.toString(),
       receiptNumber: p.receiptNumber,
@@ -118,6 +182,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       paymentDate: p.paymentDate.toISOString(),
       paymentMode: p.paymentMode,
       paymentStatus: p.paymentStatus,
+      quarter: p.quarter || null,
     }));
 
     const stats = {
@@ -128,11 +193,130 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       todayCollection,
       recentPayments: formattedRecent,
       pendingStudents,
+      quarterTotals,
+      collectedByQuarter,
     };
 
     res.json({ success: true, data: stats });
   } catch (error) {
+    console.error("getDashboardStats:", error);
     res.status(500).json({ success: false, message: "Failed to fetch dashboard stats", error: String(error) });
+  }
+};
+
+/** Student-wise fee status for one quarter (Dashboard Quarterly Overview click). */
+export const getQuarterDetails = async (req: AuthRequest, res: Response) => {
+  try {
+    const quarter = parseInt(req.query.quarter as string, 10) as QuarterNumber;
+    if (![1, 2, 3, 4].includes(quarter)) {
+      return res.status(400).json({ success: false, message: "Valid quarter (1–4) is required" });
+    }
+
+    const session = await resolveAcademicSession(req.query.sessionId as string);
+    if (!session) {
+      return res.status(400).json({ success: false, message: "Academic session not found" });
+    }
+
+    const students = await Student.find({ status: "active" })
+      .select("_id classId sectionId studentName registrationNumber feeDiscount transportRequired transportRouteId")
+      .populate("classId", "name")
+      .populate("sectionId", "name")
+      .sort({ studentName: 1 })
+      .lean();
+
+    const refId = (ref: unknown): string | null => {
+      if (!ref) return null;
+      if (typeof ref === "string") return ref;
+      if (typeof ref === "object" && ref !== null && "_id" in ref && (ref as { _id: unknown })._id != null) {
+        return String((ref as { _id: unknown })._id);
+      }
+      const asStr = String(ref);
+      return asStr && asStr !== "[object Object]" ? asStr : null;
+    };
+
+    const quarterlyCache = await createSessionQuarterlyCache(
+      session._id.toString(),
+      students.map((s) => ({
+        _id: s._id,
+        transportRequired: s.transportRequired,
+        transportRouteId: s.transportRouteId,
+      }))
+    );
+
+    const rows = (
+      await Promise.all(
+        students.map(async (s) => {
+          const cid = refId(s.classId);
+          if (!cid) return null;
+          const report = await buildStudentQuarterlyReport(
+            quarterlyCache,
+            cid,
+            s._id.toString(),
+            s.feeDiscount || 0
+          );
+          if (!report) return null;
+          const qData = report.quarters.find((q) => q.quarter === quarter);
+          if (!qData) return null;
+
+          return {
+            _id: s._id.toString(),
+            studentName: s.studentName,
+            registrationNumber: s.registrationNumber,
+            className: (s.classId as { name?: string })?.name || "—",
+            sectionName: (s.sectionId as { name?: string })?.name || "—",
+            totalDue: qData.totalDue,
+            paid: qData.paid,
+            pending: qData.pending,
+            status: qData.status,
+          };
+        })
+      )
+    ).filter(Boolean) as {
+      _id: string;
+      studentName: string;
+      registrationNumber: string;
+      className: string;
+      sectionName: string;
+      totalDue: number;
+      paid: number;
+      pending: number;
+      status: "paid" | "partial" | "pending";
+    }[];
+
+    // Pending first (highest due), then partial, then paid
+    const statusRank = { pending: 0, partial: 1, paid: 2 };
+    rows.sort((a, b) => {
+      const r = statusRank[a.status] - statusRank[b.status];
+      if (r !== 0) return r;
+      return b.pending - a.pending || a.studentName.localeCompare(b.studentName);
+    });
+
+    const summary = {
+      due: rows.reduce((s, r) => s + r.totalDue, 0),
+      collected: rows.reduce((s, r) => s + r.paid, 0),
+      pending: rows.reduce((s, r) => s + r.pending, 0),
+      countPaid: rows.filter((r) => r.status === "paid").length,
+      countPartial: rows.filter((r) => r.status === "partial").length,
+      countPending: rows.filter((r) => r.status === "pending").length,
+      totalStudents: rows.length,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        session: { _id: session._id.toString(), name: session.name },
+        quarter,
+        label: QUARTER_LABELS[quarter],
+        summary,
+        students: rows,
+      },
+    });
+  } catch (error) {
+    console.error("getQuarterDetails:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to fetch quarter details",
+    });
   }
 };
 

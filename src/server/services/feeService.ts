@@ -54,12 +54,42 @@ export const getFeePolicy = async (): Promise<FeePolicy> => {
   return policy;
 };
 
+/** Normalize ObjectId / string / populated `{ _id }` to a 24-char hex id. */
+export const toObjectIdString = (value: unknown): string | null => {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    return /^[a-fA-F0-9]{24}$/.test(value) ? value : null;
+  }
+  if (value instanceof Types.ObjectId) return value.toString();
+  if (typeof value === "object") {
+    const nested = (value as { _id?: unknown })._id;
+    if (nested != null && nested !== value) return toObjectIdString(nested);
+    if (typeof (value as { toHexString?: () => string }).toHexString === "function") {
+      try {
+        const hex = (value as { toHexString: () => string }).toHexString();
+        return /^[a-fA-F0-9]{24}$/.test(hex) ? hex : null;
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+};
+
 export const resolveStudentTransport = async (
   transportRequired: boolean,
-  transportRouteId?: Types.ObjectId | string | null
+  transportRouteId?: Types.ObjectId | string | { _id?: unknown } | null
 ): Promise<TransportInfo> => {
   if (!transportRequired || !transportRouteId) return null;
-  const route = await TransportRoute.findOne({ _id: transportRouteId, isActive: true }).lean();
+  if (typeof transportRouteId === "object" && transportRouteId !== null && "monthlyFee" in transportRouteId) {
+    const populated = transportRouteId as { name?: string; monthlyFee?: number };
+    if (typeof populated.monthlyFee === "number") {
+      return { monthlyFee: populated.monthlyFee, routeName: populated.name || "" };
+    }
+  }
+  const routeId = toObjectIdString(transportRouteId);
+  if (!routeId) return null;
+  const route = await TransportRoute.findOne({ _id: routeId, isActive: true }).lean();
   if (!route) return null;
   return { monthlyFee: route.monthlyFee, routeName: route.name };
 };
@@ -68,31 +98,59 @@ export const buildStudentTransportMap = async (
   students: {
     _id: Types.ObjectId | string;
     transportRequired?: boolean;
-    transportRouteId?: Types.ObjectId | string | null;
+    transportRouteId?: Types.ObjectId | string | { _id?: unknown; name?: string; monthlyFee?: number } | null;
   }[]
 ): Promise<Map<string, TransportInfo>> => {
-  const routeIds = students
-    .filter((s) => s.transportRequired && s.transportRouteId)
-    .map((s) => s.transportRouteId!.toString());
-  const uniqueIds = [...new Set(routeIds)];
-
-  const routes =
-    uniqueIds.length > 0
-      ? await TransportRoute.find({ _id: { $in: uniqueIds }, isActive: true }).lean()
-      : [];
-  const routeById = new Map(
-    routes.map((r) => [r._id.toString(), { monthlyFee: r.monthlyFee, routeName: r.name } as TransportInfo])
-  );
-
   const map = new Map<string, TransportInfo>();
+  const missingRouteIds = new Set<string>();
+
   for (const student of students) {
     const sid = student._id.toString();
     if (!student.transportRequired || !student.transportRouteId) {
       map.set(sid, null);
       continue;
     }
-    map.set(sid, routeById.get(student.transportRouteId.toString()) || null);
+
+    const routeRef = student.transportRouteId;
+    // Use populated route directly — avoids second query + CastError on .toString()
+    if (typeof routeRef === "object" && routeRef !== null && typeof (routeRef as { monthlyFee?: number }).monthlyFee === "number") {
+      map.set(sid, {
+        monthlyFee: (routeRef as { monthlyFee: number }).monthlyFee,
+        routeName: (routeRef as { name?: string }).name || "",
+      });
+      continue;
+    }
+
+    const routeId = toObjectIdString(routeRef);
+    if (!routeId) {
+      map.set(sid, null);
+      continue;
+    }
+    missingRouteIds.add(routeId);
+    map.set(sid, null); // placeholder until DB fill
   }
+
+  if (missingRouteIds.size === 0) return map;
+
+  const routes = await TransportRoute.find({
+    _id: { $in: [...missingRouteIds] },
+    isActive: true,
+  })
+    .select("name monthlyFee")
+    .lean();
+
+  const routeById = new Map(
+    routes.map((r) => [r._id.toString(), { monthlyFee: r.monthlyFee, routeName: r.name } as TransportInfo])
+  );
+
+  for (const student of students) {
+    if (!student.transportRequired || !student.transportRouteId) continue;
+    const sid = student._id.toString();
+    if (map.get(sid)) continue; // already filled from populate
+    const routeId = toObjectIdString(student.transportRouteId);
+    if (routeId) map.set(sid, routeById.get(routeId) || null);
+  }
+
   return map;
 };
 
