@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
+export type FeePaymentRecordStatus = "active" | "refunded" | "reversed" | "corrected";
+
 export interface IFeePayment extends Document {
   receiptNumber: string;
   studentId: Types.ObjectId;
@@ -20,6 +22,13 @@ export interface IFeePayment extends Document {
   quarter?: 1 | 2 | 3 | 4;
   paymentType?: "quarterly" | "monthly" | "full_year" | "custom";
   collectedBy: Types.ObjectId;
+  /** Lifecycle — missing/undefined treated as active for legacy rows */
+  recordStatus?: FeePaymentRecordStatus;
+  auditReason?: string;
+  auditedBy?: Types.ObjectId;
+  auditedAt?: Date;
+  replacesPaymentId?: Types.ObjectId;
+  replacedByPaymentId?: Types.ObjectId;
   feeBreakdown: {
     admissionFee: number;
     monthlyFee: number;
@@ -66,6 +75,16 @@ const feePaymentSchema = new Schema<IFeePayment>(
     quarter: { type: Number, enum: [1, 2, 3, 4] },
     paymentType: { type: String, enum: ["quarterly", "monthly", "full_year", "custom"], default: "custom" },
     collectedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    recordStatus: {
+      type: String,
+      enum: ["active", "refunded", "reversed", "corrected"],
+      default: "active",
+    },
+    auditReason: { type: String, trim: true },
+    auditedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    auditedAt: { type: Date },
+    replacesPaymentId: { type: Schema.Types.ObjectId, ref: "FeePayment" },
+    replacedByPaymentId: { type: Schema.Types.ObjectId, ref: "FeePayment" },
     feeBreakdown: {
       admissionFee: { type: Number, default: 0 },
       monthlyFee: { type: Number, default: 0 },
@@ -92,6 +111,7 @@ feePaymentSchema.index({ sessionId: 1, paymentDate: -1 });
 feePaymentSchema.index({ collectedBy: 1, sessionId: 1 });
 feePaymentSchema.index({ sessionId: 1, quarter: 1 });
 feePaymentSchema.index({ studentId: 1, sessionId: 1, paymentDate: -1 });
+feePaymentSchema.index({ recordStatus: 1, sessionId: 1, paymentDate: -1 });
 
 const FeePayment: Model<IFeePayment> =
   mongoose.models.FeePayment || mongoose.model<IFeePayment>("FeePayment", feePaymentSchema);

@@ -3,9 +3,10 @@ import { Types } from "mongoose";
 import * as XLSX from "xlsx";
 import { AcademicSession, Student, FeePayment } from "../models";
 import { AuthRequest } from "../middleware/auth";
-import { createSessionFeeCache, getFeeStatusFromCache, createSessionQuarterlyCache, buildStudentQuarterlyReport, aggregateQuarterlyTotals, buildStudentTransportMap } from "../services/feeService";
+import { createSessionFeeCache, getFeeStatusFromCache, createSessionQuarterlyCache, buildStudentQuarterlyReport, aggregateQuarterlyTotals, buildStudentTransportMap, activePaymentMatch } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
+
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -19,6 +20,10 @@ const endOfToday = () => {
 };
 
 const resolveSessionId = resolveAcademicSession;
+
+const withActivePayments = (match: Record<string, unknown>) => ({
+  $and: [match, activePaymentMatch],
+});
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
@@ -57,19 +62,19 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const [totalCollectionAgg, todayCollectionAgg, recentPayments, feeCache, activeStudents] =
       await Promise.all([
         FeePayment.aggregate([
-          { $match: isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch },
+          { $match: withActivePayments(isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch) },
           { $group: { _id: null, total: { $sum: "$currentPayment" } } },
         ]),
         FeePayment.aggregate([
           {
-            $match: {
+            $match: withActivePayments({
               ...(isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch),
               paymentDate: { $gte: startOfToday(), $lte: endOfToday() },
-            },
+            }),
           },
           { $group: { _id: null, total: { $sum: "$currentPayment" } } },
         ]),
-        FeePayment.find(isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch)
+        FeePayment.find(withActivePayments(isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch))
           .populate({
             path: "studentId",
             select: "studentName registrationNumber",
@@ -163,7 +168,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
     // Collected amounts per quarter from actual payments (reliable for cash counters)
     const byQuarterAgg = await FeePayment.aggregate<{ _id: number; total: number }>([
-      { $match: isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch },
+      { $match: withActivePayments(isSuperAdmin ? { sessionId: sessionObjectId } : adminPaymentMatch) },
       { $match: { quarter: { $in: [1, 2, 3, 4] } } },
       { $group: { _id: "$quarter", total: { $sum: "$currentPayment" } } },
     ]);
@@ -610,7 +615,10 @@ async function fetchCollectionReportData(
     };
   }
 
-  const filter: Record<string, unknown> = { sessionId: session._id };
+  const filter: Record<string, unknown> = {
+    sessionId: session._id,
+    $or: [{ recordStatus: "active" }, { recordStatus: { $exists: false } }, { recordStatus: null }],
+  };
 
   let collectedByName = "All Admins";
   if (user?.role === "admin") {

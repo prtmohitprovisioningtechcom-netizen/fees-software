@@ -36,6 +36,17 @@ export const regularPaymentMatch = {
   isStandalonePreviousDues: { $ne: true },
 };
 
+/** Active (non-refunded/reversed) payments — legacy rows without recordStatus count as active. */
+export const activePaymentMatch = {
+  $or: [{ recordStatus: "active" }, { recordStatus: { $exists: false } }, { recordStatus: null }],
+};
+
+/** Regular session payments that still count toward balances and collections. */
+export const activeRegularPaymentMatch = {
+  ...regularPaymentMatch,
+  ...activePaymentMatch,
+};
+
 let cachedPolicy: { policy: FeePolicy; at: number } | null = null;
 const POLICY_CACHE_MS = 30_000;
 
@@ -196,7 +207,7 @@ export const calculateFee = async (
   const payments = await FeePayment.find({
     studentId: new Types.ObjectId(studentId),
     sessionId: new Types.ObjectId(sessionId),
-    ...regularPaymentMatch,
+    ...activeRegularPaymentMatch,
   })
     .select("currentPayment quarter feeBreakdown.includeAdmission feeBreakdown.admissionFee")
     .lean();
@@ -319,7 +330,7 @@ export const createSessionFeeCache = async (sessionId: string): Promise<SessionF
       .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
     FeePayment.aggregate<{ _id: Types.ObjectId; paidAmount: number }>([
-      { $match: { sessionId: sessionOid, ...regularPaymentMatch } },
+      { $match: { sessionId: sessionOid, ...activeRegularPaymentMatch } },
       { $group: { _id: "$studentId", paidAmount: { $sum: "$currentPayment" } } },
     ]),
   ]);
@@ -390,7 +401,7 @@ export const getStudentSessionArrears = async (
     FeeStructure.find({ classId: classOid })
       .select("sessionId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
-    FeePayment.find({ studentId: studentOid, ...regularPaymentMatch })
+    FeePayment.find({ studentId: studentOid, ...activeRegularPaymentMatch })
       .select("sessionId currentPayment totalFee feeBreakdown.includeAdmission feeBreakdown.admissionFee")
       .lean(),
   ]);
@@ -482,7 +493,7 @@ export const getStudentSessionFeeStatus = async (
       $match: {
         studentId: new Types.ObjectId(studentId),
         sessionId: new Types.ObjectId(sessionId),
-        ...regularPaymentMatch,
+        ...activeRegularPaymentMatch,
       },
     },
     { $group: { _id: null, paidAmount: { $sum: "$currentPayment" } } },
@@ -556,7 +567,7 @@ export const createSessionQuarterlyCache = async (
     FeeStructure.find({ sessionId: sessionOid })
       .select("classId admissionFee monthlyFee annualFee computerFee examFee otherFee discount")
       .lean(),
-    FeePayment.find({ sessionId: sessionOid, ...regularPaymentMatch })
+    FeePayment.find({ sessionId: sessionOid, ...activeRegularPaymentMatch })
       .select("studentId quarter currentPayment feeBreakdown.includeAdmission feeBreakdown.admissionFee")
       .lean(),
   ]);

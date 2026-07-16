@@ -2,7 +2,9 @@
 
 import { ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { BackButton } from "@/components/layout/back-button";
 
 interface BreadcrumbItem {
   label: string;
@@ -14,9 +16,21 @@ interface PageHeaderProps {
   description?: string;
   breadcrumbs?: BreadcrumbItem[];
   action?: React.ReactNode;
+  /** Show one-step Back. Default true except on /dashboard. Pass false to hide. */
+  showBack?: boolean;
 }
 
-export function PageHeader({ title, description, breadcrumbs, action }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  breadcrumbs,
+  action,
+  showBack,
+}: PageHeaderProps) {
+  const pathname = usePathname();
+  const isDashboard = pathname === "/dashboard";
+  const shouldShowBack = showBack ?? !isDashboard;
+
   return (
     <div className="mb-8 animate-fade-in">
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -39,9 +53,12 @@ export function PageHeader({ title, description, breadcrumbs, action }: PageHead
         </nav>
       )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className={cn("text-2xl font-bold tracking-tight")}>{title}</h1>
-          {description && <p className="mt-1 text-muted-foreground">{description}</p>}
+        <div className="flex items-start gap-2 min-w-0">
+          {shouldShowBack && <BackButton className="mt-1.5" />}
+          <div className="min-w-0">
+            <h1 className={cn("text-2xl font-bold tracking-tight")}>{title}</h1>
+            {description && <p className="mt-1 text-muted-foreground">{description}</p>}
+          </div>
         </div>
         {action && <div className="flex-shrink-0">{action}</div>}
       </div>

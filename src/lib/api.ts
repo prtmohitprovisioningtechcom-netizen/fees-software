@@ -200,6 +200,10 @@ export const feePaymentsApi = {
     return apiClient(`/fee-payments/students-overview${query ? `?${query}` : ""}`);
   },
   collect: (data: object) => apiClient("/fee-payments/collect", { method: "POST", body: JSON.stringify(data) }),
+  refund: (id: string, reason: string) =>
+    apiClient(`/fee-payments/${id}/refund`, { method: "POST", body: JSON.stringify({ reason }) }),
+  correct: (id: string, data: object) =>
+    apiClient(`/fee-payments/${id}/correct`, { method: "POST", body: JSON.stringify(data) }),
   getById: (id: string) => apiClient(`/fee-payments/${id}`),
 };
 

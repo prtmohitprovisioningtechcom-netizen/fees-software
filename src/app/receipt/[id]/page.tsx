@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useState, useMemo, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Printer, Download, ArrowLeft } from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/layout/back-button";
 import { feePaymentsApi, settingsApi } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { parseSchoolBranding, getReceiptSchoolName } from "@/lib/school-branding";
@@ -106,11 +107,25 @@ function FeeSlip({
 }) {
   const schoolName = getReceiptSchoolName(branding);
   const isPaid = data.paymentStatus === "paid";
-  const statusLabel =
-    data.paymentStatus === "paid" ? "PAID" : data.paymentStatus === "partial" ? "PARTIAL" : "PENDING";
+  const recordStatus = String(payment.recordStatus || "active");
+  const isInactiveRecord = recordStatus !== "active";
+  const statusLabel = isInactiveRecord
+    ? recordStatus.toUpperCase()
+    : data.paymentStatus === "paid"
+      ? "PAID"
+      : data.paymentStatus === "partial"
+        ? "PARTIAL"
+        : "PENDING";
 
   return (
-    <article className="fee-slip mx-auto bg-white text-black shadow-md print:shadow-none">
+    <article className="fee-slip mx-auto bg-white text-black shadow-md print:shadow-none relative">
+      {isInactiveRecord && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <p className="rotate-[-24deg] text-4xl font-black uppercase tracking-widest text-red-500/25 border-4 border-red-400/30 px-6 py-2">
+            {recordStatus}
+          </p>
+        </div>
+      )}
       {/* Top accent */}
       <div className="h-1.5 bg-[#1e3a8a] print:bg-black" />
 
@@ -143,6 +158,11 @@ function FeeSlip({
             <p className="mt-1 text-[11px] font-bold tracking-[0.15em] text-[#1e3a8a] uppercase">
               Fee Payment Receipt
             </p>
+            {isInactiveRecord && Boolean(payment.auditReason) && (
+              <p className="mt-1 text-[9px] text-red-700">
+                {recordStatus}: {String(payment.auditReason)}
+              </p>
+            )}
           </div>
           <div className="shrink-0 text-right">
             <span
@@ -336,7 +356,6 @@ function FeeSlip({
 function ReceiptPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const id = params?.id ?? "";
   const shouldPrint = searchParams?.get("print") === "1";
   const printedRef = useRef(false);
@@ -541,9 +560,7 @@ function ReceiptPageContent() {
 
       <div className="print-area min-h-screen bg-neutral-100 p-4 print:bg-white print:p-0">
         <div className="no-print mx-auto mb-4 flex max-w-[148mm] flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back
-          </Button>
+          <BackButton />
           <Button size="sm" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" /> Print Slip
           </Button>

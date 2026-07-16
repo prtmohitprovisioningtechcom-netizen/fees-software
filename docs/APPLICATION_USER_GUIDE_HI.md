@@ -1,10 +1,10 @@
 # School Fee Management Application
 ## Complete User Guide aur Fee Calculation Manual
 
-**Document version:** 2.0 — Final Project Guide  
-**Updated:** 15 July 2026
+**Document version:** 3.0 — Final Project Guide  
+**Updated:** 16 July 2026
 
-Ye final handover document application setup, daily usage, fee calculation, discounts, quarterly payments, receipts aur reports ka complete process explain karta hai.
+Ye final handover document application setup, daily usage, fee calculation, discounts, quarterly payments, fee quote vs save payment, Super Admin refund/correction, receipts aur reports ka complete process explain karta hai.
 
 ---
 
@@ -425,16 +425,22 @@ Quarter ke due amount se zyada payment selected quarter mein accept nahi honi ch
 9. Application pending amount auto-fill karegi
 10. Payment mode select karein
 11. Zaroorat ho to remarks enter karein
-12. **Submit Payment** karein
-13. Generated receipt ko check aur print karein
+12. Customer ko sirf fee dikhani ho to **Print Fee Quote** use karein (save nahi hota)
+13. Fee collect karni ho to **Save Payment** use karein
+14. Saved payment ke baad receipt page open hogi — wahan se Print Slip karein
 
-### Payment modes
+### Print Fee Quote vs Save Payment
 
-- Cash
-- UPI
-- Card
-- Cheque
-- Bank Transfer
+| Action | Kya hota hai |
+|---|---|
+| **Print Fee Quote** | Poori fee breakdown + quarterly schedule print hoti hai. Receipt number nahi banta. Dashboard/reports mein kuch save nahi hota. |
+| **Save Payment** | Payment database mein save hoti hai. Balance, dashboard, reports update hote hain. Official receipt banati hai. |
+
+> Quote slip par clearly likha hota hai: **Fee Quote — Not a Receipt**.
+
+### Back button
+
+Har authenticated page par chhota **Back** (←) button milta hai. Ye sirf ek step peeche browser history mein le jata hai — aage-peeche jump nahi karta. Dashboard par Back hide rehta hai.
 
 ### Important collection rules
 
@@ -444,6 +450,7 @@ Quarter ke due amount se zyada payment selected quarter mein accept nahi honi ch
 - Payment amount quarter pending se zyada na rakhein
 - Receipt generate hone ke baad receipt number verify karein
 - Galat student ke record mein payment save na karein
+- Sirf Save Payment se hi collection record hoti hai — Print Quote se nahi
 
 ### Manual/custom amount
 
@@ -454,6 +461,35 @@ Accurate quarter reporting ke liye:
 - Pehle quarter tile select karein
 - Usi quarter ke pending amount tak payment collect karein
 - Ek se zyada quarters ki fee ho to quarters ko separately collect karna safest hai
+
+---
+
+## 6A. Super Admin — Refund aur Correction
+
+Sirf **Super Admin** galat payment ko refund ya correct kar sakta hai. Normal Admin ko ye buttons nahi dikhte.
+
+### Refund
+
+1. Student collect page → Previous Fee Slips
+2. Active payment par **Refund** click karein
+3. Audit reason enter karein (zaroori)
+4. Original receipt history mein rehti hai (Refunded badge / watermark)
+5. Student pending balance wapas open ho jata hai
+6. Dashboard aur reports se woh amount hat jata hai
+
+### Correct (wrong payment fix)
+
+1. Same slips list mein **Correct** click karein
+2. Reason, corrected amount, payment mode, quarter enter karein
+3. System pehle original payment ko corrected mark karta hai
+4. Phir nayi validated payment create karta hai (naya receipt number)
+5. Original amount balances se nikal jata hai; naya amount count hota hai
+
+Rules:
+
+- Payment delete nahi hoti — audit trail hamesha rehta hai
+- Ek baar refunded/corrected payment dobara refund/correct nahi hoti
+- Standalone previous-dues slips ke liye correction nahi — pehle refund, phir dubara enter karein
 
 ---
 
@@ -696,8 +732,11 @@ Check karein:
 - [ ] Correct quarter selected
 - [ ] Amount verified
 - [ ] Payment mode verified
+- [ ] Print Fee Quote tested (no save)
+- [ ] Save Payment used for actual collection
 - [ ] Receipt generated
 - [ ] Receipt printed/given to payer
+- [ ] Super Admin refund/correct tested (if applicable)
 
 ---
 

@@ -10,7 +10,8 @@ import {
   resolveStudentTransport,
   buildStudentTransportMap,
   getStudentSessionArrears,
-  regularPaymentMatch,
+  activeRegularPaymentMatch,
+  activePaymentMatch,
 } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 
@@ -285,7 +286,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
         const priorPayments = await FeePayment.find({
           studentId: student._id,
           sessionId: matchedSession._id,
-          ...regularPaymentMatch,
+          ...activeRegularPaymentMatch,
         })
           .select("feeBreakdown")
           .lean();
@@ -348,6 +349,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
         collectedBy: req.user?.id,
         customSessionName,
         isStandalonePreviousDues,
+        recordStatus: "active",
         ...paymentFields,
       });
 
@@ -456,6 +458,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       quarter: resolvedQuarter || undefined,
       paymentType: paymentType || (resolvedQuarter ? "quarterly" : "custom"),
       collectedBy: req.user?.id,
+      recordStatus: "active",
       feeBreakdown: calculation.feeBreakdown,
     });
 
@@ -478,6 +481,199 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const isActivePaymentRecord = (payment: { recordStatus?: string | null }) =>
+  !payment.recordStatus || payment.recordStatus === "active";
+
+export const refundPayment = async (req: AuthRequest, res: Response) => {
+  try {
+    const reason = String(req.body.reason || "").trim();
+    if (!reason) {
+      return res.status(400).json({ success: false, message: "Refund reason is required" });
+    }
+
+    const payment = await FeePayment.findById(req.params.id);
+    if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
+    if (!isActivePaymentRecord(payment)) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment is already ${payment.recordStatus}`,
+      });
+    }
+
+    payment.recordStatus = "refunded";
+    payment.auditReason = reason;
+    payment.auditedBy = new Types.ObjectId(req.user!.id);
+    payment.auditedAt = new Date();
+    await payment.save();
+
+    res.json({
+      success: true,
+      message: "Payment refunded successfully",
+      data: {
+        _id: payment._id.toString(),
+        receiptNumber: payment.receiptNumber,
+        recordStatus: payment.recordStatus,
+        auditReason: payment.auditReason,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to refund payment",
+    });
+  }
+};
+
+export const correctPayment = async (req: AuthRequest, res: Response) => {
+  try {
+    const reason = String(req.body.reason || "").trim();
+    if (!reason) {
+      return res.status(400).json({ success: false, message: "Correction reason is required" });
+    }
+
+    const original = await FeePayment.findById(req.params.id);
+    if (!original) return res.status(404).json({ success: false, message: "Payment not found" });
+    if (!isActivePaymentRecord(original)) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment is already ${original.recordStatus}`,
+      });
+    }
+    if (original.isStandalonePreviousDues) {
+      return res.status(400).json({
+        success: false,
+        message: "Standalone previous-dues slips cannot be corrected here — refund and re-enter instead",
+      });
+    }
+
+    const paymentAmount = Number(req.body.paymentAmount);
+    const paymentMode = req.body.paymentMode as string;
+    if (!paymentAmount || paymentAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Corrected payment amount must be greater than 0" });
+    }
+    if (!["cash", "upi", "card", "cheque", "bank_transfer"].includes(paymentMode)) {
+      return res.status(400).json({ success: false, message: "Valid payment mode is required" });
+    }
+
+    const student = await Student.findById(original.studentId);
+    if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+
+    // Temporarily mark original reversed so calculateFee ignores it
+    original.recordStatus = "reversed";
+    original.auditReason = reason;
+    original.auditedBy = new Types.ObjectId(req.user!.id);
+    original.auditedAt = new Date();
+    await original.save();
+
+    try {
+      const includeAdmission = Boolean(
+        req.body.includeAdmission ??
+          original.feeBreakdown?.includeAdmission ??
+          (original.feeBreakdown?.admissionFee || 0) > 0
+      );
+      const feeDiscount =
+        req.body.feeDiscount !== undefined && req.body.feeDiscount !== null && req.body.feeDiscount !== ""
+          ? Math.max(0, Number(req.body.feeDiscount) || 0)
+          : student.feeDiscount || 0;
+      student.feeDiscount = feeDiscount;
+      await student.save();
+
+      const calculation = await calculateFee(
+        student._id.toString(),
+        original.sessionId.toString(),
+        student.classId.toString(),
+        paymentAmount,
+        await resolveStudentTransport(student.transportRequired, student.transportRouteId),
+        feeDiscount,
+        includeAdmission
+      );
+
+      if (paymentAmount > calculation.previousDue) {
+        throw new Error(`Corrected amount cannot exceed due amount of ₹${calculation.previousDue}`);
+      }
+
+      let resolvedQuarter =
+        req.body.quarter !== undefined && req.body.quarter !== null && req.body.quarter !== ""
+          ? Number(req.body.quarter)
+          : original.quarter || undefined;
+      if (
+        resolvedQuarter !== undefined &&
+        (!Number.isInteger(resolvedQuarter) || resolvedQuarter < 1 || resolvedQuarter > 4)
+      ) {
+        throw new Error("Valid quarter (1–4) is required");
+      }
+      if (resolvedQuarter) {
+        const selectedSchedule = (calculation.quarterlySchedule || []).find(
+          (item) => item.quarter === resolvedQuarter
+        );
+        if (!selectedSchedule || selectedSchedule.status === "paid" || selectedSchedule.pending <= 0) {
+          throw new Error(`Quarter ${resolvedQuarter} fee is already fully paid`);
+        }
+        if (paymentAmount > selectedSchedule.pending) {
+          throw new Error(
+            `Payment amount cannot exceed Quarter ${resolvedQuarter} due of ₹${selectedSchedule.pending}`
+          );
+        }
+      }
+      if (!resolvedQuarter) {
+        const oldestPending = (calculation.quarterlySchedule || []).find((q) => q.pending > 0);
+        if (oldestPending) resolvedQuarter = oldestPending.quarter;
+      }
+
+      const receiptNumber = await generateReceiptNumber();
+      const replacement = await FeePayment.create({
+        receiptNumber,
+        studentId: original.studentId,
+        sessionId: original.sessionId,
+        feeStructureId: original.feeStructureId,
+        totalFee: calculation.totalFee,
+        paidAmount: calculation.paidAmount,
+        remainingAmount: calculation.remainingAmount,
+        previousDue: calculation.previousDue,
+        currentPayment: calculation.currentPayment,
+        balance: calculation.balance,
+        paymentStatus: calculation.paymentStatus,
+        paymentMode,
+        remarks: req.body.remarks || `Correction of ${original.receiptNumber}`,
+        quarter: resolvedQuarter || undefined,
+        paymentType: req.body.paymentType || (resolvedQuarter ? "quarterly" : "custom"),
+        collectedBy: req.user?.id,
+        recordStatus: "active",
+        replacesPaymentId: original._id,
+        feeBreakdown: calculation.feeBreakdown,
+      });
+
+      original.recordStatus = "corrected";
+      original.replacedByPaymentId = replacement._id;
+      await original.save();
+
+      res.status(201).json({
+        success: true,
+        message: "Payment corrected successfully",
+        data: {
+          originalId: original._id.toString(),
+          _id: replacement._id.toString(),
+          id: replacement._id.toString(),
+          receiptNumber: replacement.receiptNumber,
+        },
+      });
+    } catch (innerError) {
+      // Roll back temporary reverse if replacement failed
+      original.recordStatus = "active";
+      original.auditReason = undefined;
+      original.auditedBy = undefined;
+      original.auditedAt = undefined;
+      await original.save();
+      throw innerError;
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to correct payment",
+    });
+  }
+};
+
 export const getPayment = async (req: AuthRequest, res: Response) => {
   try {
     const payment = await FeePayment.findById(req.params.id)
@@ -486,7 +682,10 @@ export const getPayment = async (req: AuthRequest, res: Response) => {
         populate: [{ path: "classId", select: "name" }, { path: "sectionId", select: "name" }],
       })
       .populate("sessionId", "name")
-      .populate("collectedBy", "name");
+      .populate("collectedBy", "name")
+      .populate("auditedBy", "name")
+      .populate("replacedByPaymentId", "receiptNumber")
+      .populate("replacesPaymentId", "receiptNumber");
 
     if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
     res.json({ success: true, data: payment });
@@ -502,10 +701,10 @@ export const getPayments = async (req: AuthRequest, res: Response) => {
     const search = (req.query.search as string) || "";
     const sessionId = req.query.sessionId as string;
 
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { ...activePaymentMatch };
     if (sessionId) filter.sessionId = sessionId;
     if (search) {
-      filter.$or = [{ receiptNumber: { $regex: search, $options: "i" } }];
+      filter.receiptNumber = { $regex: search, $options: "i" };
     }
 
     const total = await FeePayment.countDocuments(filter);

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Percent, CalendarRange, Receipt, Bus, History, Pencil } from "lucide-react";
+import { Loader2, Percent, CalendarRange, Receipt, Bus, History, Pencil, Printer, Save } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -13,11 +13,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { feePaymentsApi, sessionsApi, studentsApi, transportRoutesApi } from "@/lib/api";
+import { feePaymentsApi, sessionsApi, studentsApi, settingsApi, transportRoutesApi } from "@/lib/api";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
-import { FeeCalculation } from "@/types";
+import { FeeCalculation, SchoolBranding } from "@/types";
 import { TRANSPORT_MONTHS_BY_QUARTER } from "@/lib/fee-schedule";
+import { FeeQuoteSlip } from "@/components/fee-collection/fee-quote-slip";
+import { parseSchoolBranding, emptySchoolBranding } from "@/lib/school-branding";
+import { useAuth } from "@/lib/auth-context";
 
 interface Session {
   _id: string;
@@ -114,6 +117,7 @@ function CollectFeePageContent() {
   const searchParams = useSearchParams();
   const studentId = params?.studentId ?? "";
   const router = useRouter();
+  const { isSuperAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [savingTransport, setSavingTransport] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -137,6 +141,9 @@ function CollectFeePageContent() {
   const [sessionArrears, setSessionArrears] = useState<SessionArrear[]>([]);
   const [prevSessionName, setPrevSessionName] = useState("");
   const [prevAmount, setPrevAmount] = useState("");
+  const [branding, setBranding] = useState<SchoolBranding>(emptySchoolBranding);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  const [correctingId, setCorrectingId] = useState<string | null>(null);
 
   const prevCalcRef = useRef<FeeCalculation | null>(null);
   const prevStudentRef = useRef<Record<string, unknown> | null>(null);
@@ -195,10 +202,14 @@ function CollectFeePageContent() {
   }, [studentId, sessionId, includeAdmission]);
 
   useEffect(() => {
-    Promise.all([sessionsApi.getAll(), transportRoutesApi.getAll()]).then(([sessionsRes, routesRes]) => {
-      setSessions((sessionsRes as { data: Session[] }).data || []);
-      setRoutes((routesRes as { data: TransportRoute[] }).data || []);
-    });
+    Promise.all([sessionsApi.getAll(), transportRoutesApi.getAll(), settingsApi.getBranding().catch(() => null)]).then(
+      ([sessionsRes, routesRes, brandingRes]) => {
+        setSessions((sessionsRes as { data: Session[] }).data || []);
+        setRoutes((routesRes as { data: TransportRoute[] }).data || []);
+        const data = (brandingRes as { data?: Partial<SchoolBranding> } | null)?.data;
+        if (data) setBranding(parseSchoolBranding(data));
+      }
+    );
   }, []);
 
   useEffect(() => {
@@ -242,7 +253,8 @@ function CollectFeePageContent() {
       toast({ title: "Error", description: "Payment saved but receipt could not open", variant: "destructive" });
       return false;
     }
-    window.location.href = `/receipt/${paymentId}?print=1`;
+    toast({ title: "Payment saved", description: "Official receipt opened — print from receipt page if needed" });
+    window.location.href = `/receipt/${paymentId}`;
     return true;
   };
 
@@ -331,6 +343,91 @@ function CollectFeePageContent() {
     setPrevAmount(arrear.pendingAmount > 0 ? String(arrear.pendingAmount) : "");
   };
 
+  const handleRefundPayment = async (paymentId: string) => {
+    const reason = window.prompt("Refund reason (required for audit):");
+    if (!reason || !reason.trim()) {
+      toast({ title: "Reason required", description: "Enter a refund reason", variant: "destructive" });
+      return;
+    }
+    setRefundingId(paymentId);
+    try {
+      await feePaymentsApi.refund(paymentId, reason.trim());
+      toast({ title: "Refunded", description: "Payment refunded. Student balance updated." });
+      await loadSummary({ soft: true });
+    } catch (error) {
+      toast({
+        title: "Refund failed",
+        description: error instanceof Error ? error.message : "Could not refund payment",
+        variant: "destructive",
+      });
+    } finally {
+      setRefundingId(null);
+    }
+  };
+
+  const handleCorrectPayment = async (payment: Record<string, unknown>) => {
+    const paymentId = payment._id as string;
+    const reason = window.prompt("Correction reason (required for audit):");
+    if (!reason || !reason.trim()) {
+      toast({ title: "Reason required", description: "Enter a correction reason", variant: "destructive" });
+      return;
+    }
+    const amountRaw = window.prompt(
+      "Correct payment amount:",
+      String(payment.currentPayment || "")
+    );
+    const paymentAmount = Number(amountRaw);
+    if (!paymentAmount || paymentAmount <= 0) {
+      toast({ title: "Invalid amount", description: "Enter a valid corrected amount", variant: "destructive" });
+      return;
+    }
+    const modeRaw = window.prompt(
+      "Payment mode (cash / upi / card / cheque / bank_transfer):",
+      String(payment.paymentMode || "cash")
+    );
+    const paymentMode = String(modeRaw || "cash").trim().toLowerCase();
+    if (!["cash", "upi", "card", "cheque", "bank_transfer"].includes(paymentMode)) {
+      toast({ title: "Invalid mode", description: "Use a valid payment mode", variant: "destructive" });
+      return;
+    }
+    const quarterRaw = window.prompt(
+      "Quarter (1-4, leave blank for auto):",
+      payment.quarter ? String(payment.quarter) : ""
+    );
+    const quarter = quarterRaw && quarterRaw.trim() ? Number(quarterRaw) : undefined;
+
+    setCorrectingId(paymentId);
+    try {
+      const res = (await feePaymentsApi.correct(paymentId, {
+        reason: reason.trim(),
+        paymentAmount,
+        paymentMode,
+        quarter,
+        includeAdmission,
+        feeDiscount: Number(studentDiscount) || 0,
+        remarks: `Correction of ${payment.receiptNumber}`,
+      })) as { data: { _id?: string; id?: string; receiptNumber?: string } };
+      toast({
+        title: "Payment corrected",
+        description: `New receipt ${res.data.receiptNumber || ""} created`,
+      });
+      const newId = String(res.data._id || res.data.id || "");
+      if (newId) {
+        window.location.href = `/receipt/${newId}`;
+        return;
+      }
+      await loadSummary({ soft: true });
+    } catch (error) {
+      toast({
+        title: "Correction failed",
+        description: error instanceof Error ? error.message : "Could not correct payment",
+        variant: "destructive",
+      });
+    } finally {
+      setCorrectingId(null);
+    }
+  };
+
   const previewNetDue = () => {
     if (!calculation) return 0;
     const gross = calculation.grossTotal;
@@ -359,6 +456,14 @@ function CollectFeePageContent() {
     : [];
   const isInitialLoad = loading && !displayStudent;
   const selectedRoute = routes.find((r) => r._id === transportRouteId);
+
+  const handlePrintQuote = () => {
+    if (!displayCalc || !displayStudent) {
+      toast({ title: "No fee data", description: "Load student fee details before printing quote", variant: "destructive" });
+      return;
+    }
+    window.print();
+  };
 
   if (isInitialLoad) {
     return (
@@ -679,9 +784,9 @@ function CollectFeePageContent() {
                     {isSubmittingPrevious ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
-                      <Receipt className="h-4 w-4 mr-2" />
+                      <Save className="h-4 w-4 mr-2" />
                     )}
-                    Submit &amp; Print Slip
+                    Save Previous Dues Payment
                   </Button>
 
                   {sessionsWithBalance.length > 0 && (
@@ -850,10 +955,29 @@ function CollectFeePageContent() {
               <FormField label="Remarks">
                 <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional remarks" />
               </FormField>
-              <Button className="w-full" onClick={handleCollect} disabled={submitting || !maxPayable || savingTransport}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Submit Payment
-              </Button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handlePrintQuote}
+                  disabled={!displayCalc || savingTransport}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Fee Quote
+                </Button>
+                <Button
+                  className="w-full"
+                  onClick={handleCollect}
+                  disabled={submitting || !maxPayable || savingTransport}
+                >
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Payment
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Print Fee Quote never saves. Only Save Payment updates dashboard, reports, and receipts.
+              </p>
             </CardContent>
           </Card>
 
@@ -867,7 +991,7 @@ function CollectFeePageContent() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-xs text-muted-foreground mb-3">
-                  All past payments — tap Print Slip to reprint or share with parent.
+                  All past payments — tap Print Slip to reprint. Super Admin can refund wrong payments.
                 </p>
                 {payments.map((p) => {
                   const customLabel = p.customSessionName as string | undefined;
@@ -875,6 +999,8 @@ function CollectFeePageContent() {
                   const sessionLabel =
                     customLabel ||
                     (typeof slipSession === "object" && slipSession?.name ? slipSession.name : null);
+                  const recordStatus = (p.recordStatus as string) || "active";
+                  const isActive = recordStatus === "active";
                   return (
                     <div
                       key={p._id as string}
@@ -888,12 +1014,27 @@ function CollectFeePageContent() {
                           {p.quarter ? ` · Q${p.quarter}` : ""}
                           {" · "}{(p.paymentMode as string).replace("_", " ")}
                         </p>
+                        {!isActive && (
+                          <p className="text-[11px] text-destructive mt-0.5">
+                            {recordStatus}
+                            {p.auditReason ? ` — ${String(p.auditReason)}` : ""}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="text-right">
                           <p className="font-bold tabular-nums">{formatCurrency(p.currentPayment as number)}</p>
-                          <Badge variant={p.paymentStatus === "paid" ? "success" : "warning"} className="text-xs">
-                            {p.paymentStatus as string}
+                          <Badge
+                            variant={
+                              !isActive
+                                ? "destructive"
+                                : p.paymentStatus === "paid"
+                                  ? "success"
+                                  : "warning"
+                            }
+                            className="text-xs capitalize"
+                          >
+                            {!isActive ? recordStatus : (p.paymentStatus as string)}
                           </Badge>
                         </div>
                         <Button
@@ -905,6 +1046,36 @@ function CollectFeePageContent() {
                           <Receipt className="h-3.5 w-3.5 mr-1" />
                           Print Slip
                         </Button>
+                        {isSuperAdmin && isActive && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs"
+                              disabled={Boolean(correctingId) || Boolean(refundingId)}
+                              onClick={() => handleCorrectPayment(p)}
+                            >
+                              {correctingId === (p._id as string) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "Correct"
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs text-destructive"
+                              disabled={refundingId === (p._id as string) || Boolean(correctingId)}
+                              onClick={() => handleRefundPayment(p._id as string)}
+                            >
+                              {refundingId === (p._id as string) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "Refund"
+                              )}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -914,6 +1085,34 @@ function CollectFeePageContent() {
           )}
         </div>
       </div>
+
+      {displayCalc && displayStudent && (
+        <div className="hidden print:block">
+          <FeeQuoteSlip
+            student={displayStudent}
+            sessionName={session?.name}
+            calculation={displayCalc}
+            schedule={displaySchedule}
+            studentDiscount={Number(studentDiscount) || 0}
+            includeAdmission={includeAdmission}
+            branding={branding}
+            selectedQuarter={selectedQuarter}
+          />
+        </div>
+      )}
+
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          .fee-quote-slip, .fee-quote-slip * { visibility: visible !important; }
+          .fee-quote-slip {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }
