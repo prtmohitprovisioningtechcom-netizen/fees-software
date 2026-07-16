@@ -617,7 +617,7 @@ async function fetchCollectionReportData(
 
   const filter: Record<string, unknown> = {
     sessionId: session._id,
-    $or: [{ recordStatus: "active" }, { recordStatus: { $exists: false } }, { recordStatus: null }],
+    ...activePaymentMatch,
   };
 
   let collectedByName = "All Admins";

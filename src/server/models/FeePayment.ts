@@ -113,6 +113,26 @@ feePaymentSchema.index({ sessionId: 1, quarter: 1 });
 feePaymentSchema.index({ studentId: 1, sessionId: 1, paymentDate: -1 });
 feePaymentSchema.index({ recordStatus: 1, sessionId: 1, paymentDate: -1 });
 
-const FeePayment: Model<IFeePayment> =
-  mongoose.models.FeePayment || mongoose.model<IFeePayment>("FeePayment", feePaymentSchema);
+const FeePayment: Model<IFeePayment> = (() => {
+  const existing = mongoose.models.FeePayment as Model<IFeePayment> | undefined;
+  if (existing) {
+    // Hot-reload: ensure lifecycle fields exist on already-compiled model
+    if (!existing.schema.path("recordStatus")) {
+      existing.schema.add({
+        recordStatus: {
+          type: String,
+          enum: ["active", "refunded", "reversed", "corrected"],
+          default: "active",
+        },
+        auditReason: { type: String, trim: true },
+        auditedBy: { type: Schema.Types.ObjectId, ref: "User" },
+        auditedAt: { type: Date },
+        replacesPaymentId: { type: Schema.Types.ObjectId, ref: "FeePayment" },
+        replacedByPaymentId: { type: Schema.Types.ObjectId, ref: "FeePayment" },
+      });
+    }
+    return existing;
+  }
+  return mongoose.model<IFeePayment>("FeePayment", feePaymentSchema);
+})();
 export default FeePayment;

@@ -36,15 +36,14 @@ export const regularPaymentMatch = {
   isStandalonePreviousDues: { $ne: true },
 };
 
-/** Active (non-refunded/reversed) payments — legacy rows without recordStatus count as active. */
+/** Active payments count toward balances. Missing recordStatus = legacy active. */
 export const activePaymentMatch = {
-  $or: [{ recordStatus: "active" }, { recordStatus: { $exists: false } }, { recordStatus: null }],
+  recordStatus: { $nin: ["refunded", "reversed", "corrected"] },
 };
 
 /** Regular session payments that still count toward balances and collections. */
 export const activeRegularPaymentMatch = {
-  ...regularPaymentMatch,
-  ...activePaymentMatch,
+  $and: [regularPaymentMatch, activePaymentMatch],
 };
 
 let cachedPolicy: { policy: FeePolicy; at: number } | null = null;

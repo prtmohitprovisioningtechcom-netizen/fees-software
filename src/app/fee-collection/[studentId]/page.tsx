@@ -353,6 +353,7 @@ function CollectFeePageContent() {
     try {
       await feePaymentsApi.refund(paymentId, reason.trim());
       toast({ title: "Refunded", description: "Payment refunded. Student balance updated." });
+      autoQuarterRef.current = "";
       await loadSummary({ soft: true });
     } catch (error) {
       toast({
@@ -462,6 +463,14 @@ function CollectFeePageContent() {
       toast({ title: "No fee data", description: "Load student fee details before printing quote", variant: "destructive" });
       return;
     }
+    if (!selectedQuarter) {
+      toast({
+        title: "Quarter select karein",
+        description: "Pehle Quarter 1 / 2 / 3 / 4 click karein, phir Print Fee Quote",
+        variant: "destructive",
+      });
+      return;
+    }
     window.print();
   };
 
@@ -514,6 +523,22 @@ function CollectFeePageContent() {
     setSelectedQuarter(quarter);
     setPaymentAmount(String(Math.min(quarterPending, totalDue)));
   };
+
+  const selectedQuarterRow = selectedQuarter
+    ? displaySchedule.find((q) => q.quarter === selectedQuarter)
+    : undefined;
+  const enteredPaymentAmount = Number(paymentAmount) || 0;
+  const selectedQuarterPending = selectedQuarterRow?.pending || 0;
+  const spillToNextQuarter =
+    selectedQuarter &&
+    selectedQuarterPending > 0 &&
+    enteredPaymentAmount > selectedQuarterPending
+      ? enteredPaymentAmount - selectedQuarterPending
+      : 0;
+  const nextPendingQuarter =
+    spillToNextQuarter > 0
+      ? displaySchedule.find((q) => q.quarter !== selectedQuarter && q.pending > 0)
+      : undefined;
 
   const currentCollectSessionId = session?._id || sessionId;
   const matchedPrevSession = matchSessionByName(prevSessionName, sessions, currentCollectSessionId);
@@ -935,12 +960,25 @@ function CollectFeePageContent() {
                   min={1}
                   max={maxPayable}
                   value={paymentAmount}
-                  onChange={(e) => { setPaymentAmount(e.target.value); setSelectedQuarter(null); }}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder={selectedQuarter ? `Quarter ${selectedQuarter} due` : `Max: ${formatCurrency(maxPayable)}`}
                 />
               </FormField>
               {selectedQuarter && (
-                <p className="text-xs text-primary -mt-2">Collecting for Quarter {selectedQuarter}</p>
+                <p className="text-xs text-primary -mt-2">
+                  Collecting for Quarter {selectedQuarter}
+                  {selectedQuarterPending > 0
+                    ? ` · Pending ${formatCurrency(selectedQuarterPending)}`
+                    : ""}
+                </p>
+              )}
+              {spillToNextQuarter > 0 && (
+                <p className="text-xs text-amber-700 dark:text-amber-400 -mt-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 dark:border-amber-900 dark:bg-amber-950/30">
+                  Extra {formatCurrency(spillToNextQuarter)} is more than this quarter.
+                  {nextPendingQuarter
+                    ? ` Yeh amount next pending Quarter ${nextPendingQuarter.quarter} mein adjust hoga.`
+                    : " Yeh amount next pending quarter mein adjust hoga."}
+                </p>
               )}
               <FormField label="Payment Mode" required>
                 <Select value={paymentMode} onValueChange={setPaymentMode}>
@@ -961,7 +999,7 @@ function CollectFeePageContent() {
                   variant="outline"
                   className="w-full"
                   onClick={handlePrintQuote}
-                  disabled={!displayCalc || savingTransport}
+                  disabled={!displayCalc || !selectedQuarter || savingTransport}
                 >
                   <Printer className="h-4 w-4 mr-2" />
                   Print Fee Quote
@@ -1004,10 +1042,16 @@ function CollectFeePageContent() {
                   return (
                     <div
                       key={p._id as string}
-                      className="flex justify-between items-center gap-2 p-3 rounded-lg border bg-muted/50 text-sm hover:bg-muted transition-colors"
+                      className={`flex justify-between items-center gap-2 p-3 rounded-lg border text-sm transition-colors ${
+                        isActive
+                          ? "bg-muted/50 hover:bg-muted"
+                          : "bg-destructive/5 border-destructive/30 opacity-80"
+                      }`}
                     >
                       <div className="min-w-0">
-                        <p className="font-medium font-mono truncate">{p.receiptNumber as string}</p>
+                        <p className={`font-medium font-mono truncate ${!isActive ? "line-through text-muted-foreground" : ""}`}>
+                          {p.receiptNumber as string}
+                        </p>
                         <p className="text-muted-foreground text-xs">
                           {formatDate(p.paymentDate as string)}
                           {sessionLabel ? ` · ${sessionLabel}` : ""}
@@ -1015,15 +1059,22 @@ function CollectFeePageContent() {
                           {" · "}{(p.paymentMode as string).replace("_", " ")}
                         </p>
                         {!isActive && (
-                          <p className="text-[11px] text-destructive mt-0.5">
-                            {recordStatus}
-                            {p.auditReason ? ` — ${String(p.auditReason)}` : ""}
+                          <p className="text-[11px] text-destructive mt-0.5 font-medium capitalize">
+                            {recordStatus === "refunded"
+                              ? "Refunded"
+                              : recordStatus === "corrected"
+                                ? "Corrected"
+                                : recordStatus === "reversed"
+                                  ? "Reversed"
+                                  : recordStatus}
                           </p>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="text-right">
-                          <p className="font-bold tabular-nums">{formatCurrency(p.currentPayment as number)}</p>
+                          <p className={`font-bold tabular-nums ${!isActive ? "line-through text-muted-foreground" : ""}`}>
+                            {formatCurrency(p.currentPayment as number)}
+                          </p>
                           <Badge
                             variant={
                               !isActive

@@ -3,6 +3,7 @@
 import { formatCurrency } from "@/lib/utils";
 import type { FeeCalculation, SchoolBranding } from "@/types";
 import { getReceiptSchoolName } from "@/lib/school-branding";
+import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
 
 type QuarterRow = NonNullable<FeeCalculation["quarterlySchedule"]>[number];
 
@@ -20,9 +21,7 @@ interface FeeQuoteSlipProps {
 export function FeeQuoteSlip({
   student,
   sessionName,
-  calculation,
   schedule,
-  studentDiscount,
   includeAdmission,
   branding,
   selectedQuarter,
@@ -30,36 +29,18 @@ export function FeeQuoteSlip({
   const schoolName = getReceiptSchoolName(branding);
   const cls = student.classId as { name?: string } | undefined;
   const sec = student.sectionId as { name?: string } | undefined;
-  const structureDiscount = calculation.feeBreakdown.structureDiscount || 0;
-  const totalDiscount = Math.min(
-    calculation.grossTotal,
-    structureDiscount + Math.max(0, studentDiscount)
-  );
-  const netTotal = Math.max(0, calculation.grossTotal - totalDiscount);
-  const paidBefore = Math.max(0, calculation.paidAmount - (calculation.currentPayment || 0));
-  const pending = Math.max(0, netTotal - paidBefore);
 
-  const breakdownRows: { label: string; amount: number }[] = [
-    { label: "Monthly Tuition (×12)", amount: calculation.feeBreakdown.monthlyFee || 0 },
-    { label: "Quarterly Tuition (×3)", amount: calculation.feeBreakdown.quarterlyTuition || 0 },
-  ];
-  if (includeAdmission && (calculation.feeBreakdown.admissionFee || 0) > 0) {
-    breakdownRows.push({ label: "Admission Pack (Q1)", amount: calculation.feeBreakdown.admissionFee });
-  }
-  breakdownRows.push(
-    { label: "Exam Fee", amount: calculation.feeBreakdown.examFee || 0 },
-    { label: "ID Card / Diary / Syllabus", amount: calculation.feeBreakdown.computerFee || 0 },
-    { label: "Annual / Development", amount: calculation.feeBreakdown.annualFee || 0 },
-    { label: "Tour / Other", amount: calculation.feeBreakdown.otherFee || 0 }
-  );
-  if ((calculation.feeBreakdown.transportFee || 0) > 0) {
-    breakdownRows.push({
-      label: calculation.feeBreakdown.transportRouteName
-        ? `Transport (11 months) — ${calculation.feeBreakdown.transportRouteName}`
-        : "Transport (11 months)",
-      amount: calculation.feeBreakdown.transportFee,
-    });
-  }
+  const quartersToShow =
+    selectedQuarter != null
+      ? schedule.filter((q) => q.quarter === selectedQuarter)
+      : schedule;
+
+  const focusQuarter = quartersToShow[0];
+  const label =
+    focusQuarter?.label ||
+    (selectedQuarter
+      ? QUARTER_LABELS[selectedQuarter as QuarterNumber] || `Quarter ${selectedQuarter}`
+      : "All Quarters");
 
   return (
     <div className="fee-quote-slip mx-auto w-full max-w-[148mm] bg-white text-black p-4 text-[11px] leading-snug border border-neutral-300 print:border-0">
@@ -77,7 +58,9 @@ export function FeeQuoteSlip({
         )}
         <p className="mt-1 text-[9px] text-neutral-500">
           Session: <strong>{sessionName || "—"}</strong>
-          {selectedQuarter ? ` · Selected Q${selectedQuarter}` : ""}
+        </p>
+        <p className="mt-0.5 text-[11px] font-bold text-[#1e3a8a]">
+          {selectedQuarter ? label : "Select a quarter to print quote"}
         </p>
       </div>
 
@@ -89,78 +72,63 @@ export function FeeQuoteSlip({
         <p><span className="text-neutral-500">Mobile:</span> <strong>{String(student.mobileNumber || "")}</strong></p>
         <p>
           <span className="text-neutral-500">Admission pack:</span>{" "}
-          <strong>{includeAdmission ? "Included" : "Not included"}</strong>
+          <strong>{includeAdmission ? "Included in Q1" : "Not included"}</strong>
         </p>
       </div>
 
-      <table className="w-full mb-3 border-collapse">
-        <thead>
-          <tr className="border-b border-neutral-300 text-left">
-            <th className="py-1 font-semibold">Annual Particular</th>
-            <th className="py-1 font-semibold text-right">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {breakdownRows
-            .filter((row) => row.amount > 0 || row.label.includes("Tuition"))
-            .map((row) => (
-              <tr key={row.label} className="border-b border-neutral-100">
-                <td className="py-1">{row.label}</td>
-                <td className="py-1 text-right tabular-nums">{formatCurrency(row.amount)}</td>
-              </tr>
-            ))}
-          <tr>
-            <td className="py-1 font-semibold">Gross Total</td>
-            <td className="py-1 text-right font-semibold tabular-nums">{formatCurrency(calculation.grossTotal)}</td>
-          </tr>
-          {totalDiscount > 0 && (
-            <tr>
-              <td className="py-1 text-emerald-700">Total Discount</td>
-              <td className="py-1 text-right text-emerald-700 tabular-nums">− {formatCurrency(totalDiscount)}</td>
-            </tr>
-          )}
-          <tr>
-            <td className="py-1 font-bold">Net Total Fee</td>
-            <td className="py-1 text-right font-bold tabular-nums">{formatCurrency(netTotal)}</td>
-          </tr>
-          <tr>
-            <td className="py-1">Already Paid</td>
-            <td className="py-1 text-right tabular-nums">{formatCurrency(paidBefore)}</td>
-          </tr>
-          <tr>
-            <td className="py-1 font-bold text-amber-800">Pending / Due</td>
-            <td className="py-1 text-right font-bold text-amber-800 tabular-nums">{formatCurrency(pending)}</td>
-          </tr>
-        </tbody>
-      </table>
+      {!focusQuarter ? (
+        <p className="text-center text-amber-800 py-6">
+          Pehle Quarter 1 / 2 / 3 / 4 select karein, phir Print Fee Quote use karein.
+        </p>
+      ) : (
+        <>
+          <div className="mb-3 rounded border border-neutral-300 px-3 py-2">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="font-bold text-[12px]">{label}</p>
+              <span className="text-[10px] tracking-wide font-bold capitalize">{focusQuarter.status}</span>
+            </div>
 
-      <p className="font-semibold mb-1">Quarterly Schedule</p>
-      <table className="w-full mb-3 border-collapse">
-        <thead>
-          <tr className="border-b border-neutral-300 text-left">
-            <th className="py-1">Quarter</th>
-            <th className="py-1 text-right">Due</th>
-            <th className="py-1 text-right">Paid</th>
-            <th className="py-1 text-right">Pending</th>
-            <th className="py-1 text-right">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {schedule.map((q) => (
-            <tr key={q.quarter} className="border-b border-neutral-100">
-              <td className="py-1">Q{q.quarter}{selectedQuarter === q.quarter ? " *" : ""}</td>
-              <td className="py-1 text-right tabular-nums">{formatCurrency(q.totalDue)}</td>
-              <td className="py-1 text-right tabular-nums">{formatCurrency(q.paid)}</td>
-              <td className="py-1 text-right tabular-nums">{formatCurrency(q.pending)}</td>
-              <td className="py-1 text-right capitalize">{q.status}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            {(focusQuarter.componentsDue || []).filter((c) => c.amount > 0).length > 0 && (
+              <div className="mb-2 space-y-0.5 text-[10px] text-neutral-600 border-b border-neutral-200 pb-2">
+                {(focusQuarter.componentsDue || [])
+                  .filter((c) => c.amount > 0)
+                  .map((c) => (
+                    <div key={c.key} className="flex justify-between gap-2">
+                      <span>{c.label}</span>
+                      <span className="tabular-nums">{formatCurrency(c.amount)}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
 
-      <p className="text-[9px] text-center text-neutral-500 border-t border-dashed border-neutral-400 pt-2">
-        This is a fee quotation only. No payment has been recorded. Use <strong>Save Payment</strong> to collect fee and generate an official receipt.
-      </p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded bg-neutral-50 px-2 py-2">
+                <p className="text-[9px] text-neutral-500 uppercase tracking-wide">Due</p>
+                <p className="mt-0.5 text-[13px] font-bold tabular-nums">
+                  {formatCurrency(focusQuarter.totalDue)}
+                </p>
+              </div>
+              <div className="rounded bg-emerald-50 px-2 py-2">
+                <p className="text-[9px] text-emerald-700 uppercase tracking-wide">Jama / Paid</p>
+                <p className="mt-0.5 text-[13px] font-bold tabular-nums text-emerald-700">
+                  {formatCurrency(focusQuarter.paid)}
+                </p>
+              </div>
+              <div className="rounded bg-amber-50 px-2 py-2">
+                <p className="text-[9px] text-amber-800 uppercase tracking-wide">Pending</p>
+                <p className="mt-0.5 text-[13px] font-bold tabular-nums text-amber-800">
+                  {formatCurrency(focusQuarter.pending)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[9px] text-center text-neutral-500 border-t border-dashed border-neutral-400 pt-2">
+            Sirf selected quarter ka quote — payment save nahi hua. Official receipt ke liye{" "}
+            <strong>Save Payment</strong> use karein.
+          </p>
+        </>
+      )}
     </div>
   );
 }

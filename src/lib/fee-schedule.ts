@@ -180,27 +180,50 @@ export const getPaidByQuarter = (
   return map;
 };
 
-/** Apply tagged + untagged payments to quarters (FIFO: Q1 → Q4) */
+/** Apply tagged + untagged payments to quarters.
+ * Tagged amount fills its quarter first; any excess spills FIFO Q1→Q4.
+ * Example: Q4 due ₹4450, pay ₹4000 then ₹500 → Q4 gets ₹4450, extra ₹50 goes to next pending quarter.
+ */
 export const allocatePaymentsToSchedule = (
   schedule: QuarterScheduleItem[],
   payments: { quarter?: number | null; currentPayment: number }[]
 ): QuarterScheduleItem[] => {
-  const paidByQuarter = getPaidByQuarter(payments);
-  const unallocated = payments
-    .filter((p) => !p.quarter || p.quarter < 1 || p.quarter > 4)
-    .reduce((sum, p) => sum + p.currentPayment, 0);
-
   const result = schedule.map((q) => ({
     ...q,
-    paid: paidByQuarter[q.quarter] || 0,
+    paid: 0,
   }));
 
-  let remaining = unallocated;
+  let overflow = 0;
+
+  for (const payment of payments) {
+    const amount = Math.max(0, payment.currentPayment || 0);
+    if (!amount) continue;
+
+    const quarter =
+      payment.quarter && payment.quarter >= 1 && payment.quarter <= 4
+        ? (payment.quarter as QuarterNumber)
+        : null;
+
+    if (quarter) {
+      const target = result.find((q) => q.quarter === quarter);
+      if (target) {
+        const gap = Math.max(0, target.totalDue - target.paid);
+        const apply = Math.min(amount, gap);
+        target.paid += apply;
+        overflow += amount - apply;
+        continue;
+      }
+    }
+
+    overflow += amount;
+  }
+
   for (const q of result) {
+    if (overflow <= 0) break;
     const gap = Math.max(0, q.totalDue - q.paid);
-    const apply = Math.min(remaining, gap);
+    const apply = Math.min(overflow, gap);
     q.paid += apply;
-    remaining -= apply;
+    overflow -= apply;
   }
 
   return result.map(recalcQuarterStatus);

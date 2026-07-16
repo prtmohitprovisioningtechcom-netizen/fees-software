@@ -426,12 +426,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
           message: `Quarter ${resolvedQuarter} fee is already fully paid`,
         });
       }
-      if (amount > selectedSchedule.pending) {
-        return res.status(400).json({
-          success: false,
-          message: `Payment amount cannot exceed Quarter ${resolvedQuarter} due of ₹${selectedSchedule.pending}`,
-        });
-      }
+      // Amount may exceed this quarter's pending — excess auto-applies to next pending quarter(s).
     }
 
     if (!resolvedQuarter) {
@@ -491,20 +486,30 @@ export const refundPayment = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: "Refund reason is required" });
     }
 
-    const payment = await FeePayment.findById(req.params.id);
-    if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
-    if (!isActivePaymentRecord(payment)) {
+    const payment = await FeePayment.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        ...activePaymentMatch,
+      },
+      {
+        $set: {
+          recordStatus: "refunded",
+          auditReason: reason,
+          auditedBy: new Types.ObjectId(req.user!.id),
+          auditedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!payment) {
+      const existing = await FeePayment.findById(req.params.id).select("recordStatus");
+      if (!existing) return res.status(404).json({ success: false, message: "Payment not found" });
       return res.status(400).json({
         success: false,
-        message: `Payment is already ${payment.recordStatus}`,
+        message: `Payment is already ${existing.recordStatus || "inactive"}`,
       });
     }
-
-    payment.recordStatus = "refunded";
-    payment.auditReason = reason;
-    payment.auditedBy = new Types.ObjectId(req.user!.id);
-    payment.auditedAt = new Date();
-    await payment.save();
 
     res.json({
       success: true,
@@ -514,6 +519,7 @@ export const refundPayment = async (req: AuthRequest, res: Response) => {
         receiptNumber: payment.receiptNumber,
         recordStatus: payment.recordStatus,
         auditReason: payment.auditReason,
+        currentPayment: payment.currentPayment,
       },
     });
   } catch (error) {
@@ -609,11 +615,7 @@ export const correctPayment = async (req: AuthRequest, res: Response) => {
         if (!selectedSchedule || selectedSchedule.status === "paid" || selectedSchedule.pending <= 0) {
           throw new Error(`Quarter ${resolvedQuarter} fee is already fully paid`);
         }
-        if (paymentAmount > selectedSchedule.pending) {
-          throw new Error(
-            `Payment amount cannot exceed Quarter ${resolvedQuarter} due of ₹${selectedSchedule.pending}`
-          );
-        }
+        // Amount may exceed this quarter's pending — excess auto-applies to next pending quarter(s).
       }
       if (!resolvedQuarter) {
         const oldestPending = (calculation.quarterlySchedule || []).find((q) => q.pending > 0);
