@@ -304,7 +304,6 @@ const ensureSection = async (value: string, classId: string) => {
 
 export const createStudent = async (req: AuthRequest, res: Response) => {
   try {
-    const registrationNumber = await generateRegistrationNumber();
     const photo = getMongoPhoto(req.file);
     const parsed = parseStudentBody(req.body);
     const today = new Date();
@@ -314,40 +313,68 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
     const studentPen = String(parsed.studentPen || "").trim();
     const studentStateCode = String(parsed.studentStateCode || "").trim();
     const aadharNumber = String(parsed.aadharNumber || "").trim();
-    const admissionNumber = String(parsed.admissionNumber || studentPen || studentStateCode || aadharNumber).trim();
-    const studentName = String(parsed.studentName || parsed.name || "").trim();
+    const studentName = String(parsed.studentName || parsed.name || "").trim() || "Student";
+    const admissionNumber = String(
+      parsed.admissionNumber || studentPen || studentStateCode || aadharNumber || `TMP-${Date.now()}`
+    ).trim();
 
-    if (!admissionNumber) {
-      return res.status(400).json({ success: false, message: "Admission Number, Student PEN, State Code or AADHAAR No. is required" });
+    let registrationNumber = String(parsed.registrationNumber || "").trim();
+    if (registrationNumber) {
+      const regExists = await Student.findOne({ registrationNumber });
+      if (regExists) {
+        return res.status(400).json({ success: false, message: "Registration number already exists" });
+      }
+    } else {
+      registrationNumber = await generateRegistrationNumber();
     }
-    if (!studentName || !className || !sectionName) {
-      return res.status(400).json({ success: false, message: "Class, Section and Name are required" });
+
+    if (admissionNumber) {
+      const existing = await Student.findOne({ admissionNumber });
+      if (existing) {
+        return res.status(400).json({ success: false, message: "Student already exists with this Admission/PEN number" });
+      }
     }
 
-    const existing = await Student.findOne({ admissionNumber });
-    if (existing) return res.status(400).json({ success: false, message: "Student already exists with this PEN/Admission number" });
+    let classId = parsed.classId;
+    let sectionId = parsed.sectionId;
+    if (!classId && className) {
+      const cls = await ensureClass(className);
+      classId = cls?._id;
+      if (sectionName) {
+        const section = await ensureSection(sectionName, String(classId));
+        sectionId = section?._id;
+      }
+    } else if (classId && sectionName && !sectionId) {
+      const section = await ensureSection(sectionName, String(classId));
+      sectionId = section?._id;
+    }
 
-    const cls = parsed.classId ? null : await ensureClass(className);
-    const section = parsed.sectionId ? null : await ensureSection(sectionName, String(cls?._id || parsed.classId));
-    const session = parsed.sessionId ? await findSession(String(parsed.sessionId)) : await getCurrentSession();
-    if (!session) return res.status(400).json({ success: false, message: "Academic Session not found. Create or mark one active/current session." });
+    const session = parsed.sessionId
+      ? await findSession(String(parsed.sessionId))
+      : await getCurrentSession();
+    if (!session) {
+      return res.status(400).json({
+        success: false,
+        message: "Academic Session not found. Create or mark one active/current session.",
+      });
+    }
 
-    await normalizeStudentTransport(parsed, { requireWhenMissing: true });
+    await normalizeStudentTransport(parsed, { requireWhenMissing: false });
 
     const student = await Student.create({
       ...parsed,
       registrationNumber,
       photo,
       admissionNumber,
-      rollNumber: String(parsed.rollNumber || studentStateCode || studentPen || admissionNumber),
+      rollNumber: String(parsed.rollNumber || studentStateCode || studentPen || admissionNumber || ""),
       studentName,
       fatherName: String(parsed.fatherName || "-"),
       motherName: String(parsed.motherName || "-"),
       mobileNumber: String(parsed.mobileNumber || "0000000000"),
       gender: normalizeGender(String(parsed.gender || "")) || "other",
       dateOfBirth: parseExcelDate(parsed.dateOfBirth) || today,
-      classId: parsed.classId || cls?._id,
-      sectionId: parsed.sectionId || section?._id,
+      classId: classId || undefined,
+      sectionId: sectionId || undefined,
       sessionId: parsed.sessionId || session._id,
       admissionDate: parseExcelDate(parsed.admissionDate) || today,
       address: parsed.address || {
@@ -551,15 +578,59 @@ export const importStudents = async (req: AuthRequest, res: Response) => {
 export const updateStudent = async (req: AuthRequest, res: Response) => {
   try {
     const updates = parseStudentBody(req.body);
-    delete updates.registrationNumber;
 
     if (req.file) {
       updates.photo = getMongoPhoto(req.file);
     }
 
+    const registrationNumber = String(updates.registrationNumber || "").trim();
+    if (registrationNumber) {
+      const clash = await Student.findOne({
+        registrationNumber,
+        _id: { $ne: req.params.id },
+      });
+      if (clash) {
+        return res.status(400).json({ success: false, message: "Registration number already exists" });
+      }
+      updates.registrationNumber = registrationNumber;
+    } else {
+      delete updates.registrationNumber;
+    }
+
+    if (updates.dateOfBirth !== undefined) {
+      const dob = parseExcelDate(updates.dateOfBirth);
+      if (dob) updates.dateOfBirth = dob;
+      else delete updates.dateOfBirth;
+    }
+    if (updates.admissionDate !== undefined) {
+      const adm = parseExcelDate(updates.admissionDate);
+      if (adm) updates.admissionDate = adm;
+      else delete updates.admissionDate;
+    }
+
+    if (updates.studentPen !== undefined) {
+      updates.studentPen = String(updates.studentPen || "").trim();
+    }
+    if (updates.category === undefined && updates.socialCategory !== undefined) {
+      updates.category = String(updates.socialCategory || "").trim();
+    }
+    delete updates.socialCategory;
+    delete updates.className;
+    delete updates.sectionName;
+
+    // Don't wipe ObjectId refs with empty strings
+    for (const key of ["classId", "sectionId", "sessionId"] as const) {
+      if (updates[key] === "" || updates[key] === null || updates[key] === undefined) {
+        delete updates[key];
+      }
+    }
+
     await normalizeStudentTransport(updates);
 
-    const student = await Student.findByIdAndUpdate(req.params.id, updates, { new: true })
+    const student = await Student.findByIdAndUpdate(req.params.id, updates, {
+      new: true,
+      runValidators: true,
+    })
       .populate("classId", "name")
       .populate("sectionId", "name")
       .populate("sessionId", "name")

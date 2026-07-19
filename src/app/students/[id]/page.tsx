@@ -80,6 +80,7 @@ export default function ViewStudentPage() {
             <CardHeader><CardTitle>Personal Details</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2 text-sm">
               <div><span className="text-muted-foreground">Admission No:</span> <strong>{student.admissionNumber as string}</strong></div>
+              <div><span className="text-muted-foreground">PEN Number:</span> <strong>{(student.studentPen as string) || "N/A"}</strong></div>
               <div><span className="text-muted-foreground">Roll No:</span> <strong>{student.rollNumber as string}</strong></div>
               <div><span className="text-muted-foreground">Father:</span> <strong>{student.fatherName as string}</strong></div>
               <div><span className="text-muted-foreground">Mother:</span> <strong>{student.motherName as string}</strong></div>
