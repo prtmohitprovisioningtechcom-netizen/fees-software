@@ -13,12 +13,30 @@ export function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+/**
+ * Display a date. For pure YYYY-MM-DD keep that calendar day.
+ * For ISO datetimes use the local calendar day (IST) — never the UTC day prefix.
+ */
 export function formatDate(date: string | Date) {
+  if (!date) return "—";
+  let d: Date;
+  if (typeof date === "string") {
+    const trimmed = date.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [y, m, day] = trimmed.split("-").map(Number);
+      d = new Date(y, m - 1, day);
+    } else {
+      d = new Date(trimmed);
+    }
+  } else {
+    d = date;
+  }
+  if (isNaN(d.getTime())) return "—";
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(date));
+  }).format(d);
 }
 
 export function getInitials(name: string) {

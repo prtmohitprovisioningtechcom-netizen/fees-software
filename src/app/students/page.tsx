@@ -25,11 +25,13 @@ import {
 import { studentsApi, classesApi, sectionsApi } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/auth-context";
+import { displayStudentField, refName } from "@/lib/student-display";
 
 interface Student {
   _id: string;
   registrationNumber: string;
   admissionNumber: string;
+  studentPen?: string;
   studentName: string;
   fatherName: string;
   mobileNumber: string;
@@ -172,8 +174,8 @@ export default function StudentsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Reg. No.</TableHead>
-                <TableHead>Student Name</TableHead>
-                <TableHead>Father Name</TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Father</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Section</TableHead>
                 <TableHead>Mobile</TableHead>
@@ -189,12 +191,21 @@ export default function StudentsPage() {
               ) : (
                 displayStudents.map((student) => (
                   <TableRow key={student._id} className={loading ? "opacity-60" : ""}>
-                    <TableCell className="font-medium">{student.registrationNumber}</TableCell>
-                    <TableCell>{student.studentName}</TableCell>
-                    <TableCell>{student.fatherName}</TableCell>
-                    <TableCell>{student.classId?.name}</TableCell>
-                    <TableCell>{student.sectionId?.name}</TableCell>
-                    <TableCell>{student.mobileNumber}</TableCell>
+                    <TableCell className="font-medium font-mono text-xs">
+                      {displayStudentField(student.registrationNumber)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{displayStudentField(student.studentName)}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Adm: {displayStudentField(student.admissionNumber)}
+                        {" · "}
+                        PEN: {displayStudentField(student.studentPen)}
+                      </div>
+                    </TableCell>
+                    <TableCell>{displayStudentField(student.fatherName)}</TableCell>
+                    <TableCell>{refName(student.classId)}</TableCell>
+                    <TableCell>{refName(student.sectionId)}</TableCell>
+                    <TableCell>{displayStudentField(student.mobileNumber)}</TableCell>
                     <TableCell>
                       <Badge variant={student.status === "active" ? "success" : "secondary"}>{student.status}</Badge>
                     </TableCell>

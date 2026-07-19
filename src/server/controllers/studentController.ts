@@ -6,6 +6,12 @@ import { AuthRequest } from "../middleware/auth";
 import { generateRegistrationNumber } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
 import { EXCEL_IMPORT_CLASS_DESC } from "../constants/classes";
+import { asScalar } from "@/lib/student-display";
+import {
+  parseCalendarDate,
+  toCalendarDateString,
+  todayCalendarDateString,
+} from "@/lib/calendar-date";
 
 export const getStudents = async (req: AuthRequest, res: Response) => {
   try {
@@ -23,6 +29,7 @@ export const getStudents = async (req: AuthRequest, res: Response) => {
         { studentName: { $regex: search, $options: "i" } },
         { registrationNumber: { $regex: search, $options: "i" } },
         { admissionNumber: { $regex: search, $options: "i" } },
+        { studentPen: { $regex: search, $options: "i" } },
         { fatherName: { $regex: search, $options: "i" } },
         { mobileNumber: { $regex: search, $options: "i" } },
       ];
@@ -42,7 +49,7 @@ export const getStudents = async (req: AuthRequest, res: Response) => {
 
     res.json({
       success: true,
-      data: students,
+      data: students.map((s) => withCalendarDates(s.toObject())),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -59,7 +66,7 @@ export const getStudent = async (req: AuthRequest, res: Response) => {
       .populate("createdBy", "name")
       .populate("transportRouteId", "name monthlyFee");
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
-    res.json({ success: true, data: student });
+    res.json({ success: true, data: withCalendarDates(student.toObject()) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch student", error: String(error) });
   }
@@ -148,7 +155,9 @@ const getCell = (row: ExcelRow, aliases: string[]) => {
   if (!entry) return "";
   const value = entry[1];
   if (value === null || value === undefined) return "";
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (value instanceof Date) {
+    return toCalendarDateString(value);
+  }
   if (typeof value === "number" && Number.isInteger(value)) return String(value);
   return String(value).trim();
 };
@@ -201,25 +210,28 @@ const parseWorksheetRows = (worksheet: XLSX.WorkSheet): ParsedExcelRow[] => {
     .filter(({ data }) => Object.values(data).some((value) => String(value || "").trim()));
 };
 
+/** Parse DOB / admission — UTC noon of the school calendar day. */
 const parseExcelDate = (value: unknown) => {
-  if (value instanceof Date && !isNaN(value.getTime())) return value;
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
-    if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d);
+    if (parsed) {
+      return parseCalendarDate(
+        `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`
+      );
+    }
   }
+  return parseCalendarDate(value);
+};
 
-  const text = String(value || "").trim();
-  if (!text) return null;
-
-  const slashDate = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (slashDate) {
-    const [, day, month, year] = slashDate;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return isNaN(date.getTime()) ? null : date;
+const withCalendarDates = (student: unknown) => {
+  const next = { ...(student as Record<string, unknown>) };
+  if ("dateOfBirth" in next) {
+    next.dateOfBirth = toCalendarDateString(next.dateOfBirth);
   }
-
-  const date = new Date(text);
-  return isNaN(date.getTime()) ? null : date;
+  if ("admissionDate" in next) {
+    next.admissionDate = toCalendarDateString(next.admissionDate);
+  }
+  return next;
 };
 
 const normalizeGender = (value: string) => {
@@ -306,7 +318,7 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
   try {
     const photo = getMongoPhoto(req.file);
     const parsed = parseStudentBody(req.body);
-    const today = new Date();
+    const today = parseCalendarDate(todayCalendarDateString()) || new Date();
 
     const className = String(parsed.className || parsed.class || "").trim();
     const sectionName = String(parsed.sectionName || parsed.section || "").trim();
@@ -368,9 +380,9 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
       admissionNumber,
       rollNumber: String(parsed.rollNumber || studentStateCode || studentPen || admissionNumber || ""),
       studentName,
-      fatherName: String(parsed.fatherName || "-"),
-      motherName: String(parsed.motherName || "-"),
-      mobileNumber: String(parsed.mobileNumber || "0000000000"),
+      fatherName: String(parsed.fatherName || ""),
+      motherName: String(parsed.motherName || ""),
+      mobileNumber: String(parsed.mobileNumber || ""),
       gender: normalizeGender(String(parsed.gender || "")) || "other",
       dateOfBirth: parseExcelDate(parsed.dateOfBirth) || today,
       classId: classId || undefined,
@@ -378,10 +390,10 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
       sessionId: parsed.sessionId || session._id,
       admissionDate: parseExcelDate(parsed.admissionDate) || today,
       address: parsed.address || {
-        line1: "Registered from SDMS form",
-        city: "N/A",
-        state: "N/A",
-        pincode: "000000",
+        line1: "",
+        city: "",
+        state: "",
+        pincode: "",
       },
       status: normalizeStatus(String(parsed.status || "active")),
       transportRequired: Boolean(parsed.transportRequired),
@@ -407,7 +419,11 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
     });
 
     await student.populate(["classId", "sectionId", "sessionId", { path: "transportRouteId", select: "name monthlyFee" }]);
-    res.status(201).json({ success: true, message: "Student registered successfully", data: student });
+    res.status(201).json({
+      success: true,
+      message: "Student registered successfully",
+      data: withCalendarDates(student.toObject()),
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to register student", error: String(error) });
   }
@@ -447,7 +463,7 @@ export const importStudents = async (req: AuthRequest, res: Response) => {
         const motherName = getCell(row, ["Mother Name", "motherName"]) || "-";
         const mobileNumber = getCell(row, ["Mobile Number", "Mobile", "Phone", "mobileNumber"]) || "0000000000";
         const gender = normalizeGender(getCell(row, ["Gender", "Sex"])) || "other";
-        const today = new Date();
+        const today = parseCalendarDate(todayCalendarDateString()) || new Date();
         const dateOfBirth = parseExcelDate(getCell(row, ["Date Of Birth", "DOB", "Birth Date", "dateOfBirth"])) || today;
         const admissionDate = parseExcelDate(getCell(row, ["Admission Date", "admissionDate"])) || today;
         const classRef = getCell(row, ["Class", "Class Name", "className", "classId"]);
@@ -577,13 +593,17 @@ export const importStudents = async (req: AuthRequest, res: Response) => {
 
 export const updateStudent = async (req: AuthRequest, res: Response) => {
   try {
-    const updates = parseStudentBody(req.body);
+    const body = parseStudentBody(req.body);
+
+    const pick = (key: string) => asScalar(body[key]);
+
+    const updates: Record<string, unknown> = {};
 
     if (req.file) {
       updates.photo = getMongoPhoto(req.file);
     }
 
-    const registrationNumber = String(updates.registrationNumber || "").trim();
+    const registrationNumber = pick("registrationNumber");
     if (registrationNumber) {
       const clash = await Student.findOne({
         registrationNumber,
@@ -593,39 +613,99 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ success: false, message: "Registration number already exists" });
       }
       updates.registrationNumber = registrationNumber;
-    } else {
-      delete updates.registrationNumber;
     }
 
-    if (updates.dateOfBirth !== undefined) {
-      const dob = parseExcelDate(updates.dateOfBirth);
-      if (dob) updates.dateOfBirth = dob;
-      else delete updates.dateOfBirth;
-    }
-    if (updates.admissionDate !== undefined) {
-      const adm = parseExcelDate(updates.admissionDate);
-      if (adm) updates.admissionDate = adm;
-      else delete updates.admissionDate;
-    }
+    const stringFields = [
+      "admissionNumber",
+      "rollNumber",
+      "studentName",
+      "studentPen",
+      "fatherName",
+      "motherName",
+      "mobileNumber",
+      "studentStateCode",
+      "aadharNumber",
+      "bloodGroup",
+      "previousSchool",
+      "religion",
+      "minorityGroup",
+      "typeOfImpairments",
+      "entryStatus",
+      "nameAsPerAadhaar",
+      "aadhaarValidationStatus",
+      "mbuStatus",
+      "apaarId",
+      "apaarStatus",
+      "initializedAtSdms",
+    ] as const;
 
-    if (updates.studentPen !== undefined) {
-      updates.studentPen = String(updates.studentPen || "").trim();
-    }
-    if (updates.category === undefined && updates.socialCategory !== undefined) {
-      updates.category = String(updates.socialCategory || "").trim();
-    }
-    delete updates.socialCategory;
-    delete updates.className;
-    delete updates.sectionName;
-
-    // Don't wipe ObjectId refs with empty strings
-    for (const key of ["classId", "sectionId", "sessionId"] as const) {
-      if (updates[key] === "" || updates[key] === null || updates[key] === undefined) {
-        delete updates[key];
+    for (const key of stringFields) {
+      if (body[key] !== undefined) {
+        updates[key] = pick(key);
       }
     }
 
-    await normalizeStudentTransport(updates);
+    if (body.category !== undefined || body.socialCategory !== undefined) {
+      updates.category = pick("category") || pick("socialCategory");
+    }
+
+    if (body.gender !== undefined) {
+      updates.gender = normalizeGender(pick("gender")) || "other";
+    }
+
+    if (body.status !== undefined) {
+      updates.status = normalizeStatus(pick("status") || "active");
+    }
+
+    if (body.dateOfBirth !== undefined) {
+      const dob = parseExcelDate(pick("dateOfBirth"));
+      if (dob) updates.dateOfBirth = dob;
+    }
+    if (body.admissionDate !== undefined) {
+      const adm = parseExcelDate(pick("admissionDate"));
+      if (adm) updates.admissionDate = adm;
+    }
+
+    for (const key of ["classId", "sectionId", "sessionId"] as const) {
+      const id = pick(key);
+      if (id && Types.ObjectId.isValid(id)) {
+        updates[key] = new Types.ObjectId(id);
+      }
+    }
+
+    if (body.address !== undefined) {
+      const addr =
+        typeof body.address === "object" && body.address
+          ? (body.address as Record<string, unknown>)
+          : {};
+      updates.address = {
+        line1: asScalar(addr.line1) || "-",
+        city: asScalar(addr.city) || "-",
+        state: asScalar(addr.state) || "-",
+        pincode: asScalar(addr.pincode) || "000000",
+      };
+    }
+
+    if (
+      body.transportRequired !== undefined ||
+      body.transportRouteId !== undefined ||
+      body.transportRoute !== undefined ||
+      body.transportRouteName !== undefined
+    ) {
+      const transportPatch: Record<string, unknown> = {
+        transportRequired: body.transportRequired,
+        transportRouteId: body.transportRouteId,
+        transportRoute: body.transportRoute,
+        transportRouteName: body.transportRouteName,
+      };
+      await normalizeStudentTransport(transportPatch);
+      if (transportPatch.transportRequired !== undefined) {
+        updates.transportRequired = transportPatch.transportRequired;
+      }
+      if (transportPatch.transportRouteId !== undefined) {
+        updates.transportRouteId = transportPatch.transportRouteId;
+      }
+    }
 
     const student = await Student.findByIdAndUpdate(req.params.id, updates, {
       new: true,
@@ -637,7 +717,11 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
       .populate("transportRouteId", "name monthlyFee");
 
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
-    res.json({ success: true, message: "Student updated successfully", data: student });
+    res.json({
+      success: true,
+      message: "Student updated successfully",
+      data: withCalendarDates(student.toObject()),
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to update student", error: String(error) });
   }

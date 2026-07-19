@@ -21,6 +21,7 @@ import { TRANSPORT_MONTHS_BY_QUARTER } from "@/lib/fee-schedule";
 import { FeeQuoteSlip } from "@/components/fee-collection/fee-quote-slip";
 import { parseSchoolBranding, emptySchoolBranding } from "@/lib/school-branding";
 import { useAuth } from "@/lib/auth-context";
+import { displayStudentField, refName } from "@/lib/student-display";
 
 interface Session {
   _id: string;
@@ -552,7 +553,7 @@ function CollectFeePageContent() {
     <DashboardLayout>
       <PageHeader
         title="Collect Fee"
-        description={`${displayStudent?.studentName as string} — ${displayStudent?.registrationNumber as string}`}
+        description={`${displayStudentField(displayStudent?.studentName)} — Reg ${displayStudentField(displayStudent?.registrationNumber)} · Adm ${displayStudentField(displayStudent?.admissionNumber)} · PEN ${displayStudentField(displayStudent?.studentPen)}`}
         breadcrumbs={[{ label: "Fee Collection", href: "/fee-collection" }, { label: "Collect" }]}
         action={
           <div className="flex items-center gap-2">
@@ -592,11 +593,13 @@ function CollectFeePageContent() {
           <Card>
             <CardHeader><CardTitle>Student Details</CardTitle></CardHeader>
             <CardContent className="grid gap-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Name</span><strong>{displayStudent?.studentName as string}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Class</span><strong>{cls?.name}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Section</span><strong>{sec?.name}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Father</span><strong>{displayStudent?.fatherName as string}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Mobile</span><strong>{displayStudent?.mobileNumber as string}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Name</span><strong className="text-right">{displayStudentField(displayStudent?.studentName)}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Reg. No</span><strong className="text-right font-mono text-xs">{displayStudentField(displayStudent?.registrationNumber)}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Admission</span><strong className="text-right">{displayStudentField(displayStudent?.admissionNumber)}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">PEN</span><strong className="text-right">{displayStudentField(displayStudent?.studentPen)}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Class</span><strong className="text-right">{refName(cls)}-{refName(sec)}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Father</span><strong className="text-right">{displayStudentField(displayStudent?.fatherName)}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Mobile</span><strong className="text-right">{displayStudentField(displayStudent?.mobileNumber)}</strong></div>
             </CardContent>
           </Card>
 

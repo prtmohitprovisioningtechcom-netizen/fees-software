@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { studentsApi } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { displayStudentField, refName, formatCalendarDate } from "@/lib/student-display";
 
 export default function ViewStudentPage() {
   const params = useParams<{ id: string }>();
@@ -29,16 +29,13 @@ export default function ViewStudentPage() {
     );
   }
 
-  const cls = student.classId as { name: string };
-  const sec = student.sectionId as { name: string };
-  const sess = student.sessionId as { name: string };
-  const addr = student.address as { line1: string; city: string; state: string; pincode: string };
+  const addr = student.address as { line1?: string; city?: string; state?: string; pincode?: string } | undefined;
 
   return (
     <DashboardLayout>
       <PageHeader
-        title={student.studentName as string}
-        description={`Registration: ${student.registrationNumber}`}
+        title={displayStudentField(student.studentName, "Student")}
+        description={`Reg: ${displayStudentField(student.registrationNumber)} · Adm: ${displayStudentField(student.admissionNumber)} · PEN: ${displayStudentField(student.studentPen)}`}
         breadcrumbs={[{ label: "Students", href: "/students" }, { label: "View" }]}
         action={
           <div className="flex gap-2">
@@ -64,13 +61,15 @@ export default function ViewStudentPage() {
               />
             ) : (
               <div className="h-[150px] w-[150px] rounded-xl bg-muted flex items-center justify-center text-4xl font-bold text-muted-foreground">
-                {(student.studentName as string)?.[0]}
+                {displayStudentField(student.studentName, "S").charAt(0)}
               </div>
             )}
-            <h2 className="mt-4 text-xl font-bold">{student.studentName as string}</h2>
-            <p className="text-muted-foreground">{student.registrationNumber as string}</p>
+            <h2 className="mt-4 text-xl font-bold">{displayStudentField(student.studentName, "Student")}</h2>
+            <p className="text-muted-foreground font-mono text-sm">
+              {displayStudentField(student.registrationNumber)}
+            </p>
             <Badge className="mt-2" variant={student.status === "active" ? "success" : "secondary"}>
-              {student.status as string}
+              {String(student.status || "active")}
             </Badge>
           </CardContent>
         </Card>
@@ -79,44 +78,51 @@ export default function ViewStudentPage() {
           <Card>
             <CardHeader><CardTitle>Personal Details</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2 text-sm">
-              <div><span className="text-muted-foreground">Admission No:</span> <strong>{student.admissionNumber as string}</strong></div>
-              <div><span className="text-muted-foreground">PEN Number:</span> <strong>{(student.studentPen as string) || "N/A"}</strong></div>
-              <div><span className="text-muted-foreground">Roll No:</span> <strong>{student.rollNumber as string}</strong></div>
-              <div><span className="text-muted-foreground">Father:</span> <strong>{student.fatherName as string}</strong></div>
-              <div><span className="text-muted-foreground">Mother:</span> <strong>{student.motherName as string}</strong></div>
-              <div><span className="text-muted-foreground">Mobile:</span> <strong>{student.mobileNumber as string}</strong></div>
-              <div><span className="text-muted-foreground">Gender:</span> <strong className="capitalize">{student.gender as string}</strong></div>
-              <div><span className="text-muted-foreground">DOB:</span> <strong>{formatDate(student.dateOfBirth as string)}</strong></div>
-              <div><span className="text-muted-foreground">Blood Group:</span> <strong>{(student.bloodGroup as string) || "N/A"}</strong></div>
-              <div><span className="text-muted-foreground">Category:</span> <strong>{(student.category as string) || "N/A"}</strong></div>
-              <div><span className="text-muted-foreground">Aadhar:</span> <strong>{(student.aadharNumber as string) || "N/A"}</strong></div>
+              <div><span className="text-muted-foreground">Registration:</span> <strong>{displayStudentField(student.registrationNumber)}</strong></div>
+              <div><span className="text-muted-foreground">Admission No:</span> <strong>{displayStudentField(student.admissionNumber)}</strong></div>
+              <div><span className="text-muted-foreground">PEN Number:</span> <strong>{displayStudentField(student.studentPen)}</strong></div>
+              <div><span className="text-muted-foreground">Roll No:</span> <strong>{displayStudentField(student.rollNumber)}</strong></div>
+              <div><span className="text-muted-foreground">Father:</span> <strong>{displayStudentField(student.fatherName)}</strong></div>
+              <div><span className="text-muted-foreground">Mother:</span> <strong>{displayStudentField(student.motherName)}</strong></div>
+              <div><span className="text-muted-foreground">Mobile:</span> <strong>{displayStudentField(student.mobileNumber)}</strong></div>
+              <div><span className="text-muted-foreground">Gender:</span> <strong className="capitalize">{displayStudentField(student.gender)}</strong></div>
+              <div><span className="text-muted-foreground">DOB:</span> <strong>{formatCalendarDate(student.dateOfBirth)}</strong></div>
+              <div><span className="text-muted-foreground">State Code:</span> <strong>{displayStudentField(student.studentStateCode)}</strong></div>
+              <div><span className="text-muted-foreground">Category:</span> <strong>{displayStudentField(student.category)}</strong></div>
+              <div><span className="text-muted-foreground">Aadhar:</span> <strong>{displayStudentField(student.aadharNumber)}</strong></div>
+              <div><span className="text-muted-foreground">Blood Group:</span> <strong>{displayStudentField(student.bloodGroup)}</strong></div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle>Academic Details</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2 text-sm">
-              <div><span className="text-muted-foreground">Class:</span> <strong>{cls?.name}</strong></div>
-              <div><span className="text-muted-foreground">Section:</span> <strong>{sec?.name}</strong></div>
-              <div><span className="text-muted-foreground">Session:</span> <strong>{sess?.name}</strong></div>
-              <div><span className="text-muted-foreground">Admission Date:</span> <strong>{formatDate(student.admissionDate as string)}</strong></div>
+              <div><span className="text-muted-foreground">Class:</span> <strong>{refName(student.classId)}</strong></div>
+              <div><span className="text-muted-foreground">Section:</span> <strong>{refName(student.sectionId)}</strong></div>
+              <div><span className="text-muted-foreground">Session:</span> <strong>{refName(student.sessionId)}</strong></div>
+              <div><span className="text-muted-foreground">Admission Date:</span> <strong>{formatCalendarDate(student.admissionDate)}</strong></div>
               <div>
                 <span className="text-muted-foreground">Transport:</span>{" "}
                 <strong>
                   {student.transportRequired
-                    ? (student.transportRouteId as { name?: string } | undefined)?.name || "Yes"
+                    ? refName(student.transportRouteId, "Yes")
                     : "No"}
                 </strong>
               </div>
-              <div><span className="text-muted-foreground">Previous School:</span> <strong>{(student.previousSchool as string) || "N/A"}</strong></div>
+              <div><span className="text-muted-foreground">Previous School:</span> <strong>{displayStudentField(student.previousSchool)}</strong></div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle>Address</CardTitle></CardHeader>
             <CardContent className="text-sm">
-              <p>{addr?.line1}</p>
-              <p>{addr?.city}, {addr?.state} - {addr?.pincode}</p>
+              <p>{displayStudentField(addr?.line1)}</p>
+              <p>
+                {[addr?.city, addr?.state, addr?.pincode]
+                  .map((part) => displayStudentField(part, ""))
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </p>
             </CardContent>
           </Card>
         </div>

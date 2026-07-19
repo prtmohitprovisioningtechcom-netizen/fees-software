@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/utils";
 import { StudentFeeOverview } from "@/types";
 import { IndianRupee, Users, TrendingUp, AlertCircle, CheckCircle2, Bus, Pencil } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { displayStudentField, refName } from "@/lib/student-display";
 
 interface Session {
   _id: string;
@@ -316,10 +317,19 @@ function FeeCollectionPageContent() {
                 ) : (
                   displayStudents.map((s) => (
                     <TableRow key={s._id} className={loading ? "opacity-60 transition-opacity" : ""}>
-                      <TableCell className="font-mono text-xs font-medium">{s.registrationNumber}</TableCell>
-                      <TableCell className="font-medium">{s.studentName}</TableCell>
-                      <TableCell>{s.classId?.name}</TableCell>
-                      <TableCell>{s.sectionId?.name}</TableCell>
+                      <TableCell className="font-mono text-xs font-medium">
+                        {displayStudentField(s.registrationNumber)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{displayStudentField(s.studentName)}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Adm: {displayStudentField(s.admissionNumber)}
+                          {" · "}
+                          PEN: {displayStudentField((s as { studentPen?: string }).studentPen)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{refName(s.classId)}</TableCell>
+                      <TableCell>{refName(s.sectionId)}</TableCell>
                       <TableCell>
                         {s.transportRequired ? (
                           <Badge variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:bg-blue-950/40">

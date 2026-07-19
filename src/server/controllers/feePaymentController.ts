@@ -14,6 +14,7 @@ import {
   activePaymentMatch,
 } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
+import { toCalendarDateString } from "@/lib/calendar-date";
 
 const resolveSessionId = resolveAcademicSession;
 
@@ -93,7 +94,12 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     res.json({
       success: true,
       data: {
-        student,
+        student: (() => {
+          const obj = student.toObject() as unknown as Record<string, unknown>;
+          obj.dateOfBirth = toCalendarDateString(obj.dateOfBirth);
+          obj.admissionDate = toCalendarDateString(obj.admissionDate);
+          return obj;
+        })(),
         session: { _id: session._id, name: session.name },
         feeStructure,
         calculation,
@@ -136,6 +142,7 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
         { studentName: { $regex: search, $options: "i" } },
         { registrationNumber: { $regex: search, $options: "i" } },
         { admissionNumber: { $regex: search, $options: "i" } },
+        { studentPen: { $regex: search, $options: "i" } },
         { fatherName: { $regex: search, $options: "i" } },
         { mobileNumber: { $regex: search, $options: "i" } },
       ];
@@ -145,7 +152,7 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
       Student.countDocuments(filter),
       Student.find(filter)
         .select(
-          "registrationNumber admissionNumber studentName fatherName mobileNumber classId sectionId transportRequired transportRouteId feeDiscount"
+          "registrationNumber admissionNumber studentPen studentName fatherName mobileNumber classId sectionId transportRequired transportRouteId feeDiscount"
         )
         .populate("classId", "name")
         .populate("sectionId", "name")
@@ -190,6 +197,7 @@ export const getStudentsFeeOverview = async (req: AuthRequest, res: Response) =>
         _id: student._id,
         registrationNumber: student.registrationNumber,
         admissionNumber: student.admissionNumber,
+        studentPen: student.studentPen || "",
         studentName: student.studentName,
         fatherName: student.fatherName,
         mobileNumber: student.mobileNumber,
@@ -713,7 +721,7 @@ export const getPayments = async (req: AuthRequest, res: Response) => {
     const payments = await FeePayment.find(filter)
       .populate({
         path: "studentId",
-        select: "studentName registrationNumber",
+        select: "studentName registrationNumber admissionNumber studentPen fatherName mobileNumber",
         populate: { path: "classId", select: "name" },
       })
       .populate("collectedBy", "name")

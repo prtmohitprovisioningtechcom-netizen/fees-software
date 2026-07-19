@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { FeeCalculation, SchoolBranding } from "@/types";
 import { getReceiptSchoolName } from "@/lib/school-branding";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
+import { displayStudentField, refName } from "@/lib/student-display";
 
 type QuarterRow = NonNullable<FeeCalculation["quarterlySchedule"]>[number];
 
@@ -27,8 +28,6 @@ export function FeeQuoteSlip({
   selectedQuarter,
 }: FeeQuoteSlipProps) {
   const schoolName = getReceiptSchoolName(branding);
-  const cls = student.classId as { name?: string } | undefined;
-  const sec = student.sectionId as { name?: string } | undefined;
 
   const quartersToShow =
     selectedQuarter != null
@@ -65,11 +64,13 @@ export function FeeQuoteSlip({
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-3">
-        <p><span className="text-neutral-500">Student:</span> <strong>{String(student.studentName || "")}</strong></p>
-        <p><span className="text-neutral-500">Reg. No:</span> <strong>{String(student.registrationNumber || "")}</strong></p>
-        <p><span className="text-neutral-500">Class:</span> <strong>{cls?.name || "—"}-{sec?.name || "—"}</strong></p>
-        <p><span className="text-neutral-500">Father:</span> <strong>{String(student.fatherName || "")}</strong></p>
-        <p><span className="text-neutral-500">Mobile:</span> <strong>{String(student.mobileNumber || "")}</strong></p>
+        <p><span className="text-neutral-500">Student:</span> <strong>{displayStudentField(student.studentName)}</strong></p>
+        <p><span className="text-neutral-500">Reg. No:</span> <strong>{displayStudentField(student.registrationNumber)}</strong></p>
+        <p><span className="text-neutral-500">Admission:</span> <strong>{displayStudentField(student.admissionNumber)}</strong></p>
+        <p><span className="text-neutral-500">PEN:</span> <strong>{displayStudentField(student.studentPen)}</strong></p>
+        <p><span className="text-neutral-500">Class:</span> <strong>{refName(student.classId)}-{refName(student.sectionId)}</strong></p>
+        <p><span className="text-neutral-500">Father:</span> <strong>{displayStudentField(student.fatherName)}</strong></p>
+        <p><span className="text-neutral-500">Mobile:</span> <strong>{displayStudentField(student.mobileNumber)}</strong></p>
         <p>
           <span className="text-neutral-500">Admission pack:</span>{" "}
           <strong>{includeAdmission ? "Included in Q1" : "Not included"}</strong>

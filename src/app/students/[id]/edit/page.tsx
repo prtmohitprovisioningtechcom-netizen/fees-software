@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { classesApi, sectionsApi, sessionsApi, studentsApi } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
+import { refId, toLocalDateInput } from "@/lib/student-display";
 
 type EditForm = {
   registrationNumber: string;
@@ -38,22 +39,6 @@ type EditForm = {
   studentStateCode: string;
   aadharNumber: string;
   socialCategory: string;
-};
-
-const refId = (value: unknown): string => {
-  if (!value) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "object" && value && "_id" in value) {
-    return String((value as { _id: string })._id);
-  }
-  return "";
-};
-
-const toDateInput = (value: unknown): string => {
-  if (!value) return "";
-  const text = String(value);
-  if (text.includes("T")) return text.split("T")[0];
-  return text.slice(0, 10);
 };
 
 export default function EditStudentPage() {
@@ -115,11 +100,11 @@ export default function EditStudentPage() {
           motherName: String(st.motherName || ""),
           mobileNumber: String(st.mobileNumber || ""),
           gender: (st.gender as EditForm["gender"]) || "other",
-          dateOfBirth: toDateInput(st.dateOfBirth),
+          dateOfBirth: toLocalDateInput(st.dateOfBirth),
           classId: refId(st.classId),
           sectionId: refId(st.sectionId),
           sessionId: refId(st.sessionId),
-          admissionDate: toDateInput(st.admissionDate),
+          admissionDate: toLocalDateInput(st.admissionDate),
           addressLine1: String(addr.line1 || ""),
           city: String(addr.city || ""),
           state: String(addr.state || ""),
@@ -157,26 +142,38 @@ export default function EditStudentPage() {
     setLoading(true);
     try {
       const formData = new FormData();
-      const skipAddressKeys = new Set(["addressLine1", "city", "state", "pincode", "socialCategory"]);
-      Object.entries(data).forEach(([key, value]) => {
-        if (skipAddressKeys.has(key)) return;
-        if (value !== undefined && value !== null) formData.append(key, String(value));
-      });
+      formData.append("registrationNumber", data.registrationNumber || "");
+      formData.append("admissionNumber", data.admissionNumber || "");
+      formData.append("rollNumber", data.rollNumber || "");
+      formData.append("studentName", data.studentName || "");
+      formData.append("studentPen", data.studentPen || "");
+      formData.append("fatherName", data.fatherName || "");
+      formData.append("motherName", data.motherName || "");
+      formData.append("mobileNumber", data.mobileNumber || "");
+      formData.append("gender", data.gender || "other");
+      formData.append("dateOfBirth", data.dateOfBirth || "");
+      formData.append("admissionDate", data.admissionDate || "");
+      formData.append("classId", data.classId || "");
+      formData.append("sectionId", data.sectionId || "");
+      formData.append("sessionId", data.sessionId || "");
+      formData.append("status", data.status || "active");
+      formData.append("studentStateCode", data.studentStateCode || "");
+      formData.append("aadharNumber", data.aadharNumber || "");
+      formData.append("category", data.socialCategory || "");
       formData.append(
         "address",
         JSON.stringify({
-          line1: data.addressLine1 || "-",
-          city: data.city || "-",
-          state: data.state || "-",
-          pincode: data.pincode || "000000",
+          line1: data.addressLine1 || "",
+          city: data.city || "",
+          state: data.state || "",
+          pincode: data.pincode || "",
         })
       );
-      if (data.socialCategory) formData.append("category", data.socialCategory);
-      formData.append("studentPen", data.studentPen || "");
 
       await studentsApi.update(id, formData);
       toast({ title: "Updated", description: "Student updated successfully" });
       router.push(`/students/${id}`);
+      router.refresh();
     } catch (error) {
       toast({
         title: "Error",

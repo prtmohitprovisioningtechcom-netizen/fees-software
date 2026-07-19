@@ -11,6 +11,7 @@ import { parseSchoolBranding, getReceiptSchoolName } from "@/lib/school-branding
 import type { SchoolBranding } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { QUARTER_LABELS, type QuarterNumber } from "@/lib/fee-schedule";
+import { displayStudentField, refName } from "@/lib/student-display";
 
 type Breakdown = {
   admissionFee?: number;
@@ -208,31 +209,31 @@ function FeeSlip({
             <div className="px-2 py-1.5 text-[10px] space-y-0.5">
               <div className="flex justify-between gap-2">
                 <span className="text-neutral-500 shrink-0">Name</span>
-                <strong className="text-right truncate">{data.student.studentName as string}</strong>
+                <strong className="text-right truncate">{displayStudentField(data.student.studentName)}</strong>
               </div>
               <div className="flex justify-between gap-2">
                 <span className="text-neutral-500">Reg. No.</span>
-                <span className="font-mono">{data.student.registrationNumber as string}</span>
+                <span className="font-mono">{displayStudentField(data.student.registrationNumber)}</span>
               </div>
-              {(data.student.admissionNumber as string) ? (
-                <div className="flex justify-between gap-2">
-                  <span className="text-neutral-500">Adm. No.</span>
-                  <span>{data.student.admissionNumber as string}</span>
-                </div>
-              ) : null}
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500">Adm. No.</span>
+                <span>{displayStudentField(data.student.admissionNumber)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500">PEN</span>
+                <span>{displayStudentField(data.student.studentPen)}</span>
+              </div>
               <div className="flex justify-between gap-2">
                 <span className="text-neutral-500">Class</span>
                 <span>
-                  {data.cls?.name}
-                  {data.sec?.name ? ` / ${data.sec.name}` : ""}
+                  {refName(data.cls)}
+                  {refName(data.sec, "") ? ` / ${refName(data.sec)}` : ""}
                 </span>
               </div>
-              {(data.student.fatherName as string) ? (
-                <div className="flex justify-between gap-2">
-                  <span className="text-neutral-500">Father</span>
-                  <span className="text-right truncate">{data.student.fatherName as string}</span>
-                </div>
-              ) : null}
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500">Father</span>
+                <span className="text-right truncate">{displayStudentField(data.student.fatherName)}</span>
+              </div>
             </div>
           </section>
 
@@ -447,13 +448,17 @@ function ReceiptPageContent() {
     y += 5;
 
     doc.setFont("helvetica", "bold");
-    doc.text(`Student: ${data.student.studentName}`, 8, y);
+    doc.text(`Student: ${displayStudentField(data.student.studentName)}`, 8, y);
     y += 4;
     doc.setFont("helvetica", "normal");
     doc.text(
-      `Reg: ${data.student.registrationNumber}  |  ${data.cls?.name}-${data.sec?.name}${
-        data.student.fatherName ? `  |  Father: ${data.student.fatherName}` : ""
-      }`,
+      `Reg: ${displayStudentField(data.student.registrationNumber)}  |  Adm: ${displayStudentField(data.student.admissionNumber)}  |  PEN: ${displayStudentField(data.student.studentPen)}`,
+      8,
+      y
+    );
+    y += 4;
+    doc.text(
+      `Class: ${refName(data.cls)}-${refName(data.sec)}  |  Father: ${displayStudentField(data.student.fatherName)}`,
       8,
       y
     );
