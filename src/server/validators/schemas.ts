@@ -95,6 +95,8 @@ export const feePaymentSchema = z.object({
     .union([z.boolean(), z.literal("true"), z.literal("false")])
     .optional()
     .transform((v) => v === true || v === "true"),
+  /** Super Admin only — back-date fee collection (YYYY-MM-DD) */
+  paymentDate: z.string().optional(),
 });
 
 export const feePaymentRefundSchema = z.object({

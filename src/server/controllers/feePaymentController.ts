@@ -14,9 +14,27 @@ import {
   activePaymentMatch,
 } from "../services/feeService";
 import { resolveAcademicSession } from "../services/sessionService";
-import { toCalendarDateString } from "@/lib/calendar-date";
+import { toCalendarDateString, parseCalendarDate, todayCalendarDateString } from "@/lib/calendar-date";
 
 const resolveSessionId = resolveAcademicSession;
+
+/** Super Admin may set a past payment date; others always get now. Future dates blocked. */
+const resolveCollectPaymentDate = (req: AuthRequest, rawDate?: unknown): Date => {
+  const isSuperAdmin = req.user?.role === "super_admin";
+  if (!isSuperAdmin || rawDate === undefined || rawDate === null || String(rawDate).trim() === "") {
+    return new Date();
+  }
+  const parsed = parseCalendarDate(rawDate);
+  if (!parsed) {
+    throw new Error("Invalid payment date");
+  }
+  const todayYmd = todayCalendarDateString();
+  const payYmd = toCalendarDateString(parsed);
+  if (payYmd > todayYmd) {
+    throw new Error("Payment date cannot be in the future");
+  }
+  return parsed;
+};
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -247,7 +265,18 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       quarter,
       paymentType,
       includeAdmission,
+      paymentDate: bodyPaymentDate,
     } = req.body;
+
+    let paymentDate: Date;
+    try {
+      paymentDate = resolveCollectPaymentDate(req, bodyPaymentDate);
+    } catch (dateError) {
+      return res.status(400).json({
+        success: false,
+        message: dateError instanceof Error ? dateError.message : "Invalid payment date",
+      });
+    }
 
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ success: false, message: "Student not found" });
@@ -354,6 +383,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
         paymentMode,
         remarks: remarks || `Previous session dues — ${customSessionName}`,
         paymentType: "custom",
+        paymentDate,
         collectedBy: req.user?.id,
         customSessionName,
         isStandalonePreviousDues,
@@ -458,6 +488,7 @@ export const collectFee = async (req: AuthRequest, res: Response) => {
       paymentStatus: calculation.paymentStatus,
       paymentMode,
       remarks,
+      paymentDate,
       quarter: resolvedQuarter || undefined,
       paymentType: paymentType || (resolvedQuarter ? "quarterly" : "custom"),
       collectedBy: req.user?.id,

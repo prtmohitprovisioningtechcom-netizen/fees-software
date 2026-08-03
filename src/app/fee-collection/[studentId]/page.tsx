@@ -22,6 +22,8 @@ import { FeeQuoteSlip } from "@/components/fee-collection/fee-quote-slip";
 import { parseSchoolBranding, emptySchoolBranding } from "@/lib/school-branding";
 import { useAuth } from "@/lib/auth-context";
 import { displayStudentField, refName } from "@/lib/student-display";
+import { FlexibleDateInput } from "@/components/shared/flexible-date-input";
+import { todayCalendarDateString } from "@/lib/calendar-date";
 
 interface Session {
   _id: string;
@@ -133,6 +135,7 @@ function CollectFeePageContent() {
   const [routes, setRoutes] = useState<TransportRoute[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState("cash");
+  const [paymentDate, setPaymentDate] = useState(todayCalendarDateString);
   const [remarks, setRemarks] = useState("");
   const [studentDiscount, setStudentDiscount] = useState("0");
   const [includeAdmission, setIncludeAdmission] = useState(false);
@@ -265,6 +268,10 @@ function CollectFeePageContent() {
       toast({ title: "Error", description: "Enter valid payment amount", variant: "destructive" });
       return;
     }
+    if (isSuperAdmin && paymentDate && paymentDate > todayCalendarDateString()) {
+      toast({ title: "Invalid date", description: "Payment date cannot be in the future", variant: "destructive" });
+      return;
+    }
     if (transportRequired && !transportRouteId) {
       toast({ title: "Transport route needed", description: "Select a route before collecting", variant: "destructive" });
       return;
@@ -281,6 +288,7 @@ function CollectFeePageContent() {
         includeAdmission,
         quarter: selectedQuarter || undefined,
         paymentType: selectedQuarter ? "quarterly" : "custom",
+        ...(isSuperAdmin && paymentDate ? { paymentDate } : {}),
       }) as { data: { _id?: string; id?: string } };
       openReceipt(res);
     } catch (error) {
@@ -300,6 +308,10 @@ function CollectFeePageContent() {
     }
     if (!amount || amount <= 0) {
       toast({ title: "Error", description: "Enter valid amount for previous session", variant: "destructive" });
+      return;
+    }
+    if (isSuperAdmin && paymentDate && paymentDate > todayCalendarDateString()) {
+      toast({ title: "Invalid date", description: "Payment date cannot be in the future", variant: "destructive" });
       return;
     }
     if (transportRequired && !transportRouteId) {
@@ -330,6 +342,7 @@ function CollectFeePageContent() {
         remarks: remarks || `Previous session dues — ${label}`,
         includeAdmission: false,
         paymentType: "custom",
+        ...(isSuperAdmin && paymentDate ? { paymentDate } : {}),
       }) as { data: { _id?: string; id?: string } };
       openReceipt(res);
     } catch (error) {
@@ -993,6 +1006,18 @@ function CollectFeePageContent() {
                   </SelectContent>
                 </Select>
               </FormField>
+              {isSuperAdmin && (
+                <FormField label="Payment Date">
+                  <FlexibleDateInput
+                    value={paymentDate}
+                    onChange={setPaymentDate}
+                    placeholder="DD/MM/YYYY"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Super Admin can collect fees on a back date. Future dates not allowed.
+                  </p>
+                </FormField>
+              )}
               <FormField label="Remarks">
                 <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional remarks" />
               </FormField>
