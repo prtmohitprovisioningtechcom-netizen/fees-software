@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Percent, CalendarRange, Receipt, Bus, History, Pencil, Printer, Save } from "lucide-react";
+import { Loader2, Percent, CalendarRange, Receipt, Bus, History, Pencil, Printer, Save, Users } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/layout/page-header";
 import { FormField } from "@/components/shared/form-field";
@@ -65,6 +65,11 @@ function getRouteId(student: Record<string, unknown> | null) {
   if (!student?.transportRouteId) return "";
   const ref = student.transportRouteId as { _id?: string } | string;
   return typeof ref === "string" ? ref : ref._id || "";
+}
+
+function getStudentRecordId(student: Record<string, unknown>) {
+  const id = student._id as { toString?: () => string } | string | undefined;
+  return typeof id === "string" ? id : id?.toString?.() || "";
 }
 
 function matchSessionByName(name: string, sessions: Session[], excludeSessionId?: string) {
@@ -223,6 +228,10 @@ function CollectFeePageContent() {
     loadSummary();
   }, [loadSummary]);
 
+  useEffect(() => {
+    setSelectedSiblings([]);
+  }, [sessionId, studentId]);
+
   const saveTransport = async (required: boolean, routeId: string) => {
     if (required && !routeId) {
       toast({ title: "Route required", description: "Select a transport route", variant: "destructive" });
@@ -271,6 +280,14 @@ function CollectFeePageContent() {
       toast({ title: "Error", description: "Enter valid payment amount", variant: "destructive" });
       return;
     }
+    if (selectedSiblings.length > 0 && selectedQuarters.length === 0) {
+      toast({
+        title: "Quarter select karein",
+        description: "Sibling fees ke liye pehle quarter select karein",
+        variant: "destructive",
+      });
+      return;
+    }
     if (isSuperAdmin && paymentDate && paymentDate > todayCalendarDateString()) {
       toast({ title: "Invalid date", description: "Payment date cannot be in the future", variant: "destructive" });
       return;
@@ -281,19 +298,90 @@ function CollectFeePageContent() {
     }
     setSubmitting(true);
     try {
-      const res = await feePaymentsApi.collect({
+      const totalDue = discountChanged ? previewNetDue() : (displayCalc?.previousDue ?? 0);
+      const mainQuarterSum = selectedQuarters.reduce((acc, q) => {
+        const qRow = displaySchedule.find((item) => item.quarter === q);
+        return acc + (qRow?.pending || 0);
+      }, 0);
+      const mainAmount =
+        selectedSiblings.length > 0 && selectedQuarters.length > 0
+          ? Math.min(mainQuarterSum, totalDue)
+          : amount;
+
+      if (mainAmount > totalDue) {
+        toast({
+          title: "Amount too high",
+          description: `Main student due is ${formatCurrency(totalDue)}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const quarterLabel =
+        selectedQuarters.length > 0 ? `Quarters: ${selectedQuarters.join(", ")}` : "";
+      const mainRemarks = [quarterLabel, remarks].filter(Boolean).join(" — ");
+
+      const mainRes = (await feePaymentsApi.collect({
         studentId,
         sessionId: session?._id || sessionId,
         feeDiscount: Number(studentDiscount) || 0,
-        paymentAmount: amount,
+        paymentAmount: mainAmount,
         paymentMode,
-        remarks,
+        remarks: mainRemarks || undefined,
         includeAdmission,
         quarter: selectedQuarters.length > 0 ? Math.min(...selectedQuarters) : undefined,
         paymentType: selectedQuarters.length > 0 ? "quarterly" : "custom",
         ...(isSuperAdmin && paymentDate ? { paymentDate } : {}),
-      }) as { data: { _id?: string; id?: string } };
-      openReceipt(res);
+      })) as { data: { _id?: string; id?: string } };
+
+      const receiptIds = [String(mainRes.data._id || mainRes.data.id || "")];
+
+      for (const sibId of selectedSiblings) {
+        const sib = siblings.find((s) => getStudentRecordId(s.student) === sibId);
+        const sibAmount = getSiblingCalculatedAmount(sibId);
+        if (!sib || sibAmount <= 0) continue;
+
+        const sibDue = sib.calculation?.previousDue ?? 0;
+        if (sibAmount > sibDue) {
+          toast({
+            title: "Sibling amount too high",
+            description: `${displayStudentField(sib.student.studentName)} due is ${formatCurrency(sibDue)}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const sibRes = (await feePaymentsApi.collect({
+          studentId: sibId,
+          sessionId: session?._id || sessionId,
+          feeDiscount: (sib.student.feeDiscount as number) || 0,
+          paymentAmount: sibAmount,
+          paymentMode,
+          remarks: `${quarterLabel} (Family grouped payment)`.trim(),
+          includeAdmission: false,
+          quarter: selectedQuarters.length > 0 ? Math.min(...selectedQuarters) : undefined,
+          paymentType: selectedQuarters.length > 0 ? "quarterly" : "custom",
+          ...(isSuperAdmin && paymentDate ? { paymentDate } : {}),
+        })) as { data: { _id?: string; id?: string } };
+
+        const sibReceiptId = String(sibRes.data._id || sibRes.data.id || "");
+        if (sibReceiptId) receiptIds.push(sibReceiptId);
+      }
+
+      const validIds = receiptIds.filter(Boolean);
+      if (validIds.length === 0) {
+        toast({ title: "Error", description: "Payment saved but receipt could not open", variant: "destructive" });
+        return;
+      }
+
+      toast({
+        title: "Payment saved",
+        description:
+          validIds.length > 1
+            ? `${validIds.length} fee slips ready — print all from receipt page`
+            : "Official receipt opened — print from receipt page if needed",
+      });
+      window.location.href = `/receipt/${validIds.join(",")}`;
     } catch (error) {
       toast({ title: "Error", description: error instanceof Error ? error.message : "Failed", variant: "destructive" });
     } finally {
@@ -476,13 +564,13 @@ function CollectFeePageContent() {
   const selectedRoute = routes.find((r) => r._id === transportRouteId);
 
   const toggleSibling = (sibId: string) => {
-    setSelectedSiblings(prev => 
-      prev.includes(sibId) ? prev.filter(id => id !== sibId) : [...prev, sibId]
+    setSelectedSiblings((prev) =>
+      prev.includes(sibId) ? prev.filter((id) => id !== sibId) : [...prev, sibId]
     );
   };
 
   const getSiblingCalculatedAmount = (sibId: string) => {
-    const sib = siblings.find(s => s.student._id === sibId);
+    const sib = siblings.find((s) => getStudentRecordId(s.student) === sibId);
     if (!sib) return 0;
     return selectedQuarters.reduce((acc, q) => {
       const qRow = sib.calculation?.quarterlySchedule?.find((item: any) => item.quarter === q);
@@ -514,8 +602,8 @@ function CollectFeePageContent() {
     }
     
     let sibSum = 0;
-    selectedSiblings.forEach(sibId => {
-      const sib = siblings.find(s => s.student._id === sibId);
+    selectedSiblings.forEach((sibId) => {
+      const sib = siblings.find((s) => getStudentRecordId(s.student) === sibId);
       if (sib) {
         sibSum += selectedQuarters.reduce((acc, q) => {
           const qRow = sib.calculation?.quarterlySchedule?.find((item: any) => item.quarter === q);
@@ -615,6 +703,12 @@ function CollectFeePageContent() {
     : undefined;
   const sessionsWithBalance = sessionArrears.filter((a) => a.pendingAmount > 0);
   const isSubmittingPrevious = Boolean(submittingDueId);
+  const siblingPendingSum = selectedSiblings.reduce(
+    (acc, sibId) => acc + getSiblingCalculatedAmount(sibId),
+    0
+  );
+  const maxPaymentInput = maxPayable + siblingPendingSum;
+  const canCollectFee = maxPayable > 0 || siblingPendingSum > 0;
 
   return (
     <DashboardLayout>
@@ -1016,6 +1110,78 @@ function CollectFeePageContent() {
             </Card>
           )}
 
+          {siblings.length > 0 && (
+            <Card className="border-blue-200 bg-blue-50/10 dark:border-blue-900 dark:bg-blue-950/20">
+              <CardHeader className="pb-3 border-b border-blue-100 dark:border-blue-900">
+                <CardTitle className="flex items-center gap-2 text-base text-blue-800 dark:text-blue-300">
+                  <Users className="h-4 w-4" />
+                  Family / Siblings
+                </CardTitle>
+                <p className="text-xs text-muted-foreground font-normal">
+                  Same father name & mobile — tick siblings to add their selected quarter fees in this payment.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                {siblings.map((sib) => {
+                  const sibId = getStudentRecordId(sib.student);
+                  const isChecked = selectedSiblings.includes(sibId);
+                  const sibAmount = getSiblingCalculatedAmount(sibId);
+                  const sibCls = sib.student.classId as { name: string };
+                  const sibSec = sib.student.sectionId as { name: string };
+
+                  return (
+                    <label
+                      key={sibId}
+                      className={cn(
+                        "flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer transition-all",
+                        isChecked
+                          ? "bg-blue-100/50 border-blue-300 dark:bg-blue-950/40 dark:border-blue-700"
+                          : "bg-white dark:bg-background hover:bg-slate-50 dark:hover:bg-muted/40"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                          checked={isChecked}
+                          onChange={() => toggleSibling(sibId)}
+                          disabled={selectedQuarters.length === 0}
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate">
+                            {displayStudentField(sib.student.studentName)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Class {refName(sibCls)}-{refName(sibSec)}
+                            {sib.calculation?.previousDue
+                              ? ` · Due ${formatCurrency(sib.calculation.previousDue)}`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      {selectedQuarters.length === 0 ? (
+                        <span className="text-xs text-muted-foreground italic shrink-0">Select quarter first</span>
+                      ) : sibAmount > 0 ? (
+                        <span className="text-sm font-bold text-blue-700 dark:text-blue-400 shrink-0 tabular-nums">
+                          + {formatCurrency(sibAmount)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-emerald-600 font-medium shrink-0">No dues this quarter</span>
+                      )}
+                    </label>
+                  );
+                })}
+                {selectedSiblings.length > 0 && selectedQuarters.length > 0 && (
+                  <p className="text-xs text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 bg-blue-50/80 px-2 py-1.5 dark:border-blue-800 dark:bg-blue-950/30">
+                    Sibling total: <strong>{formatCurrency(siblingPendingSum)}</strong> for Quarter{" "}
+                    {selectedQuarters.join(", ")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader><CardTitle>Payment Details</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -1028,18 +1194,23 @@ function CollectFeePageContent() {
                 <Input
                   type="number"
                   min={1}
-                  max={maxPayable}
+                  max={maxPaymentInput > 0 ? maxPaymentInput : undefined}
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder={selectedQuarters.length > 0 ? `Quarters ${selectedQuarters.join(", ")} due` : `Max: ${formatCurrency(maxPayable)}`}
+                  placeholder={
+                    selectedQuarters.length > 0
+                      ? `Quarters ${selectedQuarters.join(", ")} due`
+                      : `Max: ${formatCurrency(maxPayable)}`
+                  }
                 />
               </FormField>
               {selectedQuarters.length > 0 && (
                 <p className="text-xs text-primary -mt-2">
                   Collecting for Quarter {selectedQuarters.join(", ")}
                   {selectedQuartersPendingSum > 0
-                    ? ` · Pending ${formatCurrency(selectedQuartersPendingSum)}`
+                    ? ` · Main student ${formatCurrency(Math.min(selectedQuartersPendingSum, maxPayable))}`
                     : ""}
+                  {siblingPendingSum > 0 ? ` · Siblings ${formatCurrency(siblingPendingSum)}` : ""}
                 </p>
               )}
               {spillToNextQuarter > 0 && (
@@ -1089,7 +1260,7 @@ function CollectFeePageContent() {
                 <Button
                   className="w-full"
                   onClick={handleCollect}
-                  disabled={submitting || !maxPayable || savingTransport}
+                  disabled={submitting || !canCollectFee || savingTransport}
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Payment

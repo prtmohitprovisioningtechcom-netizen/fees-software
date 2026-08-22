@@ -357,11 +357,19 @@ function FeeSlip({
 function ReceiptPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const id = params?.id ?? "";
+  const idParam = params?.id ?? "";
+  const paymentIds = useMemo(
+    () =>
+      idParam
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    [idParam]
+  );
   const shouldPrint = searchParams?.get("print") === "1";
   const printedRef = useRef(false);
   const { user } = useAuth();
-  const [payment, setPayment] = useState<Record<string, unknown> | null>(null);
+  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
   const [branding, setBranding] = useState<SchoolBranding>({
     schoolName: "",
     appName: "",
@@ -373,29 +381,47 @@ function ReceiptPageContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([feePaymentsApi.getById(id), settingsApi.get().catch(() => null)])
-      .then(([paymentRes, settingsRes]) => {
-        setPayment((paymentRes as { data: Record<string, unknown> }).data);
+    if (paymentIds.length === 0) {
+      setLoading(false);
+      return;
+    }
+    Promise.all([
+      Promise.all(paymentIds.map((paymentId) => feePaymentsApi.getById(paymentId))),
+      settingsApi.get().catch(() => null),
+    ])
+      .then(([paymentResponses, settingsRes]) => {
+        setPayments(
+          paymentResponses.map((paymentRes) => (paymentRes as { data: Record<string, unknown> }).data)
+        );
         const settings = (settingsRes as { data?: Partial<SchoolBranding> } | null)?.data;
         setBranding(parseSchoolBranding(settings));
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [paymentIds]);
 
-  const data = useMemo(() => buildData(payment), [payment]);
+  const slipEntries = useMemo(
+    () =>
+      payments
+        .map((payment) => ({ payment, data: buildData(payment) }))
+        .filter((entry): entry is { payment: Record<string, unknown>; data: SlipData } => Boolean(entry.data)),
+    [payments]
+  );
 
   useEffect(() => {
-    if (shouldPrint && !loading && payment && data && !printedRef.current) {
+    if (shouldPrint && !loading && slipEntries.length > 0 && !printedRef.current) {
       printedRef.current = true;
       const timer = window.setTimeout(() => window.print(), 400);
       return () => window.clearTimeout(timer);
     }
-  }, [shouldPrint, loading, payment, data]);
+  }, [shouldPrint, loading, slipEntries.length]);
 
   const handlePrint = () => window.print();
 
   const handleDownloadPDF = async () => {
-    if (!payment || !data) return;
+    if (slipEntries.length === 0) return;
+    const entry = slipEntries[0];
+    const payment = entry.payment;
+    const data = entry.data;
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
       import("jspdf"),
       import("jspdf-autotable"),
@@ -520,7 +546,7 @@ function ReceiptPageContent() {
     doc.save(`${payment.receiptNumber}.pdf`);
   };
 
-  if (loading || !payment || !data) {
+  if (loading || slipEntries.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-100">
         <div className="text-center space-y-3">
@@ -554,6 +580,11 @@ function ReceiptPageContent() {
             width: 100% !important;
             box-shadow: none !important;
           }
+          .fee-slip + .fee-slip {
+            break-before: page;
+            page-break-before: always;
+            margin-top: 0 !important;
+          }
           .print-area {
             padding: 0 !important;
             margin: 0 !important;
@@ -572,10 +603,30 @@ function ReceiptPageContent() {
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
             <Download className="mr-2 h-4 w-4" /> PDF
           </Button>
-          <span className="ml-auto text-[11px] text-neutral-500">Single-page A5 fee slip</span>
+          <span className="ml-auto text-[11px] text-neutral-500">
+            {slipEntries.length > 1
+              ? `${slipEntries.length} family slips · A5 each`
+              : "Single-page A5 fee slip"}
+          </span>
         </div>
 
-        <FeeSlip data={data} payment={payment} branding={branding} userName={user?.name} />
+        {slipEntries.length > 1 && (
+          <p className="no-print mx-auto mb-3 max-w-[148mm] text-xs text-neutral-600">
+            Family payment — {slipEntries.length} separate receipts (main student + siblings). Print once to get all slips.
+          </p>
+        )}
+
+        <div className="mx-auto max-w-[148mm] space-y-6 print:space-y-0">
+          {slipEntries.map(({ payment, data }, index) => (
+            <FeeSlip
+              key={String(payment._id || index)}
+              data={data}
+              payment={payment}
+              branding={branding}
+              userName={user?.name}
+            />
+          ))}
+        </div>
       </div>
     </>
   );

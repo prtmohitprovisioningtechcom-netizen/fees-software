@@ -94,18 +94,19 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     const sessionRef = student.sessionId as unknown as { _id?: { toString: () => string }; toString: () => string };
     const enrolledSessionId = sessionRef._id ? sessionRef._id.toString() : sessionRef.toString();
 
-    // Fetch siblings
-    let siblingsQuery: Record<string, unknown> = {};
-    if (student.familyId) {
-      siblingsQuery = { familyId: student.familyId, _id: { $ne: student._id } };
-    } else if (student.fatherName && student.mobileNumber && student.mobileNumber !== "0000000000") {
-      siblingsQuery = { 
-        fatherName: student.fatherName, 
-        mobileNumber: student.mobileNumber, 
-        _id: { $ne: student._id } 
+    // Fetch siblings — same father name + mobile number
+    let siblingsQuery: Record<string, unknown> = { _id: null };
+    if (
+      student.fatherName?.trim() &&
+      student.mobileNumber?.trim() &&
+      student.mobileNumber !== "0000000000"
+    ) {
+      siblingsQuery = {
+        fatherName: student.fatherName.trim(),
+        mobileNumber: student.mobileNumber.trim(),
+        _id: { $ne: student._id },
+        status: "active",
       };
-    } else {
-      siblingsQuery = { _id: null };
     }
 
     const siblings = await Student.find(siblingsQuery)
