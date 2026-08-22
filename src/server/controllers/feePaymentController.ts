@@ -94,6 +94,55 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
     const sessionRef = student.sessionId as unknown as { _id?: { toString: () => string }; toString: () => string };
     const enrolledSessionId = sessionRef._id ? sessionRef._id.toString() : sessionRef.toString();
 
+    // Fetch siblings
+    let siblingsQuery: Record<string, unknown> = {};
+    if (student.familyId) {
+      siblingsQuery = { familyId: student.familyId, _id: { $ne: student._id } };
+    } else if (student.fatherName && student.mobileNumber && student.mobileNumber !== "0000000000") {
+      siblingsQuery = { 
+        fatherName: student.fatherName, 
+        mobileNumber: student.mobileNumber, 
+        _id: { $ne: student._id } 
+      };
+    } else {
+      siblingsQuery = { _id: null };
+    }
+
+    const siblings = await Student.find(siblingsQuery)
+      .populate("classId", "name")
+      .populate("sectionId", "name")
+      .populate("sessionId", "name")
+      .populate("transportRouteId", "name monthlyFee");
+
+    const siblingSummaries = await Promise.all(
+      siblings.map(async (sib) => {
+        const sibTransport = await resolveStudentTransport(sib.transportRequired, sib.transportRouteId);
+        let sibCalc: Awaited<ReturnType<typeof calculateFee>> | null = null;
+        const sibFeeStructure = await FeeStructure.findOne({
+          classId: sib.classId._id,
+          sessionId: session._id,
+        });
+        if (sibFeeStructure) {
+          sibCalc = await calculateFee(
+            sib._id.toString(),
+            session._id.toString(),
+            sib.classId._id.toString(),
+            0,
+            sibTransport,
+            sib.feeDiscount || 0,
+            includeAdmission
+          );
+        }
+        const sibObj = sib.toObject() as any;
+        sibObj.dateOfBirth = toCalendarDateString(sibObj.dateOfBirth);
+        sibObj.admissionDate = toCalendarDateString(sibObj.admissionDate);
+        return {
+          student: sibObj,
+          calculation: sibCalc,
+        };
+      })
+    );
+
     const [payments, sessionArrears] = await Promise.all([
       FeePayment.find({ studentId: student._id })
         .populate("collectedBy", "name")
@@ -123,6 +172,7 @@ export const getStudentFeeSummary = async (req: AuthRequest, res: Response) => {
         calculation,
         payments,
         sessionArrears,
+        siblings: siblingSummaries,
       },
     });
   } catch (error) {

@@ -131,6 +131,8 @@ function CollectFeePageContent() {
   const [sessionId, setSessionId] = useState(searchParams?.get("sessionId") || "");
   const [calculation, setCalculation] = useState<FeeCalculation | null>(null);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [siblings, setSiblings] = useState<{ student: Record<string, unknown>; calculation: FeeCalculation | null }[]>([]);
+  const [selectedSiblings, setSelectedSiblings] = useState<string[]>([]);
   const [feeStructure, setFeeStructure] = useState<{ admissionFee?: number } | null>(null);
   const [routes, setRoutes] = useState<TransportRoute[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -139,7 +141,7 @@ function CollectFeePageContent() {
   const [remarks, setRemarks] = useState("");
   const [studentDiscount, setStudentDiscount] = useState("0");
   const [includeAdmission, setIncludeAdmission] = useState(false);
-  const [selectedQuarter, setSelectedQuarter] = useState<number | null>(null);
+  const [selectedQuarters, setSelectedQuarters] = useState<number[]>([]);
   const [transportRequired, setTransportRequired] = useState(false);
   const [transportRouteId, setTransportRouteId] = useState("");
   const [sessionArrears, setSessionArrears] = useState<SessionArrear[]>([]);
@@ -173,6 +175,7 @@ function CollectFeePageContent() {
         setIncludeAdmission(true);
       }
       setPayments((data.payments as Record<string, unknown>[]) ?? []);
+      setSiblings((data.siblings as any) || []);
       setFeeStructure((data.feeStructure as { admissionFee?: number }) ?? null);
       setSessionArrears((data.sessionArrears as SessionArrear[]) || []);
       setStudentDiscount(String((studentData?.feeDiscount as number) || 0));
@@ -185,10 +188,10 @@ function CollectFeePageContent() {
         autoQuarterRef.current = loadKey;
         const oldest = calc.quarterlySchedule.find((q) => q.pending > 0);
         if (oldest) {
-          setSelectedQuarter(oldest.quarter);
+          setSelectedQuarters([oldest.quarter]);
           setPaymentAmount(String(Math.min(oldest.pending, calc.previousDue || oldest.pending)));
         } else {
-          setSelectedQuarter(null);
+          setSelectedQuarters([]);
           setPaymentAmount("");
         }
       }
@@ -231,7 +234,7 @@ function CollectFeePageContent() {
       formData.append("transportRequired", required ? "Yes" : "No");
       if (required && routeId) formData.append("transportRouteId", routeId);
       await studentsApi.update(studentId, formData);
-      setSelectedQuarter(null);
+      setSelectedQuarters([]);
       setPaymentAmount("");
       await loadSummary({ soft: true });
       toast({
@@ -286,8 +289,8 @@ function CollectFeePageContent() {
         paymentMode,
         remarks,
         includeAdmission,
-        quarter: selectedQuarter || undefined,
-        paymentType: selectedQuarter ? "quarterly" : "custom",
+        quarter: selectedQuarters.length > 0 ? Math.min(...selectedQuarters) : undefined,
+        paymentType: selectedQuarters.length > 0 ? "quarterly" : "custom",
         ...(isSuperAdmin && paymentDate ? { paymentDate } : {}),
       }) as { data: { _id?: string; id?: string } };
       openReceipt(res);
@@ -472,12 +475,70 @@ function CollectFeePageContent() {
   const isInitialLoad = loading && !displayStudent;
   const selectedRoute = routes.find((r) => r._id === transportRouteId);
 
+  const toggleSibling = (sibId: string) => {
+    setSelectedSiblings(prev => 
+      prev.includes(sibId) ? prev.filter(id => id !== sibId) : [...prev, sibId]
+    );
+  };
+
+  const getSiblingCalculatedAmount = (sibId: string) => {
+    const sib = siblings.find(s => s.student._id === sibId);
+    if (!sib) return 0;
+    return selectedQuarters.reduce((acc, q) => {
+      const qRow = sib.calculation?.quarterlySchedule?.find((item: any) => item.quarter === q);
+      return acc + (qRow?.pending || 0);
+    }, 0);
+  };
+
+  const toggleQuarter = (quarter: number, quarterPending: number) => {
+    if (quarterPending <= 0) return;
+    
+    let newQuarters;
+    if (selectedQuarters.includes(quarter)) {
+      newQuarters = selectedQuarters.filter(q => q !== quarter);
+    } else {
+      newQuarters = [...selectedQuarters, quarter].sort();
+    }
+    setSelectedQuarters(newQuarters);
+  };
+
+  // Auto-calculate grand total whenever quarters or siblings change
+  useEffect(() => {
+    const totalDue = discountChanged ? previewNetDue() : (displayCalc?.previousDue ?? 0);
+    let mainSum = 0;
+    if (selectedQuarters.length > 0) {
+      mainSum = selectedQuarters.reduce((acc, q) => {
+        const qRow = displaySchedule.find((item) => item.quarter === q);
+        return acc + (qRow?.pending || 0);
+      }, 0);
+    }
+    
+    let sibSum = 0;
+    selectedSiblings.forEach(sibId => {
+      const sib = siblings.find(s => s.student._id === sibId);
+      if (sib) {
+        sibSum += selectedQuarters.reduce((acc, q) => {
+          const qRow = sib.calculation?.quarterlySchedule?.find((item: any) => item.quarter === q);
+          return acc + (qRow?.pending || 0);
+        }, 0);
+      }
+    });
+
+    const grandTotal = Math.min(mainSum, totalDue) + sibSum;
+    
+    if (selectedQuarters.length === 0) {
+      setPaymentAmount("");
+    } else {
+      setPaymentAmount(String(grandTotal));
+    }
+  }, [selectedQuarters, selectedSiblings, displaySchedule, discountChanged, displayCalc, siblings]);
+
   const handlePrintQuote = () => {
     if (!displayCalc || !displayStudent) {
       toast({ title: "No fee data", description: "Load student fee details before printing quote", variant: "destructive" });
       return;
     }
-    if (!selectedQuarter) {
+    if (selectedQuarters.length === 0) {
       toast({
         title: "Quarter select karein",
         description: "Pehle Quarter 1 / 2 / 3 / 4 click karein, phir Print Fee Quote",
@@ -531,27 +592,20 @@ function CollectFeePageContent() {
   const sec = displayStudent?.sectionId as { name: string };
   const maxPayable = discountChanged ? previewNetDue() : (displayCalc?.previousDue || 0);
 
-  const selectQuarter = (quarter: number, quarterPending: number) => {
-    if (quarterPending <= 0) return;
-    const totalDue = discountChanged ? previewNetDue() : (displayCalc?.previousDue ?? 0);
-    setSelectedQuarter(quarter);
-    setPaymentAmount(String(Math.min(quarterPending, totalDue)));
-  };
-
-  const selectedQuarterRow = selectedQuarter
-    ? displaySchedule.find((q) => q.quarter === selectedQuarter)
-    : undefined;
   const enteredPaymentAmount = Number(paymentAmount) || 0;
-  const selectedQuarterPending = selectedQuarterRow?.pending || 0;
+  const selectedQuartersPendingSum = selectedQuarters.reduce((acc, q) => {
+    const row = displaySchedule.find(item => item.quarter === q);
+    return acc + (row?.pending || 0);
+  }, 0);
   const spillToNextQuarter =
-    selectedQuarter &&
-    selectedQuarterPending > 0 &&
-    enteredPaymentAmount > selectedQuarterPending
-      ? enteredPaymentAmount - selectedQuarterPending
+    selectedQuarters.length > 0 &&
+    selectedQuartersPendingSum > 0 &&
+    enteredPaymentAmount > selectedQuartersPendingSum
+      ? enteredPaymentAmount - selectedQuartersPendingSum
       : 0;
   const nextPendingQuarter =
     spillToNextQuarter > 0
-      ? displaySchedule.find((q) => q.quarter !== selectedQuarter && q.pending > 0)
+      ? displaySchedule.find((q) => !selectedQuarters.includes(q.quarter) && q.pending > 0)
       : undefined;
 
   const currentCollectSessionId = session?._id || sessionId;
@@ -704,7 +758,7 @@ function CollectFeePageContent() {
                       checked={includeAdmission}
                       onChange={(e) => {
                         setIncludeAdmission(e.target.checked);
-                        setSelectedQuarter(null);
+                        setSelectedQuarters([]);
                         setPaymentAmount("");
                       }}
                       className="rounded"
@@ -720,13 +774,13 @@ function CollectFeePageContent() {
                         key={q.quarter}
                         type="button"
                         disabled={q.status === "paid" || q.pending <= 0}
-                        onClick={() => selectQuarter(q.quarter, q.pending)}
+                        onClick={() => toggleQuarter(q.quarter, q.pending)}
                         className={cn(
                           "rounded-lg border p-3 text-left transition-colors",
                           quarterStatusColor(q.status),
                           (q.status === "paid" || q.pending <= 0) &&
                             "cursor-not-allowed opacity-60",
-                          selectedQuarter === q.quarter && "ring-2 ring-primary"
+                          selectedQuarters.includes(q.quarter) && "ring-2 ring-primary"
                         )}
                       >
                         <div className="flex justify-between items-start mb-1">
@@ -949,7 +1003,7 @@ function CollectFeePageContent() {
                     value={studentDiscount}
                     onChange={(e) => {
                       setStudentDiscount(e.target.value);
-                      setSelectedQuarter(null);
+                      setSelectedQuarters([]);
                       setPaymentAmount("");
                     }}
                     placeholder="0"
@@ -977,14 +1031,14 @@ function CollectFeePageContent() {
                   max={maxPayable}
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder={selectedQuarter ? `Quarter ${selectedQuarter} due` : `Max: ${formatCurrency(maxPayable)}`}
+                  placeholder={selectedQuarters.length > 0 ? `Quarters ${selectedQuarters.join(", ")} due` : `Max: ${formatCurrency(maxPayable)}`}
                 />
               </FormField>
-              {selectedQuarter && (
+              {selectedQuarters.length > 0 && (
                 <p className="text-xs text-primary -mt-2">
-                  Collecting for Quarter {selectedQuarter}
-                  {selectedQuarterPending > 0
-                    ? ` · Pending ${formatCurrency(selectedQuarterPending)}`
+                  Collecting for Quarter {selectedQuarters.join(", ")}
+                  {selectedQuartersPendingSum > 0
+                    ? ` · Pending ${formatCurrency(selectedQuartersPendingSum)}`
                     : ""}
                 </p>
               )}
@@ -1027,7 +1081,7 @@ function CollectFeePageContent() {
                   variant="outline"
                   className="w-full"
                   onClick={handlePrintQuote}
-                  disabled={!displayCalc || !selectedQuarter || savingTransport}
+                  disabled={!displayCalc || selectedQuarters.length === 0 || savingTransport}
                 >
                   <Printer className="h-4 w-4 mr-2" />
                   Print Fee Quote
@@ -1175,7 +1229,7 @@ function CollectFeePageContent() {
             studentDiscount={Number(studentDiscount) || 0}
             includeAdmission={includeAdmission}
             branding={branding}
-            selectedQuarter={selectedQuarter}
+            selectedQuarter={selectedQuarters.length > 0 ? selectedQuarters[0] : null}
           />
         </div>
       )}
