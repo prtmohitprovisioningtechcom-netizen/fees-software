@@ -55,10 +55,10 @@ export function TestimonialsAndFAQ() {
   ];
 
   return (
-    <section id="testimonials" className="py-16 sm:py-24 bg-muted/20 border-t border-border/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+    <section id="testimonials" className="py-10 sm:py-14 bg-muted/20 border-t border-border/60">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Testimonials Block */}
-        <div className="space-y-10">
+        <div className="space-y-6">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Parent & Alumni Voices

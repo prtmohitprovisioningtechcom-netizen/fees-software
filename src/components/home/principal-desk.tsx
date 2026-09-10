@@ -11,9 +11,9 @@ interface PrincipalDeskProps {
 
 export function PrincipalDesk({ schoolName, onOpenEnquiry }: PrincipalDeskProps) {
   return (
-    <section id="principal" className="py-16 sm:py-24 bg-background">
+    <section id="principal" className="py-8 sm:py-12 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-primary/5 via-card to-background border border-border rounded-3xl p-6 sm:p-12 shadow-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-primary/5 via-card to-background border border-border rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
           {/* Subtle Background Icon */}
           <Quote className="absolute -top-6 -right-6 h-48 w-48 text-primary/5 pointer-events-none rotate-12" />
 

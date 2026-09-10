@@ -64,8 +64,8 @@ export function CampusLifeAndFacilities({ onOpenEnquiry }: CampusLifeAndFaciliti
   const current = facilities[selectedFacility];
 
   return (
-    <section id="facilities" className="py-16 sm:py-24 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <section id="facilities" className="py-10 sm:py-14 bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-3 max-w-2xl">

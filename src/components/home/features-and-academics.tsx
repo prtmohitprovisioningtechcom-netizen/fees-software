@@ -88,8 +88,8 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
   const currentWing = academicPrograms[activeTab];
 
   return (
-    <section id="academics" className="py-16 sm:py-20 bg-muted/30 border-y border-border/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+    <section id="academics" className="py-10 sm:py-14 bg-muted/30 border-y border-border/60">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Section Heading */}
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
