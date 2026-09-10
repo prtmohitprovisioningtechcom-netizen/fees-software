@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 interface FeaturesAndAcademicsProps {
-  onOpenEnquiry: () => void;
+  onOpenEnquiry: (grade?: string) => void;
 }
 
 export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProps) {
@@ -178,7 +178,18 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 pt-2">
-                  <Button onClick={onOpenEnquiry} className="font-semibold gap-2 shadow-md">
+                  <Button
+                    onClick={() => {
+                      const gradeMap: Record<string, string> = {
+                        "pre-primary": "Pre-Nursery / Playgroup",
+                        "primary": "Class 1 (Grade 1)",
+                        "middle": "Class 6 (Grade 6)",
+                        "senior": "Class 11 (Science - PCM)",
+                      };
+                      onOpenEnquiry(gradeMap[activeTab]);
+                    }}
+                    className="font-semibold gap-2 shadow-md"
+                  >
                     <Sparkles className="h-4 w-4" />
                     Enquire for {currentWing.title.split(" ")[0]}
                   </Button>

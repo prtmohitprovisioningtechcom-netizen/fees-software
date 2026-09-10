@@ -17,10 +17,14 @@ import { AdmissionInquiryModal } from "@/components/home/admission-inquiry-modal
 export default function HomePage() {
   const { branding } = useBranding();
   const [admissionModalOpen, setAdmissionModalOpen] = useState(false);
+  const [initialGrade, setInitialGrade] = useState("Class 1 (Grade 1)");
 
   const schoolDisplayName = getSchoolDisplayName(branding) || "Apex International Academy";
 
-  const handleOpenEnquiry = () => {
+  const handleOpenEnquiry = (grade?: string) => {
+    if (grade && typeof grade === "string") {
+      setInitialGrade(grade);
+    }
     setAdmissionModalOpen(true);
   };
 
@@ -63,6 +67,7 @@ export default function HomePage() {
         schoolName={schoolDisplayName}
         phone={branding.phone || "+91 98765 43210"}
         email={branding.email || "admissions@school.edu.in"}
+        initialGrade={initialGrade}
       />
     </div>
   );
