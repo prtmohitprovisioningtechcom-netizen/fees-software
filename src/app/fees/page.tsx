@@ -73,7 +73,7 @@ export default function FeesPage() {
 
       <main className="flex-1">
         {/* Page Hero */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
             <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Fee Policy 2025–26
@@ -94,7 +94,7 @@ export default function FeesPage() {
         <FeePreviewCalculator onOpenEnquiry={() => setModalOpen(true)} />
 
         {/* Comprehensive Fee Structure Schedule Table */}
-        <section className="py-16 sm:py-24 bg-card border-t border-slate-200 dark:border-slate-800">
+        <section className="py-16 sm:py-24 bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div className="text-center max-w-2xl mx-auto space-y-2">
               <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
@@ -146,7 +146,7 @@ export default function FeesPage() {
         </section>
 
         {/* Scholarships and Concessions */}
-        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-slate-800">
+        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-7 space-y-3 shadow-sm">
