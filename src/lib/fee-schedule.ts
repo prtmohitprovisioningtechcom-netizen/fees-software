@@ -1,0 +1,282 @@
+/** Quarterly fee schedule — tuition × 3 per quarter; other charges per dynamic fee policy. */
+
+import {
+  DEFAULT_FEE_POLICY,
+  buildQuarterComponentLines,
+  type FeePolicy,
+} from "./fee-policy";
+
+export type FeeStructureAmounts = {
+  admissionFee: number;
+  monthlyFee: number;
+  annualFee: number;
+  computerFee: number;
+  examFee: number;
+  otherFee: number;
+  discount?: number;
+};
+
+export type TransportInfo = {
+  monthlyFee: number;
+  routeName?: string;
+} | null;
+
+export type QuarterNumber = 1 | 2 | 3 | 4;
+
+/** Transport: 11 months/year — Q1 = 2 months, Q2–Q4 = 3 months each */
+export const TRANSPORT_MONTHS_BY_QUARTER: Record<QuarterNumber, number> = {
+  1: 2,
+  2: 3,
+  3: 3,
+  4: 3,
+};
+
+export const TRANSPORT_YEARLY_MONTHS = 11;
+
+export const getYearlyTransport = (monthlyTransport: number) =>
+  monthlyTransport * TRANSPORT_YEARLY_MONTHS;
+
+export const getTransportDueInQuarter = (monthlyTransport: number, quarter: QuarterNumber) =>
+  monthlyTransport * TRANSPORT_MONTHS_BY_QUARTER[quarter];
+
+export const getTransportLabelForQuarter = (quarter: QuarterNumber, routeName?: string) => {
+  const months = TRANSPORT_MONTHS_BY_QUARTER[quarter];
+  const base = `Transport (${months} month${months > 1 ? "s" : ""})`;
+  return routeName ? `${routeName} — ${base}` : base;
+};
+
+export interface QuarterScheduleItem {
+  quarter: QuarterNumber;
+  label: string;
+  tuitionDue: number;
+  annualChargesDue: number;
+  admissionDue: number;
+  componentsDue: { key: string; label: string; amount: number }[];
+  totalDue: number;
+  paid: number;
+  pending: number;
+  status: "paid" | "partial" | "pending";
+}
+
+export const QUARTER_LABELS: Record<QuarterNumber, string> = {
+  1: "Quarter 1 (Apr–Jun)",
+  2: "Quarter 2 (Jul–Sep)",
+  3: "Quarter 3 (Oct–Dec)",
+  4: "Quarter 4 (Jan–Mar)",
+};
+
+export const getQuarterlyTuition = (monthlyFee: number) => monthlyFee * 3;
+
+export const getYearlyTuition = (monthlyFee: number) => monthlyFee * 12;
+
+/** Exam + stationery + annual + other — full yearly total (allocation per quarter uses fee policy) */
+export const getAnnualChargesTotal = (structure: FeeStructureAmounts) =>
+  structure.examFee + structure.computerFee + structure.annualFee + structure.otherFee;
+
+/** Old student yearly gross (no admission pack) */
+export const getOldStudentYearlyTotal = (structure: FeeStructureAmounts) =>
+  getYearlyTuition(structure.monthlyFee) + getAnnualChargesTotal(structure);
+
+/** New student yearly gross (includes prospectus + registration + admission) */
+export const getNewStudentYearlyTotal = (structure: FeeStructureAmounts) =>
+  getOldStudentYearlyTotal(structure) + structure.admissionFee;
+
+export const getGrossYearlyTotal = (
+  structure: FeeStructureAmounts,
+  includeAdmission: boolean,
+  transport: TransportInfo = null
+) => {
+  let total = includeAdmission ? getNewStudentYearlyTotal(structure) : getOldStudentYearlyTotal(structure);
+  if (transport && transport.monthlyFee > 0) {
+    total += getYearlyTransport(transport.monthlyFee);
+  }
+  return total;
+};
+
+export const getNetYearlyTotal = (
+  structure: FeeStructureAmounts,
+  includeAdmission: boolean,
+  studentFeeDiscount = 0,
+  transport: TransportInfo = null
+) => {
+  const gross = getGrossYearlyTotal(structure, includeAdmission, transport);
+  const structureDiscount = structure.discount || 0;
+  const totalDiscount = Math.min(gross, structureDiscount + (studentFeeDiscount || 0));
+  return Math.max(0, gross - totalDiscount);
+};
+
+const recalcQuarterStatus = (q: QuarterScheduleItem): QuarterScheduleItem => {
+  const pending = Math.max(0, q.totalDue - q.paid);
+  let status: QuarterScheduleItem["status"] = "pending";
+  if (q.totalDue > 0 && q.paid >= q.totalDue) status = "paid";
+  else if (q.paid > 0) status = "partial";
+  return { ...q, pending, status };
+};
+
+export const buildQuarterSchedule = (
+  structure: FeeStructureAmounts,
+  includeAdmission: boolean,
+  paidByQuarter: Partial<Record<QuarterNumber, number>> = {},
+  policy: FeePolicy = DEFAULT_FEE_POLICY,
+  transport: TransportInfo = null
+): QuarterScheduleItem[] => {
+  const quarterlyTuition = getQuarterlyTuition(structure.monthlyFee);
+  const amounts = {
+    admissionFee: structure.admissionFee,
+    annualFee: structure.annualFee || 0,
+    computerFee: structure.computerFee,
+    examFee: structure.examFee,
+    otherFee: structure.otherFee,
+  };
+
+  return ([1, 2, 3, 4] as QuarterNumber[]).map((quarter) => {
+    const componentsDue = buildQuarterComponentLines(
+      amounts,
+      quarter,
+      policy,
+      includeAdmission,
+      quarterlyTuition
+    );
+    if (transport && transport.monthlyFee > 0) {
+      componentsDue.push({
+        key: "transport",
+        label: getTransportLabelForQuarter(quarter, transport.routeName),
+        amount: getTransportDueInQuarter(transport.monthlyFee, quarter),
+      });
+    }
+    const tuitionDue = quarterlyTuition;
+    const admissionDue = componentsDue.find((c) => c.key === "admissionFee")?.amount || 0;
+    const annualChargesDue = componentsDue
+      .filter((c) => c.key !== "tuition" && c.key !== "admissionFee")
+      .reduce((s, c) => s + c.amount, 0);
+    const totalDue = componentsDue.reduce((s, c) => s + c.amount, 0);
+    const paid = paidByQuarter[quarter] || 0;
+
+    return recalcQuarterStatus({
+      quarter,
+      label: QUARTER_LABELS[quarter],
+      tuitionDue,
+      annualChargesDue,
+      admissionDue,
+      componentsDue,
+      totalDue,
+      paid,
+      pending: 0,
+      status: "pending",
+    });
+  });
+};
+
+export const getPaidByQuarter = (
+  payments: { quarter?: number | null; currentPayment: number }[]
+): Partial<Record<QuarterNumber, number>> => {
+  const map: Partial<Record<QuarterNumber, number>> = {};
+  for (const p of payments) {
+    if (p.quarter && p.quarter >= 1 && p.quarter <= 4) {
+      const q = p.quarter as QuarterNumber;
+      map[q] = (map[q] || 0) + p.currentPayment;
+    }
+  }
+  return map;
+};
+
+/** Apply tagged + untagged payments to quarters.
+ * Tagged amount fills its quarter first; any excess spills FIFO Q1→Q4.
+ * Example: Q4 due ₹4450, pay ₹4000 then ₹500 → Q4 gets ₹4450, extra ₹50 goes to next pending quarter.
+ */
+export const allocatePaymentsToSchedule = (
+  schedule: QuarterScheduleItem[],
+  payments: { quarter?: number | null; currentPayment: number }[]
+): QuarterScheduleItem[] => {
+  const result = schedule.map((q) => ({
+    ...q,
+    paid: 0,
+  }));
+
+  let overflow = 0;
+
+  for (const payment of payments) {
+    const amount = Math.max(0, payment.currentPayment || 0);
+    if (!amount) continue;
+
+    const quarter =
+      payment.quarter && payment.quarter >= 1 && payment.quarter <= 4
+        ? (payment.quarter as QuarterNumber)
+        : null;
+
+    if (quarter) {
+      const target = result.find((q) => q.quarter === quarter);
+      if (target) {
+        const gap = Math.max(0, target.totalDue - target.paid);
+        const apply = Math.min(amount, gap);
+        target.paid += apply;
+        overflow += amount - apply;
+        continue;
+      }
+    }
+
+    overflow += amount;
+  }
+
+  for (const q of result) {
+    if (overflow <= 0) break;
+    const gap = Math.max(0, q.totalDue - q.paid);
+    const apply = Math.min(overflow, gap);
+    q.paid += apply;
+    overflow -= apply;
+  }
+
+  return result.map(recalcQuarterStatus);
+};
+
+/** Spread yearly discount across quarters proportionally */
+export const applyDiscountToSchedule = (
+  schedule: QuarterScheduleItem[],
+  totalDiscount: number
+): QuarterScheduleItem[] => {
+  if (totalDiscount <= 0) return schedule.map(recalcQuarterStatus);
+
+  const grossSum = schedule.reduce((s, q) => s + q.totalDue, 0);
+  if (grossSum <= 0) return schedule.map(recalcQuarterStatus);
+
+  const netSum = Math.max(0, grossSum - totalDiscount);
+  let assignedNet = 0;
+
+  return schedule.map((q, i) => {
+    let netDue: number;
+    if (i === schedule.length - 1) {
+      netDue = Math.max(0, netSum - assignedNet);
+    } else {
+      netDue = Math.round((q.totalDue / grossSum) * netSum);
+      assignedNet += netDue;
+    }
+    return recalcQuarterStatus({ ...q, totalDue: netDue });
+  });
+};
+
+/** Full pipeline: gross quarters → apply discount → allocate payments */
+export const finalizeQuarterSchedule = (
+  structure: FeeStructureAmounts,
+  includeAdmission: boolean,
+  payments: { quarter?: number | null; currentPayment: number }[],
+  totalDiscount: number,
+  policy: FeePolicy = DEFAULT_FEE_POLICY,
+  transport: TransportInfo = null
+): QuarterScheduleItem[] => {
+  const gross = buildQuarterSchedule(structure, includeAdmission, {}, policy, transport);
+  const discounted = applyDiscountToSchedule(gross, totalDiscount);
+  return allocatePaymentsToSchedule(discounted, payments);
+};
+
+export const previewQuarterSchedule = (
+  structure: FeeStructureAmounts,
+  policy: FeePolicy,
+  includeAdmission: boolean,
+  transport: TransportInfo = null
+) => buildQuarterSchedule(structure, includeAdmission, {}, policy, transport);
+
+export const getNextDueQuarter = (schedule: QuarterScheduleItem[]): QuarterScheduleItem | null =>
+  schedule.find((q) => q.status !== "paid") || null;
+
+export const sumSchedulePending = (schedule: QuarterScheduleItem[]) =>
+  schedule.reduce((s, q) => s + q.pending, 0);

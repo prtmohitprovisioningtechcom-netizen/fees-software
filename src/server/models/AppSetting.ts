@@ -1,0 +1,41 @@
+import mongoose, { Schema, Document, Model } from "mongoose";
+
+export interface IFeePolicyStored {
+  components?: {
+    key: string;
+    label: string;
+    enabled: boolean;
+    newStudentOnly?: boolean;
+  }[];
+  allocations?: Record<string, { quarter: number; percent: number }[]>;
+}
+
+export interface IAppSetting extends Document {
+  schoolName: string;
+  appName: string;
+  logo?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  feePolicy?: IFeePolicyStored;
+  updatedAt: Date;
+  createdAt: Date;
+}
+
+const appSettingSchema = new Schema<IAppSetting>(
+  {
+    schoolName: { type: String, required: true, trim: true, default: "" },
+    appName: { type: String, required: true, trim: true, default: "" },
+    logo: { type: String },
+    address: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    email: { type: String, trim: true, lowercase: true },
+    feePolicy: { type: Schema.Types.Mixed, default: null },
+  },
+  { timestamps: true }
+);
+
+const AppSetting: Model<IAppSetting> =
+  mongoose.models.AppSetting || mongoose.model<IAppSetting>("AppSetting", appSettingSchema);
+
+export default AppSetting;
