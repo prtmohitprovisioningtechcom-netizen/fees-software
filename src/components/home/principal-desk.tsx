@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Award, CheckCircle, Heart, Quote, Sparkles } from "lucide-react";
+import { Award, CheckCircle2, Heart, Quote, Sparkles } from "lucide-react";
 
 interface PrincipalDeskProps {
   schoolName: string;
@@ -13,15 +13,15 @@ export function PrincipalDesk({ schoolName, onOpenEnquiry }: PrincipalDeskProps)
   return (
     <section id="principal" className="py-8 sm:py-12 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-primary/5 via-card to-background border border-border rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-primary/5 via-card to-background border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-lg relative overflow-hidden">
           {/* Subtle Background Icon */}
-          <Quote className="absolute -top-6 -right-6 h-48 w-48 text-primary/5 pointer-events-none rotate-12" />
+          <Quote className="absolute -top-6 -right-6 h-40 w-40 text-primary/5 pointer-events-none rotate-12" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-10 items-center relative">
             {/* Principal Photo & Details Card */}
-            <div className="lg:col-span-5 flex flex-col items-center text-center space-y-4">
+            <div className="lg:col-span-4 flex flex-col items-center text-center space-y-2.5">
               <div className="relative">
-                <div className="h-44 w-44 sm:h-52 sm:w-52 rounded-full overflow-hidden border-4 border-primary/30 shadow-2xl p-1 bg-background">
+                <div className="h-24 w-24 sm:h-40 sm:w-40 rounded-full overflow-hidden border-4 border-primary/20 shadow-lg p-0.5 bg-background">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop"
@@ -29,62 +29,84 @@ export function PrincipalDesk({ schoolName, onOpenEnquiry }: PrincipalDeskProps)
                     className="h-full w-full object-cover rounded-full"
                   />
                 </div>
-                <div className="absolute bottom-2 right-2 bg-primary text-primary-foreground p-2 rounded-full shadow-lg">
-                  <Award className="h-5 w-5" />
+                <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1 rounded-full shadow-md">
+                  <Award className="h-3.5 w-3.5" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <h3 className="text-xl sm:text-2xl font-bold font-heading text-slate-950 dark:text-white">
+              <div className="space-y-0.5">
+                <h3 className="text-base sm:text-xl font-bold font-heading text-slate-950 dark:text-white">
                   Dr. Radhika Sen Sharma
                 </h3>
-                <p className="text-xs sm:text-sm font-bold text-primary">
+                <p className="text-xs font-bold text-primary">
                   Principal & Director of Academics
                 </p>
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  Ph.D. in Educational Leadership (Oxford Alumni) • 26+ Years Experience
+                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                  Ph.D. Educational Leadership • 26+ Yrs Experience
                 </p>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-2 pt-1">
-                <Badge variant="secondary" className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  National CBSE Educator Award
+              <div className="flex flex-wrap justify-center gap-1.5 pt-0.5">
+                <Badge variant="secondary" className="text-[10px] font-bold text-slate-900 dark:text-slate-100">
+                  CBSE National Educator
                 </Badge>
-                <Badge variant="secondary" className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  Author & Child Mentor
+                <Badge variant="secondary" className="text-[10px] font-bold text-slate-900 dark:text-slate-100">
+                  Child Mentor
                 </Badge>
               </div>
             </div>
 
-            {/* Principal's Letter Content */}
-            <div className="lg:col-span-7 space-y-5">
-              <div className="space-y-2">
-                <Badge variant="outline" className="text-primary border-primary/40 text-xs font-bold bg-primary/5">
-                  From the Principal&apos;s Desk
+            {/* Principal's Letter Content - Concise Main Points */}
+            <div className="lg:col-span-8 space-y-3 sm:space-y-4">
+              <div className="space-y-1">
+                <Badge variant="outline" className="text-primary border-primary/40 text-[10px] sm:text-xs font-bold bg-primary/5">
+                  Principal&apos;s Message
                 </Badge>
-                <h2 className="text-2xl sm:text-3xl font-extrabold font-heading tracking-tight text-slate-950 dark:text-white">
+                <h2 className="text-lg sm:text-2xl lg:text-3xl font-extrabold font-heading tracking-tight text-slate-950 dark:text-white leading-snug">
                   &ldquo;We don&apos;t just prepare children for exams; we prepare them for life.&rdquo;
                 </h2>
               </div>
 
-              <div className="space-y-3.5 text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed font-normal">
-                <p>
-                  Dear Parents and Guardians, welcome to <strong className="font-bold text-slate-950 dark:text-white">{schoolName}</strong>. As an educator for over two and a half decades, I believe true education transcends textbooks and scorecards. It is ignited in the spark of curiosity, anchored in moral integrity, and strengthened by resilience.
-                </p>
-                <p>
-                  In this rapid digital era, our children must be confident innovators who can think critically, adapt swiftly, and lead with compassion. From our kindergarten Montessori studios to our AI robotics labs and Olympic sports complex, every child at our academy is valued as an individual with unique genius.
-                </p>
-                <p>
-                  We invite you to partner with us in this joyful journey of learning. Together, let us cultivate children who dream boldly and stand tall with humility and courage.
-                </p>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
+                At <strong className="font-bold text-slate-950 dark:text-white">{schoolName}</strong>, we nurture academic brilliance with moral grounding, individual mentorship, and future-ready technological skills.
+              </p>
+
+              {/* 3 Main Highlights - Concise Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-0.5">
+                <div className="bg-background/80 border border-slate-200 dark:border-slate-800 p-2.5 sm:p-3 rounded-xl space-y-0.5">
+                  <div className="text-xs font-bold text-slate-950 dark:text-white flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> Academic Rigor
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                    100% board distinctions with daily doubt sessions.
+                  </p>
+                </div>
+
+                <div className="bg-background/80 border border-slate-200 dark:border-slate-800 p-2.5 sm:p-3 rounded-xl space-y-0.5">
+                  <div className="text-xs font-bold text-slate-950 dark:text-white flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> Future Ready
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                    Robotics, IoT & Python coding from early years.
+                  </p>
+                </div>
+
+                <div className="bg-background/80 border border-slate-200 dark:border-slate-800 p-2.5 sm:p-3 rounded-xl space-y-0.5">
+                  <div className="text-xs font-bold text-slate-950 dark:text-white flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> Mentorship
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                    15:1 ratio ensuring focused personal attention.
+                  </p>
+                </div>
               </div>
 
-              <div className="pt-2 flex flex-wrap items-center gap-4">
-                <Button onClick={onOpenEnquiry} className="font-semibold gap-2 shadow-md">
+              <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <Button onClick={onOpenEnquiry} className="w-full sm:w-auto font-bold gap-2 shadow-md h-10 sm:h-11 rounded-xl text-xs sm:text-sm">
                   <Sparkles className="h-4 w-4" />
-                  Request Principal Interaction
+                  <span>Request Interaction</span>
                 </Button>
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 italic font-serif">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 italic text-center sm:text-left">
                   — Warm regards & blessings
                 </span>
               </div>

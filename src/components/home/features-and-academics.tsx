@@ -28,59 +28,59 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
 
   const academicPrograms = {
     "pre-primary": {
-      title: "Foundational & Pre-Primary Wing",
-      subtitle: "Nursery, Lower KG & Upper KG (Ages 3 to 5)",
+      title: "Foundational & Pre-Primary",
+      subtitle: "Nursery, LKG & UKG (Ages 3 to 5)",
       description:
-        "Our early childhood program combines the Montessori play-way philosophy with modern sensory learning. Children develop foundational communication skills, emotional resilience, curiosity, and motor dexterity in a secure, nurturing environment.",
+        "Play-based sensory discovery, phonetics, and early numeracy in a joyful, secure environment.",
       highlights: [
-        "Play-based sensory discovery and interactive story circles",
-        "Phonetics, early numeracy, and bilingual vocabulary foundation",
-        "Splash pool, indoor soft play zone, and discovery gardens",
-        "Dedicated child psychologists and nutrition-guided meals",
+        "Play-way learning & story circles",
+        "Bilingual phonetics & numbers",
+        "Soft play arena & discovery zone",
+        "Dedicated caring staff (10:1 ratio)",
       ],
-      ratio: "10:1 Child to Caregiver Ratio",
+      ratio: "10:1 Ratio",
       schedule: "8:30 AM – 12:30 PM",
     },
     primary: {
-      title: "Primary School Wing",
-      subtitle: "Grades 1 to 5 (Ages 6 to 10)",
+      title: "Primary Wing",
+      subtitle: "Classes 1 to 5 (Ages 6 to 10)",
       description:
-        "Focused on nurturing inquiry, creative expression, and strong cognitive fundamentals. Children engage with real-world applications in mathematics, environmental sciences, languages, and performing arts.",
+        "Core foundation in mathematics, science, reading, creative arts, and basic digital logic.",
       highlights: [
-        "Inquiry-led STEM experiments and creative writing workshops",
-        "Digital literacy: basic computer science and logic puzzles",
-        "Physical education, gymnastics, and swimming instruction",
-        "Remedial reading programs and dedicated talent discovery",
+        "STEM experiments & mental math",
+        "Digital literacy & coding basics",
+        "Athletics & physical fitness",
+        "Remedial reading & public speaking",
       ],
-      ratio: "15:1 Student to Teacher Ratio",
+      ratio: "15:1 Ratio",
       schedule: "8:00 AM – 2:00 PM",
     },
     middle: {
       title: "Middle School Wing",
-      subtitle: "Grades 6 to 8 (Ages 11 to 13)",
+      subtitle: "Classes 6 to 8 (Ages 11 to 13)",
       description:
-        "Transitioning scholars into independent thinkers. Middle school emphasizes analytical rigor, structured science laboratories, robotics, foreign languages, and inter-house debates.",
+        "Cultivating analytical thinking, practical lab research, languages, and robotics.",
       highlights: [
-        "Hands-on Physics, Chemistry, and Biology laboratories",
-        "Robotics, Python coding, and AI curriculum integration",
-        "Foreign language options (French, German, Sanskrit)",
-        "Leadership council, MUN simulations, and inter-school athletics",
+        "Hands-on Physics, Chem & Bio labs",
+        "Robotics, IoT & Python coding",
+        "Debates, MUN & sports leagues",
+        "Analytical mathematics & logic",
       ],
-      ratio: "18:1 Student to Teacher Ratio",
+      ratio: "18:1 Ratio",
       schedule: "8:00 AM – 2:30 PM",
     },
     senior: {
-      title: "Secondary & Senior Secondary Wing",
-      subtitle: "Grades 9 to 12 (CBSE Affiliated)",
+      title: "Senior Secondary Wing",
+      subtitle: "Classes 9 to 12 (CBSE Board)",
       description:
-        "Rigorous academic training tailored to national board examinations and competitive entrances. We offer specialized streams with comprehensive university career guidance.",
+        "Board excellence with integrated coaching for JEE, NEET, CUET & national entrance exams.",
       highlights: [
-        "Science (PCM & PCB) with JEE / NEET preparation support",
-        "Commerce (Accountancy, Business Studies, Economics, Applied Math)",
-        "Humanities (Psychology, Political Science, Economics, History)",
-        "Career counseling, university application desk, and profile building",
+        "Science (PCM & PCB) practical labs",
+        "Commerce (Accounts, Business, Eco)",
+        "Humanities (Psychology & Pol Sci)",
+        "Career counseling & test prep",
       ],
-      ratio: "20:1 Mentorship Guidance",
+      ratio: "20:1 Ratio",
       schedule: "7:45 AM – 2:45 PM",
     },
   };
@@ -88,60 +88,60 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
   const currentWing = academicPrograms[activeTab];
 
   return (
-    <section id="academics" className="py-10 sm:py-14 bg-muted/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <section id="academics" className="py-8 sm:py-12 bg-muted/20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         {/* Section Heading */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
-            Academic Excellence
+        <div className="text-center max-w-3xl mx-auto space-y-2">
+          <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-bold text-xs uppercase tracking-wider">
+            Academic Wings
           </Badge>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-            Holistic Education From Early Years to Senior Secondary
+          <h2 className="text-2xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
+            Comprehensive CBSE Curriculum
           </h2>
-          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-            A comprehensive CBSE curriculum designed to foster academic mastery, ethical leadership, scientific curiosity, and lifelong love for learning.
+          <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-base font-medium max-w-2xl mx-auto">
+            From foundational early learning to senior secondary board excellence and competitive entrance prep.
           </p>
         </div>
 
-        {/* Interactive Wing Tabs */}
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-center gap-2 p-1.5 bg-background border border-border/80 rounded-2xl max-w-2xl mx-auto shadow-sm">
+        {/* Responsive Wing Tabs (2x2 Grid on Mobile, 4-col on Tablet/Desktop) */}
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-background border border-border/80 rounded-2xl max-w-2xl mx-auto shadow-sm">
             <button
               onClick={() => setActiveTab("pre-primary")}
-              className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`py-2 sm:py-2.5 px-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
                 activeTab === "pre-primary"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-slate-700 dark:text-slate-300 hover:text-foreground hover:bg-muted/60"
               }`}
             >
               Pre-Primary
             </button>
             <button
               onClick={() => setActiveTab("primary")}
-              className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`py-2 sm:py-2.5 px-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
                 activeTab === "primary"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-slate-700 dark:text-slate-300 hover:text-foreground hover:bg-muted/60"
               }`}
             >
               Primary (1–5)
             </button>
             <button
               onClick={() => setActiveTab("middle")}
-              className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`py-2 sm:py-2.5 px-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
                 activeTab === "middle"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-slate-700 dark:text-slate-300 hover:text-foreground hover:bg-muted/60"
               }`}
             >
               Middle (6–8)
             </button>
             <button
               onClick={() => setActiveTab("senior")}
-              className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`py-2 sm:py-2.5 px-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
                 activeTab === "senior"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-slate-700 dark:text-slate-300 hover:text-foreground hover:bg-muted/60"
               }`}
             >
               Senior (9–12)
@@ -149,35 +149,35 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
           </div>
 
           {/* Active Wing Content Card */}
-          <div className="bg-card border border-border rounded-3xl p-6 sm:p-10 shadow-lg relative overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-8 space-y-6">
+          <div className="bg-card border border-border/80 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-md relative overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+              <div className="lg:col-span-8 space-y-4 sm:space-y-5">
                 <div>
-                  <div className="inline-block text-xs font-bold text-primary tracking-wide uppercase">
+                  <div className="inline-block text-[11px] sm:text-xs font-bold text-primary tracking-wide uppercase">
                     {currentWing.subtitle}
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
+                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-heading font-extrabold text-slate-950 dark:text-white mt-0.5">
                     {currentWing.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm sm:text-base mt-3 leading-relaxed">
+                  <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm mt-1.5 leading-relaxed font-medium">
                     {currentWing.description}
                   </p>
                 </div>
 
-                {/* Highlights List */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {/* Highlights List - 2 columns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 pt-1">
                   {currentWing.highlights.map((highlight, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start gap-2.5 text-xs sm:text-sm font-medium text-foreground/90 bg-muted/40 p-3 rounded-xl border border-border/50"
+                      className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-muted/50 p-2.5 rounded-xl"
                     >
-                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                      <span>{highlight}</span>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className="leading-tight">{highlight}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 pt-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                   <Button
                     onClick={() => {
                       const gradeMap: Record<string, string> = {
@@ -188,45 +188,41 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
                       };
                       onOpenEnquiry(gradeMap[activeTab]);
                     }}
-                    className="font-semibold gap-2 shadow-md"
+                    className="font-bold gap-2 shadow-md h-11 rounded-xl"
                   >
                     <Sparkles className="h-4 w-4" />
-                    Enquire for {currentWing.title.split(" ")[0]}
+                    <span>Enquire for {currentWing.title.split(" ")[0]}</span>
                   </Button>
-                  <span className="text-xs text-muted-foreground">
-                    Timings: <strong>{currentWing.schedule}</strong>
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium text-center sm:text-left">
+                    Timings: <strong className="text-slate-950 dark:text-white">{currentWing.schedule}</strong>
                   </span>
                 </div>
               </div>
 
-              {/* Stats and Ratio Side Badge */}
-              <div className="lg:col-span-4 bg-muted/60 border border-border/80 rounded-2xl p-6 space-y-5 text-center sm:text-left">
+              {/* Stats and Quick Highlights Card */}
+              <div className="lg:col-span-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-                    <GraduationCap className="h-6 w-6" />
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                    <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground font-semibold">Teacher-Student Ratio</div>
-                    <div className="text-base font-bold text-foreground">{currentWing.ratio}</div>
+                    <div className="text-[11px] text-slate-500 font-semibold">Class Ratio</div>
+                    <div className="text-sm sm:text-base font-bold text-slate-950 dark:text-white">{currentWing.ratio}</div>
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-4 text-xs text-muted-foreground">
-                  <div className="flex justify-between py-1">
-                    <span>Curriculum Board:</span>
-                    <strong className="text-foreground">CBSE (Central Board)</strong>
+                <div className="space-y-1.5 pt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <div className="flex justify-between py-1 bg-white dark:bg-slate-800/60 px-3 rounded-lg">
+                    <span>Curriculum:</span>
+                    <strong className="text-slate-950 dark:text-white">CBSE Board</strong>
                   </div>
-                  <div className="flex justify-between py-1">
-                    <span>Medium of Instruction:</span>
-                    <strong className="text-foreground">English Core</strong>
+                  <div className="flex justify-between py-1 bg-white dark:bg-slate-800/60 px-3 rounded-lg">
+                    <span>Medium:</span>
+                    <strong className="text-slate-950 dark:text-white">English Core</strong>
                   </div>
-                  <div className="flex justify-between py-1">
-                    <span>Co-Curriculars:</span>
-                    <strong className="text-foreground">Compulsory Weekly</strong>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span>Smart Learning:</span>
-                    <strong className="text-foreground">100% Interactive AV</strong>
+                  <div className="flex justify-between py-1 bg-white dark:bg-slate-800/60 px-3 rounded-lg">
+                    <span>Smart Labs:</span>
+                    <strong className="text-slate-950 dark:text-white">100% AV Interactive</strong>
                   </div>
                 </div>
               </div>
@@ -234,81 +230,81 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
           </div>
         </div>
 
-        {/* 6 Key Pillars / Why Parents Choose Us */}
-        <div id="about" className="space-y-8 pt-4">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-heading font-bold tracking-tight text-slate-950 dark:text-white">
-              Why Families Trust Our Academy
+        {/* 6 Core Pillars - Clean, Concise, Mobile-Friendly */}
+        <div id="about" className="space-y-4 pt-2">
+          <div className="text-center max-w-2xl mx-auto space-y-1">
+            <h3 className="text-xl sm:text-3xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
+              Why Parents Choose Our Academy
             </h3>
-            <p className="text-slate-800 dark:text-slate-200 text-sm font-medium">
-              We go beyond textbooks to cultivate well-rounded, confident individuals prepared for world-class universities and life.
+            <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-medium">
+              Core highlights that set our students apart.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Pillar 1 */}
-            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <BrainCircuit className="h-6 w-6" />
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-1.5 hover:border-primary/50 transition-all shadow-sm">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <BrainCircuit className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Next-Gen STEM & AI Labs</h4>
-              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                Equipped with 3D printers, IoT kits, drone simulation, and Python programming to cultivate critical technological thinking early.
+              <h4 className="text-sm sm:text-base font-heading font-bold text-slate-950 dark:text-white">STEM & AI Labs</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-medium">
+                Hands-on robotics, 3D printing, and Python coding.
               </p>
             </div>
 
             {/* Pillar 2 */}
-            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <Trophy className="h-6 w-6" />
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-1.5 hover:border-primary/50 transition-all shadow-sm">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Sports & Athletics Complex</h4>
-              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                Full-size football ground, athletic running track, basketball courts, badminton academy, and certified professional national coaches.
+              <h4 className="text-sm sm:text-base font-heading font-bold text-slate-950 dark:text-white">Olympic Sports Arena</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-medium">
+                400m synthetic running track & certified sports coaches.
               </p>
             </div>
 
             {/* Pillar 3 */}
-            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                <Bus className="h-6 w-6" />
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-1.5 hover:border-primary/50 transition-all shadow-sm">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                <Bus className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Safe GPS-Monitored Fleet</h4>
-              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                Air-conditioned school buses with female security attendants, speed governors, CCTV cameras, and live mobile tracking for parents.
+              <h4 className="text-sm sm:text-base font-heading font-bold text-slate-950 dark:text-white">GPS School Fleet</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-medium">
+                AC buses with CCTV, female attendants & live tracking.
               </p>
             </div>
 
             {/* Pillar 4 */}
-            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                <Laptop className="h-6 w-6" />
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-1.5 hover:border-primary/50 transition-all shadow-sm">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                <Laptop className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Smart Digital Classrooms</h4>
-              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                Interactive smart flat panels with 3D visualization, recorded lecture archives, and digital attendance integrated with parent SMS notifications.
+              <h4 className="text-sm sm:text-base font-heading font-bold text-slate-950 dark:text-white">Smart Classrooms</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-medium">
+                4K interactive displays and 3D visual learning modules.
               </p>
             </div>
 
             {/* Pillar 5 */}
-            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                <Microscope className="h-6 w-6" />
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-1.5 hover:border-primary/50 transition-all shadow-sm">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                <Microscope className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Advanced Science Facilities</h4>
-              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                Spacious individual laboratories for Physics, Chemistry, Biology, and Mathematics adhering to the highest safety and regulatory standards.
+              <h4 className="text-sm sm:text-base font-heading font-bold text-slate-950 dark:text-white">Advanced Science Labs</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-medium">
+                Dedicated Physics, Chemistry, and Biology research labs.
               </p>
             </div>
 
             {/* Pillar 6 */}
-            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-                <HeartHandshake className="h-6 w-6" />
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-1.5 hover:border-primary/50 transition-all shadow-sm">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                <HeartHandshake className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Holistic Life Skills & Wellness</h4>
-              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                Full-time resident student counselors, mindfulness programs, speech & debate clubs, and community service drives to build compassionate leaders.
+              <h4 className="text-sm sm:text-base font-heading font-bold text-slate-950 dark:text-white">Holistic Mentorship</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-medium">
+                15:1 ratio, career counseling, and leadership clubs.
               </p>
             </div>
           </div>

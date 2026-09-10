@@ -62,8 +62,8 @@ export function SchoolFooter({ branding, onOpenEnquiry }: SchoolFooterProps) {
               </div>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed max-w-md">
-              Committed to imparting value-based quality education, nurturing young minds towards creative exploration, critical thinking, sportsmanship, and global leadership.
+            <p className="text-xs text-slate-400 leading-relaxed max-w-md font-medium">
+              CBSE affiliated institution committed to academic distinction, STEM innovation, and holistic student mentorship.
             </p>
 
             <div className="flex items-center gap-3 pt-1">

@@ -105,27 +105,27 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
             : "bg-background/85 backdrop-blur-md border-b border-border/50 py-3.5"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Logo and School Title */}
-            <Link href="/" className="flex items-center gap-3.5 group shrink-0">
+            <Link href="/" className="flex items-center gap-2 sm:gap-3.5 group min-w-0 flex-1">
               {showLogo ? (
-                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl overflow-hidden shadow-sm border border-border bg-white flex items-center justify-center p-1 transition-all duration-300 group-hover:scale-105 group-hover:shadow-md">
+                <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm border border-border bg-white flex items-center justify-center p-0.5 sm:p-1 transition-all duration-300 group-hover:scale-105 group-hover:shadow-md shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={branding.logo} alt={schoolName} className="h-full w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-gradient-to-tr from-slate-900 via-blue-900 to-primary text-white flex items-center justify-center shadow-md shadow-primary/20 transition-all duration-300 group-hover:scale-105">
-                  <GraduationCap className="h-6 w-6" />
+                <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-slate-900 via-blue-900 to-primary text-white flex items-center justify-center shadow-md shadow-primary/20 transition-all duration-300 group-hover:scale-105 shrink-0">
+                  <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
               )}
-              <div className="flex flex-col">
-                <span className="font-heading font-extrabold text-base sm:text-lg tracking-tight text-slate-950 dark:text-white line-clamp-1 group-hover:text-primary transition-colors">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="font-heading font-extrabold text-xs sm:text-base lg:text-lg tracking-tight text-slate-950 dark:text-white truncate group-hover:text-primary transition-colors">
                   {schoolName}
                 </span>
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Excellence in Education • Est. 1999
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                  <span className="truncate">Excellence • Est. 1999</span>
                 </span>
               </div>
             </Link>
@@ -153,13 +153,14 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
               })}
             </nav>
 
-            {/* Right Actions: Theme Toggle & Prominent Admin Login Button */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Right Actions: Theme Toggle & Admin Login & Mobile Hamburger */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+              {/* Theme Toggle: Hidden on mobile bar to keep header ultra-clean, visible on sm+ */}
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                className="hidden sm:inline-flex rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/80"
                 onClick={toggle}
                 title={resolved === "dark" ? "Switch to Light mode" : "Switch to Dark mode"}
               >
@@ -171,21 +172,22 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
                 <Link href="/dashboard">
                   <Button
                     size="sm"
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl px-4 h-9 gap-1.5 shadow-sm shadow-primary/25 transition-transform hover:scale-102"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl px-2.5 sm:px-4 h-8 sm:h-9 gap-1 shadow-sm shadow-primary/25"
                   >
                     <LayoutDashboard className="h-3.5 w-3.5" />
-                    <span>Admin Dashboard</span>
+                    <span className="hidden sm:inline">Dashboard</span>
                   </Button>
                 </Link>
               ) : (
                 <Link href="/login">
                   <Button
                     size="sm"
-                    className="bg-slate-950 hover:bg-slate-900 text-white dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground font-semibold text-xs rounded-xl px-4 h-9 gap-1.5 shadow-sm border border-white/10 transition-all duration-200 hover:shadow-md hover:scale-102"
+                    className="bg-slate-950 hover:bg-slate-900 text-white dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground font-semibold text-xs rounded-xl px-2.5 sm:px-4 h-8 sm:h-9 gap-1 shadow-sm border border-white/10"
                     title="Staff & Administrative ERP Login"
                   >
-                    <Lock className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Admin Login</span>
+                    <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">Admin Login</span>
+                    <span className="sm:hidden">Login</span>
                   </Button>
                 </Link>
               )}
@@ -195,11 +197,11 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="lg:hidden h-9 w-9 rounded-xl border border-border/60"
+                className="lg:hidden h-8 w-8 sm:h-9 sm:w-9 rounded-xl border border-border/60"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                {mobileMenuOpen ? <X className="h-4 w-4 sm:h-5 sm:w-5" /> : <Menu className="h-4 w-4 sm:h-5 sm:w-5" />}
               </Button>
             </div>
           </div>
@@ -207,7 +209,7 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
 
         {/* Mobile Drawer Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-b border-border bg-background/98 backdrop-blur-2xl px-5 pt-3 pb-6 space-y-4 animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="lg:hidden border-b border-border bg-background/98 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-4 animate-in fade-in slide-in-from-top-3 duration-200">
             <div className="flex flex-col space-y-1 text-sm font-medium">
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
@@ -230,23 +232,36 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
             </div>
 
             <div className="pt-3 border-t border-border/80 flex flex-col gap-2.5">
+              {/* Theme Toggle row in Mobile Menu */}
+              <button
+                type="button"
+                onClick={toggle}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-muted/60 text-xs font-semibold text-slate-800 dark:text-slate-200"
+              >
+                <span className="flex items-center gap-2">
+                  {resolved === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
+                  <span>{resolved === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground uppercase font-bold">{resolved}</span>
+              </button>
+
               {isLoggedIn ? (
                 <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full justify-center gap-2 bg-primary rounded-xl text-xs py-5">
+                  <Button className="w-full justify-center gap-2 bg-primary rounded-xl text-xs py-4">
                     <LayoutDashboard className="h-4 w-4" />
                     <span>Go to Admin Dashboard ({user?.name || "Staff"})</span>
                   </Button>
                 </Link>
               ) : (
                 <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full justify-center gap-2 bg-slate-950 text-white dark:bg-primary dark:text-primary-foreground rounded-xl text-xs py-5 shadow-md">
+                  <Button className="w-full justify-center gap-2 bg-slate-950 text-white dark:bg-primary dark:text-primary-foreground rounded-xl text-xs py-4 shadow-md">
                     <Lock className="h-4 w-4 text-amber-400" />
                     <span>Admin & Staff Portal Login</span>
                   </Button>
                 </Link>
               )}
 
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
                 <span>📞 {phone}</span>
                 <span>✉️ {email}</span>
               </div>

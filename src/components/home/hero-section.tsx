@@ -36,89 +36,77 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Left Column: Heading, Value Prop & CTAs */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+          <div className="lg:col-span-7 space-y-4 sm:space-y-6 text-center lg:text-left">
             {/* Admissions Banner Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary transition-all hover:bg-primary/15 shadow-sm">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-              <span>Admissions Open for Session 2025–2026</span>
-              <span className="text-muted-foreground">•</span>
-              <span className="hidden sm:inline text-foreground/80">Playgroup to Class XII</span>
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-primary shadow-sm">
+              <span className="flex h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>Admissions Open 2025–2026</span>
+              <span className="text-muted-foreground hidden xs:inline">•</span>
+              <span className="hidden xs:inline text-foreground/80">Playgroup to Class XII</span>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground leading-[1.12]">
+            {/* Main Headline - Fluid Responsive Typography */}
+            <h1 className="text-2xl xs:text-3xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground leading-tight sm:leading-[1.12]">
               Empowering Minds, Inspiring Character,{" "}
               <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Shaping the Future
               </span>
             </h1>
 
-            {/* Sub-headline */}
-            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
-              Welcome to <strong className="text-slate-950 dark:text-white font-bold">{schoolName}</strong> — a premier institution dedicated to academic excellence, innovative STEM and AI laboratories, Olympic-grade sports, and holistic character development.
+            {/* Sub-headline: Concise Main Points */}
+            <p className="text-xs sm:text-base lg:text-lg text-slate-800 dark:text-slate-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+              Welcome to <strong className="text-slate-950 dark:text-white font-bold">{schoolName}</strong> — A premier CBSE institution fostering academic excellence, modern STEM labs, and Olympic sports.
             </p>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
-              <Link href="/admissions">
+            {/* Action Buttons - Streamlined & Mobile Optimized */}
+            <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-center lg:justify-start gap-2.5 sm:gap-3 pt-1">
+              <Link href="/admissions" className="flex-1 xs:flex-initial">
                 <Button
                   size="lg"
-                  className="font-semibold px-6 py-6 text-sm sm:text-base rounded-2xl shadow-lg shadow-primary/25 gap-2 hover:scale-[1.02] transition-transform"
+                  className="w-full font-bold px-5 py-4 sm:py-6 text-xs sm:text-base rounded-xl sm:rounded-2xl shadow-md shadow-primary/25 gap-2"
                 >
                   <span>Apply for Admission</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
 
-              <Link href="/facilities">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="font-bold text-slate-800 dark:text-slate-100 px-6 py-6 text-sm sm:text-base rounded-2xl border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 gap-2"
-                >
-                  <Compass className="h-4 w-4 text-primary" />
-                  <span>Campus & Facilities</span>
-                </Button>
-              </Link>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={onOpenEnquiry}
+                className="flex-1 xs:flex-initial font-bold text-slate-900 dark:text-slate-100 px-4 py-4 sm:py-6 text-xs sm:text-base rounded-xl sm:rounded-2xl border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 gap-1.5 shadow-sm"
+              >
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span>Enquire for Seat</span>
+              </Button>
+            </div>
 
-              <Link href="/gallery">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="font-bold text-slate-800 dark:text-slate-100 px-5 py-6 text-sm sm:text-base rounded-2xl border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 gap-2"
-                >
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span>Photo Gallery</span>
-                </Button>
+            {/* Quick Links Row: Gallery & Facilities */}
+            <div className="flex items-center justify-center lg:justify-start gap-3 sm:gap-4 text-xs font-bold text-primary pt-0.5">
+              <Link href="/gallery" className="hover:underline flex items-center gap-1">
+                <span>View Photo Gallery</span>
+                <ArrowRight className="h-3 w-3" />
               </Link>
-
-              {/* Dedicated Admin Portal Trigger */}
-              <Link href="/login">
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  className="font-bold px-5 py-6 text-xs sm:text-sm rounded-2xl text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 gap-1.5 border border-dashed border-slate-300 dark:border-slate-700"
-                  title="Staff and Administrative ERP Login"
-                >
-                  <Lock className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Admin Portal</span>
-                </Button>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <Link href="/facilities" className="hover:underline flex items-center gap-1">
+                <span>Campus Facilities</span>
+                <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
 
-            {/* Trust Markers / Highlights */}
-            <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-bold text-slate-800 dark:text-slate-200">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> CBSE Affiliated Curriculum
+            {/* Trust Markers / Highlights - Clean 2x2 on Mobile, Flex on Desktop */}
+            <div className="pt-2 grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-x-5 text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200">
+              <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/60 sm:bg-transparent px-2.5 py-1.5 sm:p-0 rounded-lg">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> CBSE Curriculum
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 100% Smart Classrooms
+              <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/60 sm:bg-transparent px-2.5 py-1.5 sm:p-0 rounded-lg">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> Smart Classes
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> GPS-Tracked Transport
+              <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/60 sm:bg-transparent px-2.5 py-1.5 sm:p-0 rounded-lg">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> GPS Bus Fleet
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Holistic Sports & STEM Labs
+              <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/60 sm:bg-transparent px-2.5 py-1.5 sm:p-0 rounded-lg">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> STEM & Robotics
               </span>
             </div>
           </div>

@@ -24,74 +24,74 @@ export function CampusLifeAndFacilities({ onOpenEnquiry }: CampusLifeAndFaciliti
 
   const facilities = [
     {
-      title: "State-of-the-Art STEM & Robotics Lab",
-      category: "Innovation & Technology",
+      title: "STEM & Robotics Innovation Lab",
+      category: "Technology",
       image: "/images/stem-lab.jpg",
       badge: "AI Powered",
       description:
-        "Equipped with advanced Arduino, Raspberry Pi, 3D printing, and humanoid robotics kits. Our students learn artificial intelligence concepts, algorithmic problem solving, and design thinking from Grade 3 onward.",
-      stats: ["40+ Workstations", "3D Printers & Laser Cutters", "Robotics Club Mentors"],
+        "Arduino workstations, 3D printing, and Python AI coding.",
+      stats: ["40+ Workstations", "3D Printers", "Robotics"],
     },
     {
-      title: "International Multi-Sport Complex",
-      category: "Athletics & Physical Fitness",
+      title: "Olympic Multi-Sport Complex",
+      category: "Athletics",
       image: "/images/sports-complex.jpg",
       badge: "Olympic Grade",
       description:
-        "A sprawling 400-meter synthetic athletic running track, FIFA-standard natural turf football pitch, floodlit basketball and tennis courts, plus indoor badminton courts and a semi-Olympic heated swimming pool.",
-      stats: ["FIFA-Standard Pitch", "400m All-Weather Track", "NIS Certified Coaches"],
+        "400m synthetic track, football pitch, basketball & pool.",
+      stats: ["FIFA Pitch", "400m Track", "NIS Coaches"],
     },
     {
-      title: "High-Tech Digital Resource & Library",
-      category: "Knowledge & Research",
+      title: "Digital Research Resource Library",
+      category: "Knowledge",
       image: "/images/library.jpg",
-      badge: "25,000+ Titles",
+      badge: "25,000+ Books",
       description:
-        "An intellectually inspiring sanctuary featuring ergonomic wooden study pods, private research cubicles, high-speed digital Kindle kiosks, and subscription to international journals such as JSTOR and National Geographic Kids.",
-      stats: ["25,000+ Physical Books", "E-Book Kiosks", "Silent Study Pods"],
+        "Quiet study pods, Kindle kiosks, and academic research journals.",
+      stats: ["25,000+ Books", "E-Book Pods", "Silent Study"],
     },
     {
       title: "15-Acre Eco-Friendly Green Campus",
-      category: "Architecture & Infrastructure",
+      category: "Campus",
       image: "/images/campus-hero.jpg",
       badge: "Zero Carbon",
       description:
-        "Designed with energy-efficient thermal architecture, landscaped botanical gardens, solar energy arrays, rainwater harvesting systems, and expansive green courtyards to ensure a clean, refreshing learning atmosphere.",
-      stats: ["Solar-Powered Campus", "Air-Purified Classrooms", "100% CCTV Coverage"],
+        "Solar-powered campus, clean air filtration, and 100% CCTV security.",
+      stats: ["Solar-Powered", "Clean Air", "100% CCTV"],
     },
   ];
 
   const current = facilities[selectedFacility];
 
   return (
-    <section id="facilities" className="py-10 sm:py-14 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <section id="facilities" className="py-8 sm:py-12 bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
-              World-Class Infrastructure
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-bold text-xs uppercase tracking-wider">
+              Infrastructure
             </Badge>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              Spaces Designed to Inspire Greatness
+            <h2 className="text-2xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
+              World-Class Campus Facilities
             </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Every corner of our campus is engineered to stimulate creative thinking, teamwork, physical vigor, and scholastic pursuit.
+            <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-base font-medium">
+              Spaces engineered to stimulate innovation, physical fitness, and scholarship.
             </p>
           </div>
 
-          <Button onClick={onOpenEnquiry} className="gap-2 shrink-0 font-semibold shadow-md">
+          <Button onClick={onOpenEnquiry} className="w-full sm:w-auto font-bold gap-2 shrink-0 shadow-md h-11 rounded-xl">
             <span>Schedule Campus Tour</span>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Interactive Showcase Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
           {/* Main Featured Facility Media */}
           <div className="lg:col-span-8">
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border bg-card group">
-              <div className="aspect-[16/10] w-full overflow-hidden relative">
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 bg-card group">
+              <div className="aspect-[4/3] sm:aspect-[16/10] w-full overflow-hidden relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={current.image}
@@ -101,29 +101,29 @@ export function CampusLifeAndFacilities({ onOpenEnquiry }: CampusLifeAndFaciliti
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 
                 {/* Floating Top Badge */}
-                <div className="absolute top-4 left-4">
-                  <Badge className="bg-primary text-primary-foreground font-semibold px-3 py-1 shadow-md gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                <div className="absolute top-3 left-3 sm:top-4 sm:left-4">
+                  <Badge className="bg-primary text-primary-foreground font-bold px-2.5 py-1 text-xs shadow-md gap-1">
+                    <Sparkles className="h-3 w-3 text-amber-300" />
                     {current.badge}
                   </Badge>
                 </div>
 
                 {/* Bottom Overlay Content */}
-                <div className="absolute bottom-6 left-6 right-6 text-white space-y-2">
-                  <div className="text-xs uppercase tracking-wider font-semibold text-primary-foreground/80">
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-6 sm:left-6 sm:right-6 text-white space-y-1 sm:space-y-2">
+                  <div className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold text-primary-foreground/90">
                     {current.category}
                   </div>
-                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold drop-shadow-md">
+                  <h3 className="text-base sm:text-2xl font-heading font-extrabold text-white drop-shadow-md">
                     {current.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-white/90 max-w-2xl line-clamp-2 drop-shadow">
+                  <p className="text-xs sm:text-sm text-white/90 max-w-2xl line-clamp-2 drop-shadow font-medium">
                     {current.description}
                   </p>
-                  <div className="flex flex-wrap gap-2 pt-2">
+                  <div className="hidden sm:flex flex-wrap gap-2 pt-1">
                     {current.stats.map((stat, idx) => (
                       <span
                         key={idx}
-                        className="text-xs bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white font-medium"
+                        className="text-xs bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white font-semibold"
                       >
                         {stat}
                       </span>
@@ -134,35 +134,35 @@ export function CampusLifeAndFacilities({ onOpenEnquiry }: CampusLifeAndFaciliti
             </div>
           </div>
 
-          {/* Side Facility Switcher Cards */}
-          <div className="lg:col-span-4 flex flex-col gap-3">
+          {/* Side Facility Switcher Cards - Responsive 2-Col on mobile, 1-Col on desktop */}
+          <div className="lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-2.5">
             {facilities.map((fac, idx) => {
               const isActive = idx === selectedFacility;
               return (
                 <button
                   key={idx}
                   onClick={() => setSelectedFacility(idx)}
-                  className={`text-left p-4 rounded-2xl border transition-all duration-200 flex items-start gap-4 ${
+                  className={`text-left p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all duration-200 flex flex-col xs:flex-row items-start xs:items-center gap-2 sm:gap-3 ${
                     isActive
-                      ? "bg-primary/10 border-primary shadow-md"
-                      : "bg-card border-border/70 hover:bg-muted/60 hover:border-border"
+                      ? "bg-primary/10 border-primary shadow-sm"
+                      : "bg-card border-slate-200 dark:border-slate-800 hover:bg-muted/60"
                   }`}
                 >
-                  <div className="h-16 w-16 rounded-xl overflow-hidden shrink-0 border border-border/60 relative">
+                  <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={fac.image} alt={fac.title} className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 w-full">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[11px] font-semibold text-primary uppercase tracking-wide">
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-wide">
                         {fac.category}
                       </span>
-                      {isActive && <Check className="h-4 w-4 text-primary shrink-0" />}
+                      {isActive && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
                     </div>
-                    <div className="text-sm font-bold text-foreground truncate mt-0.5">
+                    <div className="text-xs sm:text-sm font-bold text-slate-950 dark:text-white truncate">
                       {fac.title}
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                    <p className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1 hidden xs:block">
                       {fac.description}
                     </p>
                   </div>
