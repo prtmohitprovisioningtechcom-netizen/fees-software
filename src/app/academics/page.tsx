@@ -60,19 +60,19 @@ export default function AcademicsPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-border/60">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+            <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Academic Excellence
             </Badge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
               Curriculum Built for{" "}
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Mastery & Innovation
               </span>
             </h1>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              At <strong>{schoolName}</strong>, our academic blueprint aligns with the National Education Policy (NEP 2020) and CBSE guidelines, cultivating critical inquiry, creative exploration, and deep conceptual foundation.
+            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-3xl mx-auto leading-relaxed font-medium">
+              At <strong className="font-bold text-slate-950 dark:text-white">{schoolName}</strong>, our academic blueprint aligns with the National Education Policy (NEP 2020) and CBSE guidelines, cultivating critical inquiry, creative exploration, and deep conceptual foundation.
             </p>
           </div>
         </section>
@@ -84,13 +84,13 @@ export default function AcademicsPage() {
         <section className="py-16 sm:py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div className="text-center max-w-2xl mx-auto space-y-2">
-              <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+              <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
                 Grades 11 & 12
               </Badge>
-              <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+              <h2 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
                 Senior Secondary Career Streams
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-slate-800 dark:text-slate-200 text-sm font-medium">
                 Tailored subject combinations with dedicated university entrance guidance and laboratory research.
               </p>
             </div>
@@ -99,19 +99,19 @@ export default function AcademicsPage() {
               {streams.map((stream, idx) => (
                 <div
                   key={idx}
-                  className="bg-card border border-border/80 rounded-3xl p-7 space-y-4 shadow-sm hover:shadow-xl hover:border-primary/50 transition-all flex flex-col justify-between"
+                  className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-7 space-y-4 shadow-sm hover:shadow-xl hover:border-primary/50 transition-all flex flex-col justify-between"
                 >
                   <div className="space-y-3">
-                    <Badge variant="secondary" className="text-xs font-semibold">
+                    <Badge variant="secondary" className="text-xs font-bold text-slate-900 dark:text-slate-100">
                       {stream.badge}
                     </Badge>
-                    <h3 className="font-heading font-bold text-xl text-foreground">{stream.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{stream.focus}</p>
+                    <h3 className="font-heading font-bold text-xl text-slate-950 dark:text-white">{stream.title}</h3>
+                    <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal">{stream.focus}</p>
                   </div>
 
-                  <div className="pt-4 border-t border-border/60 space-y-2">
-                    <div className="text-[11px] font-semibold text-primary uppercase">Core Combinations:</div>
-                    <div className="text-xs font-medium text-foreground/90">{stream.subjects}</div>
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                    <div className="text-xs font-bold text-primary uppercase">Core Combinations:</div>
+                    <div className="text-xs font-bold text-slate-950 dark:text-white">{stream.subjects}</div>
                   </div>
                 </div>
               ))}
@@ -120,81 +120,81 @@ export default function AcademicsPage() {
         </section>
 
         {/* Assessment & Continuous Evaluation Framework */}
-        <section className="py-16 sm:py-20 bg-muted/20 border-y border-border/60">
+        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-6 space-y-5">
-                <Badge variant="outline" className="text-primary border-primary/30 text-xs font-semibold">
+                <Badge variant="outline" className="text-primary border-primary/40 text-xs font-bold bg-primary/5">
                   Progress Monitoring
                 </Badge>
-                <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+                <h2 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
                   Holistic Assessment & Parent Feedback
                 </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
                   We reject high-stress rote memorization in favor of Continuous and Comprehensive Evaluation (CCE). Our evaluation includes practical projects, viva-voce, analytical problem assignments, and unit milestone assessments.
                 </p>
 
                 <div className="space-y-3 text-xs sm:text-sm">
-                  <div className="flex items-start gap-3 bg-card p-3.5 rounded-xl border border-border/80">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 bg-card p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-foreground">Regular Parent-Teacher Interaction (PTM):</strong>
-                      <span className="text-muted-foreground"> Bi-monthly structured one-on-one reviews with subject teachers.</span>
+                      <strong className="text-slate-950 dark:text-white font-bold">Regular Parent-Teacher Interaction (PTM):</strong>
+                      <span className="text-slate-800 dark:text-slate-200 font-medium"> Bi-monthly structured one-on-one reviews with subject teachers.</span>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3 bg-card p-3.5 rounded-xl border border-border/80">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 bg-card p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-foreground">Digital Performance Dashboards:</strong>
-                      <span className="text-muted-foreground"> Real-time access to attendance, test grades, and assignment feedback.</span>
+                      <strong className="text-slate-950 dark:text-white font-bold">Digital Performance Dashboards:</strong>
+                      <span className="text-slate-800 dark:text-slate-200 font-medium"> Real-time access to attendance, test grades, and assignment feedback.</span>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3 bg-card p-3.5 rounded-xl border border-border/80">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 bg-card p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-foreground">Personalized Remedial Clinics:</strong>
-                      <span className="text-muted-foreground"> Complimentary zero-period doubt sessions for learners requiring extra reinforcement.</span>
+                      <strong className="text-slate-950 dark:text-white font-bold">Personalized Remedial Clinics:</strong>
+                      <span className="text-slate-800 dark:text-slate-200 font-medium"> Complimentary zero-period doubt sessions for learners requiring extra reinforcement.</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="lg:col-span-6 bg-card border border-border rounded-3xl p-8 space-y-6 shadow-xl">
-                <div className="flex items-center gap-3 pb-4 border-b border-border/70">
+              <div className="lg:col-span-6 bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-8 space-y-6 shadow-xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-700">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
                     <Award className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="font-heading font-bold text-lg text-foreground">Academic Accolades & Results</h4>
-                    <p className="text-xs text-muted-foreground">CBSE Class X & XII Board Outcomes</p>
+                    <h4 className="font-heading font-bold text-lg text-slate-950 dark:text-white">Academic Accolades & Results</h4>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">CBSE Class X & XII Board Outcomes</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-center">
-                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
-                    <div className="text-3xl font-heading font-extrabold text-primary">100%</div>
-                    <div className="text-xs font-semibold text-foreground mt-1">Pass Percentage</div>
-                    <div className="text-[10px] text-muted-foreground">Consecutive 12 Years</div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                    <div className="text-3xl font-heading font-black text-primary">100%</div>
+                    <div className="text-xs font-extrabold text-slate-950 dark:text-white mt-1">Pass Percentage</div>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Consecutive 12 Years</div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
-                    <div className="text-3xl font-heading font-extrabold text-emerald-600">98.4%</div>
-                    <div className="text-xs font-semibold text-foreground mt-1">School Topper (PCM)</div>
-                    <div className="text-[10px] text-muted-foreground">Session 2024-25</div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                    <div className="text-3xl font-heading font-black text-emerald-600">98.4%</div>
+                    <div className="text-xs font-extrabold text-slate-950 dark:text-white mt-1">School Topper (PCM)</div>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Session 2024-25</div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
-                    <div className="text-3xl font-heading font-extrabold text-blue-600">42+</div>
-                    <div className="text-xs font-semibold text-foreground mt-1">Scored Above 95%</div>
-                    <div className="text-[10px] text-muted-foreground">Board Distinctions</div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                    <div className="text-3xl font-heading font-black text-blue-600">42+</div>
+                    <div className="text-xs font-extrabold text-slate-950 dark:text-white mt-1">Scored Above 95%</div>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Board Distinctions</div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
-                    <div className="text-3xl font-heading font-extrabold text-amber-600">18+</div>
-                    <div className="text-xs font-semibold text-foreground mt-1">IIT & NEET Qualifiers</div>
-                    <div className="text-[10px] text-muted-foreground">From Batch 2024</div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                    <div className="text-3xl font-heading font-black text-amber-600">18+</div>
+                    <div className="text-xs font-extrabold text-slate-950 dark:text-white mt-1">IIT & NEET Qualifiers</div>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">From Batch 2024</div>
                   </div>
                 </div>
               </div>

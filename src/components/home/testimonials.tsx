@@ -60,13 +60,13 @@ export function TestimonialsAndFAQ() {
         {/* Testimonials Block */}
         <div className="space-y-10">
           <div className="text-center max-w-3xl mx-auto space-y-3">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+            <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Parent & Alumni Voices
             </Badge>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+            <h2 className="text-3xl sm:text-4xl font-extrabold font-heading tracking-tight text-slate-950 dark:text-white">
               Loved by Over 1,200+ Proud Families
             </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
+            <p className="text-slate-800 dark:text-slate-200 text-sm sm:text-base font-medium">
               Hear firsthand from the parents and alumni who have experienced our nurturing ecosystem.
             </p>
           </div>
@@ -75,7 +75,7 @@ export function TestimonialsAndFAQ() {
             {testimonials.map((t, idx) => (
               <div
                 key={idx}
-                className="bg-card border border-border/80 rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:shadow-lg hover:border-primary/40 transition-all"
+                className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:shadow-lg hover:border-primary/40 transition-all shadow-sm"
               >
                 <div className="space-y-3">
                   <div className="flex items-center gap-1 text-amber-500">
@@ -83,14 +83,14 @@ export function TestimonialsAndFAQ() {
                       <Star key={i} className="h-4 w-4 fill-amber-500" />
                     ))}
                   </div>
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed italic">
+                  <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-normal italic">
                     &ldquo;{t.quote}&rdquo;
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-border/60">
-                  <div className="font-bold text-sm text-foreground">{t.name}</div>
-                  <div className="text-[11px] text-primary font-medium">{t.role}</div>
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <div className="font-extrabold text-sm text-slate-950 dark:text-white font-heading">{t.name}</div>
+                  <div className="text-xs text-primary font-bold">{t.role}</div>
                 </div>
               </div>
             ))}
@@ -98,12 +98,12 @@ export function TestimonialsAndFAQ() {
         </div>
 
         {/* FAQs Block */}
-        <div className="pt-8 border-t border-border/60 max-w-3xl mx-auto space-y-8">
+        <div className="pt-8 border-t border-slate-200 dark:border-slate-800 max-w-3xl mx-auto space-y-8">
           <div className="text-center space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            <h3 className="text-2xl sm:text-3xl font-extrabold font-heading tracking-tight text-slate-950 dark:text-white">
               Frequently Asked Questions
             </h3>
-            <p className="text-muted-foreground text-xs sm:text-sm">
+            <p className="text-slate-800 dark:text-slate-200 text-sm font-medium">
               Answers to common queries about admissions, schedules, transport, and curriculum.
             </p>
           </div>
@@ -114,21 +114,21 @@ export function TestimonialsAndFAQ() {
               return (
                 <div
                   key={idx}
-                  className="bg-card border border-border rounded-xl overflow-hidden transition-colors"
+                  className="bg-card border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-colors shadow-sm"
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full text-left p-4 flex items-center justify-between gap-4 font-semibold text-xs sm:text-sm text-foreground hover:bg-muted/50"
+                    className="w-full text-left p-4 flex items-center justify-between gap-4 font-bold text-xs sm:text-sm text-slate-950 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     <span>{faq.q}</span>
                     {isOpen ? (
                       <ChevronUp className="h-4 w-4 text-primary shrink-0" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <ChevronDown className="h-4 w-4 text-slate-700 dark:text-slate-300 shrink-0" />
                     )}
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground border-t border-border/60 pt-3 leading-relaxed bg-muted/20">
+                    <div className="px-4 pb-4 text-xs sm:text-sm text-slate-800 dark:text-slate-200 border-t border-slate-200 dark:border-slate-800 pt-3 leading-relaxed bg-slate-50 dark:bg-slate-900/40 font-medium">
                       {faq.a}
                     </div>
                   )}

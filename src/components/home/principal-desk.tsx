@@ -35,22 +35,22 @@ export function PrincipalDesk({ schoolName, onOpenEnquiry }: PrincipalDeskProps)
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-xl sm:text-2xl font-bold text-foreground">
+                <h3 className="text-xl sm:text-2xl font-bold font-heading text-slate-950 dark:text-white">
                   Dr. Radhika Sen Sharma
                 </h3>
-                <p className="text-xs sm:text-sm font-semibold text-primary">
+                <p className="text-xs sm:text-sm font-bold text-primary">
                   Principal & Director of Academics
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                   Ph.D. in Educational Leadership (Oxford Alumni) • 26+ Years Experience
                 </p>
               </div>
 
               <div className="flex flex-wrap justify-center gap-2 pt-1">
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-xs font-bold text-slate-900 dark:text-slate-100">
                   National CBSE Educator Award
                 </Badge>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-xs font-bold text-slate-900 dark:text-slate-100">
                   Author & Child Mentor
                 </Badge>
               </div>
@@ -59,17 +59,17 @@ export function PrincipalDesk({ schoolName, onOpenEnquiry }: PrincipalDeskProps)
             {/* Principal's Letter Content */}
             <div className="lg:col-span-7 space-y-5">
               <div className="space-y-2">
-                <Badge variant="outline" className="text-primary border-primary/30 text-xs font-semibold">
+                <Badge variant="outline" className="text-primary border-primary/40 text-xs font-bold bg-primary/5">
                   From the Principal&apos;s Desk
                 </Badge>
-                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                <h2 className="text-2xl sm:text-3xl font-extrabold font-heading tracking-tight text-slate-950 dark:text-white">
                   &ldquo;We don&apos;t just prepare children for exams; we prepare them for life.&rdquo;
                 </h2>
               </div>
 
-              <div className="space-y-3.5 text-muted-foreground text-xs sm:text-sm leading-relaxed">
+              <div className="space-y-3.5 text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed font-normal">
                 <p>
-                  Dear Parents and Guardians, welcome to <strong>{schoolName}</strong>. As an educator for over two and a half decades, I believe true education transcends textbooks and scorecards. It is ignited in the spark of curiosity, anchored in moral integrity, and strengthened by resilience.
+                  Dear Parents and Guardians, welcome to <strong className="font-bold text-slate-950 dark:text-white">{schoolName}</strong>. As an educator for over two and a half decades, I believe true education transcends textbooks and scorecards. It is ignited in the spark of curiosity, anchored in moral integrity, and strengthened by resilience.
                 </p>
                 <p>
                   In this rapid digital era, our children must be confident innovators who can think critically, adapt swiftly, and lead with compassion. From our kindergarten Montessori studios to our AI robotics labs and Olympic sports complex, every child at our academy is valued as an individual with unique genius.
@@ -84,7 +84,7 @@ export function PrincipalDesk({ schoolName, onOpenEnquiry }: PrincipalDeskProps)
                   <Sparkles className="h-4 w-4" />
                   Request Principal Interaction
                 </Button>
-                <span className="text-xs text-muted-foreground italic font-serif">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 italic font-serif">
                   — Warm regards & blessings
                 </span>
               </div>

@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cleanSchoolName } from "@/lib/school-branding";
 import type { SchoolBranding } from "@/types";
 
 interface SchoolFooterProps {
@@ -28,7 +29,8 @@ export function SchoolFooter({ branding, onOpenEnquiry }: SchoolFooterProps) {
     setMounted(true);
   }, []);
 
-  const schoolName = (mounted && (branding.schoolName || branding.appName)) || "Apex International Academy";
+  const rawName = (mounted && (branding.schoolName || branding.appName)) || "Apex International Academy";
+  const schoolName = cleanSchoolName(rawName);
   const address = (mounted && branding.address) || "Institutional Area, Knowledge Park III, Sector 62";
   const phone = (mounted && branding.phone) || "+91 98765 43210 / 011-2894567";
   const email = (mounted && branding.email) || "admissions@school.edu.in";
@@ -77,35 +79,35 @@ export function SchoolFooter({ branding, onOpenEnquiry }: SchoolFooterProps) {
           {/* Column 2: Quick Links (Col 2) */}
           <div className="lg:col-span-2 space-y-3">
             <h4 className="text-sm font-bold text-white tracking-wide uppercase">Quick Links</h4>
-            <ul className="space-y-2 text-xs text-slate-400">
+            <ul className="space-y-2 text-xs text-slate-300 font-medium">
               <li>
                 <Link href="/about" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <ChevronRight className="h-3 w-3" /> About Campus
+                  <ChevronRight className="h-3 w-3 text-primary" /> About Campus
                 </Link>
               </li>
               <li>
                 <Link href="/academics" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <ChevronRight className="h-3 w-3" /> Academic Wings
+                  <ChevronRight className="h-3 w-3 text-primary" /> Academic Wings
                 </Link>
               </li>
               <li>
                 <Link href="/facilities" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <ChevronRight className="h-3 w-3" /> Campus Facilities
+                  <ChevronRight className="h-3 w-3 text-primary" /> Campus Facilities
                 </Link>
               </li>
               <li>
                 <Link href="/fees" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <ChevronRight className="h-3 w-3" /> Fee Structure & Guide
+                  <ChevronRight className="h-3 w-3 text-primary" /> Fee Structure & Guide
                 </Link>
               </li>
               <li>
                 <Link href="/admissions" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <ChevronRight className="h-3 w-3" /> Online Admissions
+                  <ChevronRight className="h-3 w-3 text-primary" /> Online Admissions
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <ChevronRight className="h-3 w-3" /> Contact & Location
+                  <ChevronRight className="h-3 w-3 text-primary" /> Contact & Location
                 </Link>
               </li>
             </ul>
@@ -114,7 +116,7 @@ export function SchoolFooter({ branding, onOpenEnquiry }: SchoolFooterProps) {
           {/* Column 3: Contact & Visiting Hours (Col 3) */}
           <div className="lg:col-span-3 space-y-3">
             <h4 className="text-sm font-bold text-white tracking-wide uppercase">Contact & Campus</h4>
-            <div className="space-y-2.5 text-xs text-slate-400">
+            <div className="space-y-2.5 text-xs text-slate-300 font-medium">
               <div className="flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <span>{address}</span>
@@ -135,7 +137,7 @@ export function SchoolFooter({ branding, onOpenEnquiry }: SchoolFooterProps) {
                 <Clock className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <div className="text-white font-semibold">Visiting Hours:</div>
-                  <div>Monday – Saturday: 8:00 AM – 3:30 PM</div>
+                  <div className="text-slate-300">Monday – Saturday: 8:00 AM – 3:30 PM</div>
                 </div>
               </div>
             </div>

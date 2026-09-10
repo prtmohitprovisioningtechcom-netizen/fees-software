@@ -20,8 +20,17 @@ export function parseSchoolBranding(data?: Partial<SchoolBranding> | null): Scho
   };
 }
 
+export function cleanSchoolName(name: string): string {
+  if (!name) return "";
+  return name
+    .replace(/\s*[\(\[]+(?:\s*session|\s*batch|\s*academic\s*year)?\s*\d{4}\s*[-–/]?\s*\d{0,4}\s*[\)\]]+/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function getSchoolDisplayName(branding: SchoolBranding) {
-  return branding.schoolName.trim() || branding.appName.trim();
+  const raw = branding.schoolName.trim() || branding.appName.trim();
+  return cleanSchoolName(raw);
 }
 
 /** Full school name for receipts and UI — always prefer the School Name field from settings. */

@@ -54,8 +54,8 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
             </h1>
 
             {/* Sub-headline */}
-            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Welcome to <strong>{schoolName}</strong> — a premier institution dedicated to academic excellence, innovative STEM and AI laboratories, Olympic-grade sports, and holistic character development.
+            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+              Welcome to <strong className="text-slate-950 dark:text-white font-bold">{schoolName}</strong> — a premier institution dedicated to academic excellence, innovative STEM and AI laboratories, Olympic-grade sports, and holistic character development.
             </p>
 
             {/* Action Buttons */}
@@ -74,7 +74,7 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="font-semibold px-6 py-6 text-sm sm:text-base rounded-2xl border-border hover:bg-muted/80 gap-2"
+                  className="font-bold text-slate-800 dark:text-slate-100 px-6 py-6 text-sm sm:text-base rounded-2xl border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 gap-2"
                 >
                   <Compass className="h-4 w-4 text-primary" />
                   <span>Campus & Facilities</span>
@@ -85,7 +85,7 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="font-semibold px-5 py-6 text-sm sm:text-base rounded-2xl border-border hover:bg-muted/80 gap-2"
+                  className="font-bold text-slate-800 dark:text-slate-100 px-5 py-6 text-sm sm:text-base rounded-2xl border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 gap-2"
                 >
                   <span>Fee Guide</span>
                 </Button>
@@ -96,7 +96,7 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
                 <Button
                   size="lg"
                   variant="ghost"
-                  className="font-semibold px-5 py-6 text-xs sm:text-sm rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted/60 gap-1.5 border border-dashed border-border"
+                  className="font-bold px-5 py-6 text-xs sm:text-sm rounded-2xl text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 gap-1.5 border border-dashed border-slate-300 dark:border-slate-700"
                   title="Staff and Administrative ERP Login"
                 >
                   <Lock className="h-3.5 w-3.5 text-amber-500" />
@@ -106,18 +106,18 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
             </div>
 
             {/* Trust Markers / Highlights */}
-            <div className="pt-4 border-t border-border/60 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-medium text-muted-foreground">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-bold text-slate-800 dark:text-slate-200">
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> CBSE Affiliated Curriculum
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> CBSE Affiliated Curriculum
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> 100% Smart Classrooms
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 100% Smart Classrooms
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> GPS-Tracked Transport
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> GPS-Tracked Transport
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Transparent Fee Structure
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Transparent Fee Structure
               </span>
             </div>
           </div>
@@ -184,28 +184,28 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
 
         {/* 4 Key Milestone Statistics Grid */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm p-5 text-center transition-all hover:shadow-md hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-primary">25+</div>
-            <div className="text-sm font-semibold text-foreground mt-1">Years of Legacy</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Nurturing bright minds</div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
+            <div className="font-extrabold text-3xl sm:text-4xl text-primary font-heading">25+</div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Years of Legacy</div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Nurturing bright minds</div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm p-5 text-center transition-all hover:shadow-md hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-emerald-600 dark:text-emerald-400">100%</div>
-            <div className="text-sm font-semibold text-foreground mt-1">Board Distinction</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Academic rigor & support</div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
+            <div className="font-extrabold text-3xl sm:text-4xl text-emerald-600 dark:text-emerald-400 font-heading">100%</div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Board Distinction</div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Academic rigor & support</div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm p-5 text-center transition-all hover:shadow-md hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-blue-600 dark:text-blue-400">1,800+</div>
-            <div className="text-sm font-semibold text-foreground mt-1">Enrolled Scholars</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Diverse & inclusive student body</div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
+            <div className="font-extrabold text-3xl sm:text-4xl text-blue-600 dark:text-blue-400 font-heading">1,800+</div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Enrolled Scholars</div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Diverse & inclusive student body</div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm p-5 text-center transition-all hover:shadow-md hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-amber-600 dark:text-amber-400">50+</div>
-            <div className="text-sm font-semibold text-foreground mt-1">Co-Curricular Clubs</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Robotics, sports, arts & drama</div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
+            <div className="font-extrabold text-3xl sm:text-4xl text-amber-600 dark:text-amber-400 font-heading">50+</div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Co-Curricular Clubs</div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Robotics, sports, arts & drama</div>
           </div>
         </div>
       </div>

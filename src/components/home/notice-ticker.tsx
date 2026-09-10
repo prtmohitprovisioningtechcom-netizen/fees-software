@@ -50,13 +50,13 @@ export function NoticeTicker({ onOpenEnquiry }: { onOpenEnquiry: () => void }) {
           <div className="flex items-center gap-6 animate-pulse hover:pause">
             {notices.map((notice) => (
               <div key={notice.id} className="flex items-center gap-2 shrink-0">
-                <span className="font-semibold text-foreground flex items-center gap-1">
+                <span className="font-bold text-slate-950 dark:text-white flex items-center gap-1">
                   {notice.highlight && <Sparkles className="h-3 w-3 text-amber-500 fill-amber-500" />}
                   [{notice.tag}]
                 </span>
-                <span className="text-muted-foreground">{notice.text}</span>
-                <span className="text-[10px] text-muted-foreground/80 flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
-                  <Calendar className="h-2.5 w-2.5" />
+                <span className="text-slate-800 dark:text-slate-200 font-medium">{notice.text}</span>
+                <span className="text-[10px] text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded">
+                  <Calendar className="h-2.5 w-2.5 text-primary" />
                   {notice.date}
                 </span>
               </div>

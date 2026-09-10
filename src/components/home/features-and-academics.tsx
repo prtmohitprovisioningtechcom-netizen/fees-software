@@ -226,77 +226,77 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
         {/* 6 Key Pillars / Why Parents Choose Us */}
         <div id="about" className="space-y-8 pt-4">
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            <h3 className="text-2xl sm:text-3xl font-heading font-bold tracking-tight text-slate-950 dark:text-white">
               Why Families Trust Our Academy
             </h3>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-slate-800 dark:text-slate-200 text-sm font-medium">
               We go beyond textbooks to cultivate well-rounded, confident individuals prepared for world-class universities and life.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Pillar 1 */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                 <BrainCircuit className="h-6 w-6" />
               </div>
-              <h4 className="text-lg font-bold text-foreground">Next-Gen STEM & AI Labs</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Next-Gen STEM & AI Labs</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
                 Equipped with 3D printers, IoT kits, drone simulation, and Python programming to cultivate critical technological thinking early.
               </p>
             </div>
 
             {/* Pillar 2 */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
                 <Trophy className="h-6 w-6" />
               </div>
-              <h4 className="text-lg font-bold text-foreground">Sports & Athletics Complex</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Sports & Athletics Complex</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
                 Full-size football ground, athletic running track, basketball courts, badminton academy, and certified professional national coaches.
               </p>
             </div>
 
             {/* Pillar 3 */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
                 <Bus className="h-6 w-6" />
               </div>
-              <h4 className="text-lg font-bold text-foreground">Safe GPS-Monitored Fleet</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Safe GPS-Monitored Fleet</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
                 Air-conditioned school buses with female security attendants, speed governors, CCTV cameras, and live mobile tracking for parents.
               </p>
             </div>
 
             {/* Pillar 4 */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
                 <Laptop className="h-6 w-6" />
               </div>
-              <h4 className="text-lg font-bold text-foreground">Smart Digital Classrooms</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Smart Digital Classrooms</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
                 Interactive smart flat panels with 3D visualization, recorded lecture archives, and digital attendance integrated with parent SMS notifications.
               </p>
             </div>
 
             {/* Pillar 5 */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
                 <Microscope className="h-6 w-6" />
               </div>
-              <h4 className="text-lg font-bold text-foreground">Advanced Science Facilities</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Advanced Science Facilities</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
                 Spacious individual laboratories for Physics, Chemistry, Biology, and Mathematics adhering to the highest safety and regulatory standards.
               </p>
             </div>
 
             {/* Pillar 6 */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+            <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
                 <HeartHandshake className="h-6 w-6" />
               </div>
-              <h4 className="text-lg font-bold text-foreground">Holistic Life Skills & Mental Wellness</h4>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <h4 className="text-lg font-heading font-bold text-slate-950 dark:text-white">Holistic Life Skills & Wellness</h4>
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
                 Full-time resident student counselors, mindfulness programs, speech & debate clubs, and community service drives to build compassionate leaders.
               </p>
             </div>

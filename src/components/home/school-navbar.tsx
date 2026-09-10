@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   ChevronRight,
 } from "lucide-react";
+import { cleanSchoolName } from "@/lib/school-branding";
 import type { SchoolBranding } from "@/types";
 
 interface SchoolNavbarProps {
@@ -54,7 +55,8 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const schoolName = (mounted && (branding.schoolName || branding.appName)) || "Apex International Academy";
+  const rawName = (mounted && (branding.schoolName || branding.appName)) || "Apex International Academy";
+  const schoolName = cleanSchoolName(rawName);
   const isLoggedIn = mounted && Boolean(token && user);
   const showLogo = mounted && Boolean(branding.logo);
   const phone = (mounted && branding.phone) || "+91 98765 43210";
@@ -118,10 +120,10 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
                 </div>
               )}
               <div className="flex flex-col">
-                <span className="font-heading font-extrabold text-base sm:text-lg tracking-tight text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                <span className="font-heading font-extrabold text-base sm:text-lg tracking-tight text-slate-950 dark:text-white line-clamp-1 group-hover:text-primary transition-colors">
                   {schoolName}
                 </span>
-                <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   Excellence in Education • Est. 1999
                 </span>
@@ -136,10 +138,10 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 relative ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 relative ${
                       isActive
-                        ? "text-primary bg-primary/10 font-bold shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                        ? "text-primary bg-primary/10 shadow-sm"
+                        : "text-slate-800 dark:text-slate-100 hover:text-primary hover:bg-slate-100/90 dark:hover:bg-slate-800/90"
                     }`}
                   >
                     {link.label}
@@ -214,14 +216,14 @@ export function SchoolNavbar({ branding }: SchoolNavbarProps) {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`px-3 py-2.5 rounded-xl flex items-center justify-between text-xs font-semibold transition-colors ${
+                    className={`px-3 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-colors ${
                       isActive
-                        ? "bg-primary/10 text-primary font-bold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        ? "bg-primary/10 text-primary"
+                        : "text-slate-900 dark:text-slate-100 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                   >
                     <span>{link.label}</span>
-                    <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+                    <ChevronRight className="h-3.5 w-3.5 opacity-60" />
                   </Link>
                 );
               })}
