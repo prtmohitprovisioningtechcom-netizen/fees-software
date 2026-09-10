@@ -71,19 +71,19 @@ export default function FacilitiesPage() {
 
       <main className="flex-1">
         {/* Page Hero */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-border/60">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+            <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               World-Class Infrastructure
             </Badge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
               Spaces Designed to Spark{" "}
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Curiosity & Excellence
               </span>
             </h1>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Spread across a lush, eco-friendly 15-acre green estate, <strong>{schoolName}</strong> provides the premier technological, athletic, and scholarly environment for your child.
+            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-3xl mx-auto leading-relaxed font-medium">
+              Spread across a lush, eco-friendly 15-acre green estate, <strong className="font-bold text-slate-950 dark:text-white">{schoolName}</strong> provides the premier technological, athletic, and scholarly environment for your child.
             </p>
           </div>
         </section>
@@ -92,16 +92,16 @@ export default function FacilitiesPage() {
         <CampusLifeAndFacilities onOpenEnquiry={() => setModalOpen(true)} />
 
         {/* Comprehensive Facility Highlights Grid */}
-        <section className="py-16 sm:py-24 bg-muted/20 border-t border-border/60">
+        <section className="py-16 sm:py-24 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div className="text-center max-w-2xl mx-auto space-y-2">
-              <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+              <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
                 Holistic Amenities
               </Badge>
-              <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+              <h2 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
                 Safety, Wellness & Creative Amenities
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-slate-800 dark:text-slate-200 text-sm font-medium">
                 Every detail is carefully engineered to nurture the physical, intellectual, and emotional growth of every learner.
               </p>
             </div>
@@ -112,13 +112,13 @@ export default function FacilitiesPage() {
                 return (
                   <div
                     key={idx}
-                    className="bg-card border border-border/80 rounded-3xl p-7 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg"
+                    className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-7 space-y-3 hover:border-primary/50 transition-all shadow-sm hover:shadow-lg"
                   >
-                    <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
                       <Icon className="h-6 w-6" />
                     </div>
-                    <h3 className="font-heading font-bold text-lg text-foreground">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                    <h3 className="font-heading font-bold text-lg text-slate-950 dark:text-white">{item.title}</h3>
+                    <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal">{item.desc}</p>
                   </div>
                 );
               })}
@@ -130,7 +130,7 @@ export default function FacilitiesPage() {
         <section className="py-16 bg-slate-950 text-white text-center">
           <div className="max-w-3xl mx-auto px-4 space-y-6">
             <h3 className="text-3xl font-heading font-bold">Experience Our Campus Firsthand</h3>
-            <p className="text-slate-400 text-sm">
+            <p className="text-slate-300 text-sm font-medium">
               We warmly invite parents and prospective students to tour our laboratories, sports arena, and library with a guided admissions counselor.
             </p>
             <div className="flex flex-wrap justify-center gap-4">

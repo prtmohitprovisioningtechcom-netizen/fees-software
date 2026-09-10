@@ -97,18 +97,18 @@ export default function ContactPage() {
 
       <main className="flex-1">
         {/* Page Hero */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-border/60">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+            <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Reach Out to Us
             </Badge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
               Connect with Our{" "}
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Admissions & Campus Team
               </span>
             </h1>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-3xl mx-auto leading-relaxed font-medium">
               Have questions regarding admissions, curriculum, transport routes, or campus visits? We are delighted to assist you.
             </p>
           </div>
@@ -119,16 +119,16 @@ export default function ContactPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               {/* Contact Message Form */}
-              <div className="lg:col-span-7 bg-muted/20 border border-border rounded-3xl p-6 sm:p-10 shadow-xl space-y-6">
+              <div className="lg:col-span-7 bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl space-y-6">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase">
                     <Sparkles className="h-4 w-4" />
                     <span>Direct Message</span>
                   </div>
-                  <h3 className="text-2xl font-heading font-bold text-foreground">
+                  <h3 className="text-2xl font-heading font-extrabold text-slate-950 dark:text-white">
                     Send Us an Inquiry
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">
                     Leave your details and our counselor will reach out via phone or email.
                   </p>
                 </div>
@@ -138,10 +138,10 @@ export default function ContactPage() {
                     <div className="h-16 w-16 mx-auto rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
                       <CheckCircle2 className="h-10 w-10 animate-bounce" />
                     </div>
-                    <h4 className="text-2xl font-heading font-bold text-foreground">
+                    <h4 className="text-2xl font-heading font-bold text-slate-950 dark:text-white">
                       Message Received!
                     </h4>
-                    <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                    <p className="text-sm text-slate-800 dark:text-slate-200 font-medium max-w-sm mx-auto">
                       Thank you, <strong>{form.name}</strong>. Our front office desk has logged your enquiry and will respond within 24 business hours.
                     </p>
                     <div className="pt-2">
@@ -213,7 +213,7 @@ export default function ContactPage() {
                       />
                     </div>
 
-                    <Button type="submit" className="w-full font-semibold gap-2 py-6 rounded-xl shadow-lg" disabled={loading}>
+                    <Button type="submit" className="w-full font-bold gap-2 py-6 rounded-xl shadow-lg" disabled={loading}>
                       {loading ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -232,12 +232,12 @@ export default function ContactPage() {
 
               {/* Campus Location & Hours Details */}
               <div className="lg:col-span-5 space-y-6">
-                <div className="bg-muted/20 border border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+                <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
                   <div className="space-y-2">
-                    <h4 className="font-heading font-bold text-xl text-foreground">
+                    <h4 className="font-heading font-extrabold text-xl text-slate-950 dark:text-white">
                       Campus Headquarters
                     </h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
                       Conveniently connected via major expressways with dedicated green drop-off zones for school buses.
                     </p>
                   </div>
@@ -246,48 +246,48 @@ export default function ContactPage() {
                     <div className="flex items-start gap-3">
                       <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-bold text-foreground">Address:</div>
-                        <div className="text-muted-foreground">{address}</div>
+                        <div className="font-bold text-slate-950 dark:text-white">Address:</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{address}</div>
                       </div>
                     </div>
 
                     <div className="flex items-start gap-3">
                       <Phone className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-bold text-foreground">Helpline:</div>
-                        <div className="text-muted-foreground">{phone}</div>
+                        <div className="font-bold text-slate-950 dark:text-white">Helpline:</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{phone}</div>
                       </div>
                     </div>
 
                     <div className="flex items-start gap-3">
                       <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-bold text-foreground">Official Email:</div>
-                        <div className="text-muted-foreground">{email}</div>
+                        <div className="font-bold text-slate-950 dark:text-white">Official Email:</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{email}</div>
                       </div>
                     </div>
 
                     <div className="flex items-start gap-3">
-                      <Clock className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                      <Clock className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-bold text-foreground">Office Visiting Hours:</div>
-                        <div className="text-muted-foreground">Monday to Saturday: 8:00 AM to 3:30 PM</div>
+                        <div className="font-bold text-slate-950 dark:text-white">Office Visiting Hours:</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-semibold">Monday to Saturday: 8:00 AM to 3:30 PM</div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Map Placeholder Card */}
-                <div className="rounded-3xl border border-border bg-slate-900 text-white p-6 space-y-3 relative overflow-hidden">
+                <div className="rounded-3xl border border-border bg-slate-900 text-white p-6 space-y-3 relative overflow-hidden shadow-lg">
                   <div className="font-heading font-bold text-base">Interactive Campus Location</div>
-                  <p className="text-xs text-slate-300">
+                  <p className="text-xs text-slate-300 font-medium">
                     Located within 10 minutes of City Metro Station and 5 minutes from Central Ring Road.
                   </p>
                   <a
                     href="https://maps.google.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-amber-300 font-semibold hover:underline pt-1"
+                    className="inline-flex items-center gap-1.5 text-xs text-amber-300 font-bold hover:underline pt-1"
                   >
                     <span>Open in Google Maps</span>
                     <Sparkles className="h-3 w-3" />
@@ -299,13 +299,13 @@ export default function ContactPage() {
         </section>
 
         {/* Department Directory Table */}
-        <section className="py-16 sm:py-20 bg-muted/30 border-t border-border/60">
+        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
             <div className="text-center max-w-2xl mx-auto space-y-2">
-              <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+              <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
                 Staff Directory
               </Badge>
-              <h2 className="text-3xl font-heading font-bold text-foreground">
+              <h2 className="text-3xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
                 Departmental Contacts
               </h2>
             </div>
@@ -314,13 +314,13 @@ export default function ContactPage() {
               {departments.map((dept, idx) => (
                 <div
                   key={idx}
-                  className="bg-card border border-border/80 rounded-2xl p-6 space-y-3 shadow-sm hover:border-primary/40 transition-all"
+                  className="bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 shadow-sm hover:border-primary/40 transition-all"
                 >
-                  <div className="font-heading font-bold text-base text-foreground">{dept.title}</div>
-                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                  <div className="font-heading font-bold text-base text-slate-950 dark:text-white">{dept.title}</div>
+                  <div className="space-y-1.5 text-xs text-slate-800 dark:text-slate-200 font-semibold">
                     <div>📞 {dept.phone}</div>
                     <div>✉️ {dept.email}</div>
-                    <div className="text-[11px] text-muted-foreground/80 pt-1 border-t border-border/50">
+                    <div className="text-[11px] text-slate-700 dark:text-slate-300 pt-1 border-t border-slate-200 dark:border-slate-700">
                       🕒 {dept.hours}
                     </div>
                   </div>

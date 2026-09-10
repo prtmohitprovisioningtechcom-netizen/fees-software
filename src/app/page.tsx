@@ -8,7 +8,7 @@ import { NoticeTicker } from "@/components/home/notice-ticker";
 import { HeroSection } from "@/components/home/hero-section";
 import { FeaturesAndAcademics } from "@/components/home/features-and-academics";
 import { CampusLifeAndFacilities } from "@/components/home/campus-life-and-facilities";
-import { FeePreviewCalculator } from "@/components/home/fee-preview-calculator";
+import { CampusGallery } from "@/components/home/campus-gallery";
 import { PrincipalDesk } from "@/components/home/principal-desk";
 import { TestimonialsAndFAQ } from "@/components/home/testimonials";
 import { SchoolFooter } from "@/components/home/school-footer";
@@ -43,8 +43,8 @@ export default function HomePage() {
         {/* Campus Facilities Showcase (STEM, Sports, Library, Lawns) */}
         <CampusLifeAndFacilities onOpenEnquiry={handleOpenEnquiry} />
 
-        {/* Interactive Fee Structure & Estimator */}
-        <FeePreviewCalculator onOpenEnquiry={handleOpenEnquiry} />
+        {/* Campus Visual Photo Gallery Showcase */}
+        <CampusGallery onOpenEnquiry={handleOpenEnquiry} />
 
         {/* Message from the Principal's Desk */}
         <PrincipalDesk schoolName={schoolDisplayName} onOpenEnquiry={handleOpenEnquiry} />

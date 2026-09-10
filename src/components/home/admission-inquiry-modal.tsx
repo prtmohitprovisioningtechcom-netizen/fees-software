@@ -1,12 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import { CheckCircle2, Loader2, PhoneCall, School, Send } from "lucide-react";
+import {
+  CheckCircle2,
+  GraduationCap,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Phone,
+  PhoneCall,
+  School,
+  Send,
+  Sparkles,
+  User,
+  Users,
+} from "lucide-react";
+import { cleanSchoolName } from "@/lib/school-branding";
 
 interface AdmissionInquiryModalProps {
   open: boolean;
@@ -30,16 +50,27 @@ export function AdmissionInquiryModal({
     parentName: "",
     phone: "",
     email: "",
-    grade: "Grade 1",
+    grade: "Class 1 (Grade 1)",
     message: "",
   });
 
+  const cleanName = cleanSchoolName(schoolName || "A.K. Sunshine Convent School");
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.studentName || !formData.phone) {
+    if (!formData.studentName.trim() || !formData.phone.trim()) {
       toast({
         title: "Required Fields Missing",
-        description: "Please enter student name and contact number.",
+        description: "Please enter the student's full name and contact mobile number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.phone.replace(/\D/g, "").length < 10) {
+      toast({
+        title: "Invalid Mobile Number",
+        description: "Please enter a valid 10-digit mobile number.",
         variant: "destructive",
       });
       return;
@@ -51,9 +82,9 @@ export function AdmissionInquiryModal({
       setSubmitted(true);
       toast({
         title: "Enquiry Submitted Successfully!",
-        description: "Our admission counselor will contact you within 24 business hours.",
+        description: `Our admissions desk will contact you regarding ${formData.studentName}'s admission.`,
       });
-    }, 900);
+    }, 700);
   };
 
   const handleReset = () => {
@@ -63,7 +94,7 @@ export function AdmissionInquiryModal({
       parentName: "",
       phone: "",
       email: "",
-      grade: "Grade 1",
+      grade: "Class 1 (Grade 1)",
       message: "",
     });
     onOpenChange(false);
@@ -71,46 +102,71 @@ export function AdmissionInquiryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto border-border/80 bg-background/95 backdrop-blur-xl">
-        <DialogHeader className="text-left">
-          <div className="flex items-center gap-2 text-primary font-semibold text-sm">
-            <School className="h-4 w-4" />
-            <span>Admissions Desk 2025–2026</span>
+      <DialogContent className="sm:max-w-xl max-h-[92vh] overflow-y-auto border border-slate-200 dark:border-slate-800 bg-background/98 backdrop-blur-2xl shadow-2xl p-6 sm:p-7 rounded-3xl">
+        <DialogHeader className="text-left space-y-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold w-fit">
+            <School className="h-3.5 w-3.5" />
+            <span>Admissions Desk • Academic Session 2025–2026</span>
           </div>
-          <DialogTitle className="text-2xl font-bold tracking-tight">
-            Admission Enquiry
+          <DialogTitle className="text-2xl sm:text-3xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
+            Admission Enquiry Form
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
-            Fill in the details below to initiate admission counseling for {schoolName}.
+          <DialogDescription className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-medium leading-relaxed">
+            Fill in the details below to initiate direct admission counseling and campus visit scheduling for{" "}
+            <strong className="text-slate-950 dark:text-white font-bold">{cleanName}</strong>.
           </DialogDescription>
         </DialogHeader>
 
         {submitted ? (
-          <div className="py-8 text-center space-y-4">
-            <div className="mx-auto h-16 w-16 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="h-10 w-10 animate-bounce" />
+          <div className="py-8 text-center space-y-5 animate-in fade-in zoom-in-95 duration-300">
+            <div className="mx-auto h-20 w-20 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center border-2 border-emerald-500/20 shadow-lg">
+              <CheckCircle2 className="h-12 w-12" />
             </div>
-            <div className="space-y-1">
-              <h4 className="text-xl font-bold text-foreground">Thank You for Your Interest!</h4>
-              <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                We have received your enquiry for <strong>{formData.studentName}</strong> ({formData.grade}). Our Admissions Team will reach out shortly.
+            <div className="space-y-2">
+              <h4 className="text-2xl font-heading font-extrabold text-slate-950 dark:text-white">
+                Application Received!
+              </h4>
+              <p className="text-slate-700 dark:text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+                Thank you for reaching out. We have logged your enquiry for{" "}
+                <strong className="text-slate-950 dark:text-white font-bold">{formData.studentName}</strong> seeking
+                admission to <span className="text-primary font-bold">{formData.grade}</span>.
               </p>
             </div>
-            <div className="bg-muted/60 p-4 rounded-xl text-left text-xs text-muted-foreground space-y-1">
-              <p className="font-semibold text-foreground">Immediate Assistance Helpline:</p>
-              <p>📞 Phone: {phone}</p>
-              <p>✉️ Email: {email}</p>
-              <p>🕒 Working Hours: Monday – Saturday, 8:30 AM to 3:30 PM</p>
+
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl text-left text-xs text-slate-700 dark:text-slate-300 space-y-2">
+              <div className="font-bold text-slate-950 dark:text-white flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-primary" /> Admissions Helpline & Counseling Office:
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-medium">
+                <div>
+                  <span className="text-slate-500">Direct Phone:</span>{" "}
+                  <strong className="text-slate-900 dark:text-slate-100">{phone}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500">Official Email:</span>{" "}
+                  <strong className="text-slate-900 dark:text-slate-100">{email}</strong>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-500">Counseling Timings:</span>{" "}
+                  <strong className="text-slate-900 dark:text-slate-100">Monday – Saturday (8:30 AM to 3:30 PM)</strong>
+                </div>
+              </div>
             </div>
-            <Button onClick={handleReset} className="w-full">
-              Close
+
+            <Button onClick={handleReset} className="w-full font-bold py-5 rounded-xl shadow-md">
+              Close Window
             </Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit} className="space-y-4 pt-3">
+            {/* Student Name & Parent Name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="studentName" className="text-xs font-semibold">
+                <Label
+                  htmlFor="studentName"
+                  className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <User className="h-3.5 w-3.5 text-primary" />
                   Student Full Name <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -118,12 +174,17 @@ export function AdmissionInquiryModal({
                   placeholder="e.g. Aarav Sharma"
                   value={formData.studentName}
                   onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
+                  className="font-medium text-slate-950 dark:text-white bg-slate-50/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 focus:border-primary"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="parentName" className="text-xs font-semibold">
+                <Label
+                  htmlFor="parentName"
+                  className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Users className="h-3.5 w-3.5 text-primary" />
                   Parent / Guardian Name
                 </Label>
                 <Input
@@ -131,27 +192,44 @@ export function AdmissionInquiryModal({
                   placeholder="e.g. Rajesh Sharma"
                   value={formData.parentName}
                   onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                  className="font-medium text-slate-950 dark:text-white bg-slate-50/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 focus:border-primary"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Mobile Contact & Email */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="phone" className="text-xs font-semibold">
+                <Label
+                  htmlFor="phone"
+                  className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Phone className="h-3.5 w-3.5 text-primary" />
                   Contact Mobile <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="e.g. 9876543210"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  required
-                />
+                <div className="relative flex rounded-md shadow-sm">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-bold select-none">
+                    +91
+                  </span>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="9876543210"
+                    maxLength={10}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "") })}
+                    className="rounded-l-none font-medium text-slate-950 dark:text-white bg-slate-50/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 focus:border-primary"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-semibold">
+                <Label
+                  htmlFor="email"
+                  className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Mail className="h-3.5 w-3.5 text-primary" />
                   Email Address
                 </Label>
                 <Input
@@ -160,58 +238,100 @@ export function AdmissionInquiryModal({
                   placeholder="parent@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="font-medium text-slate-950 dark:text-white bg-slate-50/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 focus:border-primary"
                 />
               </div>
             </div>
 
+            {/* Class / Grade Selection with Clear Categorized Options */}
             <div className="space-y-1.5">
-              <Label htmlFor="grade" className="text-xs font-semibold">
-                Class / Grade Seeking Admission For
+              <Label
+                htmlFor="grade"
+                className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center justify-between"
+              >
+                <span className="flex items-center gap-1.5">
+                  <GraduationCap className="h-3.5 w-3.5 text-primary" />
+                  Class Seeking Admission For <span className="text-destructive">*</span>
+                </span>
+                <span className="text-[11px] font-semibold text-primary">Session 2025–26</span>
               </Label>
               <select
                 id="grade"
                 value={formData.grade}
                 onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 px-3.5 py-2 text-sm font-semibold text-slate-950 dark:text-white ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
               >
-                <option value="Pre-Nursery / Toddler">Pre-Nursery / Toddler</option>
-                <option value="Nursery">Nursery</option>
-                <option value="Kindergarten (KG)">Kindergarten (KG)</option>
-                <option value="Grade 1">Grade 1</option>
-                <option value="Grade 2">Grade 2</option>
-                <option value="Grade 3">Grade 3</option>
-                <option value="Grade 4">Grade 4</option>
-                <option value="Grade 5">Grade 5</option>
-                <option value="Grade 6">Grade 6</option>
-                <option value="Grade 7">Grade 7</option>
-                <option value="Grade 8">Grade 8</option>
-                <option value="Grade 9">Grade 9</option>
-                <option value="Grade 10">Grade 10</option>
-                <option value="Grade 11 (Science - PCM/PCB)">Grade 11 (Science - PCM/PCB)</option>
-                <option value="Grade 11 (Commerce)">Grade 11 (Commerce)</option>
-                <option value="Grade 11 (Humanities/Arts)">Grade 11 (Humanities/Arts)</option>
-                <option value="Grade 12">Grade 12</option>
+                <optgroup label="🧸 Pre-Primary Wing (Early Childhood)">
+                  <option value="Pre-Nursery / Playgroup">Pre-Nursery / Playgroup (Age 2.5–3 yrs)</option>
+                  <option value="Nursery">Nursery (Age 3–4 yrs)</option>
+                  <option value="L.K.G. (Lower KG)">L.K.G. (Lower Kindergarten - Age 4–5 yrs)</option>
+                  <option value="U.K.G. (Upper KG)">U.K.G. (Upper Kindergarten - Age 5–6 yrs)</option>
+                </optgroup>
+
+                <optgroup label="📚 Primary School (Class 1 to 5)">
+                  <option value="Class 1 (Grade 1)">Class 1 (Grade 1)</option>
+                  <option value="Class 2 (Grade 2)">Class 2 (Grade 2)</option>
+                  <option value="Class 3 (Grade 3)">Class 3 (Grade 3)</option>
+                  <option value="Class 4 (Grade 4)">Class 4 (Grade 4)</option>
+                  <option value="Class 5 (Grade 5)">Class 5 (Grade 5)</option>
+                </optgroup>
+
+                <optgroup label="🔬 Middle School (Class 6 to 8)">
+                  <option value="Class 6 (Grade 6)">Class 6 (Grade 6)</option>
+                  <option value="Class 7 (Grade 7)">Class 7 (Grade 7)</option>
+                  <option value="Class 8 (Grade 8)">Class 8 (Grade 8)</option>
+                </optgroup>
+
+                <optgroup label="🎓 Secondary School (Class 9 & 10)">
+                  <option value="Class 9 (Grade 9)">Class 9 (Grade 9)</option>
+                  <option value="Class 10 (Grade 10)">Class 10 (Grade 10)</option>
+                </optgroup>
+
+                <optgroup label="🏛️ Senior Secondary (Class 11 & 12 - Streams)">
+                  <option value="Class 11 (Science - PCM / Engineering)">Class 11 — Science (Physics, Chemistry, Maths)</option>
+                  <option value="Class 11 (Science - PCB / Medical)">Class 11 — Science (Physics, Chemistry, Biology)</option>
+                  <option value="Class 11 (Commerce with Maths)">Class 11 — Commerce (with Mathematics)</option>
+                  <option value="Class 11 (Commerce without Maths)">Class 11 — Commerce (with Informatics/Applied)</option>
+                  <option value="Class 11 (Humanities / Arts)">Class 11 — Humanities / Arts</option>
+                  <option value="Class 12 (Science Stream)">Class 12 — Science Stream</option>
+                  <option value="Class 12 (Commerce Stream)">Class 12 — Commerce Stream</option>
+                  <option value="Class 12 (Humanities Stream)">Class 12 — Humanities / Arts</option>
+                </optgroup>
               </select>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                Choose the standard/class your child will enter. Stream choices for Class 11 include dedicated career counseling.
+              </p>
             </div>
 
+            {/* Questions / Requirements */}
             <div className="space-y-1.5">
-              <Label htmlFor="message" className="text-xs font-semibold">
+              <Label
+                htmlFor="message"
+                className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-primary" />
                 Any Specific Questions / Requirement
               </Label>
               <Input
                 id="message"
-                placeholder="e.g. Transport required from South City / School timing questions"
+                placeholder="e.g. Bus transport route, hostel query, sibling concession..."
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                className="font-medium text-slate-950 dark:text-white bg-slate-50/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 focus:border-primary"
               />
             </div>
 
+            {/* Submit Button */}
             <div className="pt-2">
-              <Button type="submit" className="w-full font-semibold gap-2 py-5" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full font-bold text-sm sm:text-base gap-2 py-6 rounded-xl shadow-lg shadow-primary/25 hover:scale-[1.01] transition-transform"
+                disabled={loading}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting Enquiry...
+                    Submitting Application...
                   </>
                 ) : (
                   <>
@@ -222,11 +342,15 @@ export function AdmissionInquiryModal({
               </Button>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/60">
-              <span className="flex items-center gap-1">
-                <PhoneCall className="h-3 w-3 text-primary" /> Admissions: {phone}
+            {/* Helpline Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-700 dark:text-slate-300 pt-2 border-t border-slate-200 dark:border-slate-800 font-medium">
+              <span className="flex items-center gap-1.5">
+                <PhoneCall className="h-3.5 w-3.5 text-primary" />
+                Admissions Desk: <strong className="text-slate-950 dark:text-white font-bold">{phone}</strong>
               </span>
-              <span>Mon-Sat (8:30 AM - 3:30 PM)</span>
+              <span className="text-slate-600 dark:text-slate-400">
+                Counseling: Mon–Sat (8:30 AM – 3:30 PM)
+              </span>
             </div>
           </form>
         )}

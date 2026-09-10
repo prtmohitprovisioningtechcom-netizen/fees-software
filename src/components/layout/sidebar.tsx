@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useBranding } from "@/lib/branding-context";
+import { cleanSchoolName } from "@/lib/school-branding";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type NavLink = { href: string; label: string; icon: LucideIcon };
@@ -88,7 +89,8 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
   const { isSuperAdmin } = useAuth();
   const { branding, loaded } = useBranding();
   const groups = isSuperAdmin ? superAdminGroups : adminGroups;
-  const schoolTitle = branding.schoolName.trim() || branding.appName.trim();
+  const rawTitle = branding.schoolName.trim() || branding.appName.trim();
+  const schoolTitle = cleanSchoolName(rawTitle);
 
   return (
     <aside

@@ -26,7 +26,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
   return (
-    <section className="relative overflow-hidden pt-6 pb-16 lg:pt-12 lg:pb-24">
+    <section className="relative overflow-hidden pt-4 pb-8 lg:pt-8 lg:pb-12">
       {/* Background Decorative Gradients */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] pointer-events-none opacity-25 dark:opacity-20">
         <div className="absolute top-10 left-1/4 w-96 h-96 rounded-full bg-primary blur-3xl" />
@@ -81,13 +81,14 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
                 </Button>
               </Link>
 
-              <Link href="/fees">
+              <Link href="/gallery">
                 <Button
                   size="lg"
                   variant="outline"
                   className="font-bold text-slate-800 dark:text-slate-100 px-5 py-6 text-sm sm:text-base rounded-2xl border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 gap-2"
                 >
-                  <span>Fee Guide</span>
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span>Photo Gallery</span>
                 </Button>
               </Link>
 
@@ -106,7 +107,7 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
             </div>
 
             {/* Trust Markers / Highlights */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-bold text-slate-800 dark:text-slate-200">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" /> CBSE Affiliated Curriculum
               </span>
@@ -117,7 +118,7 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" /> GPS-Tracked Transport
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Transparent Fee Structure
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Holistic Sports & STEM Labs
               </span>
             </div>
           </div>
@@ -158,54 +159,27 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
               </div>
 
               {/* Floating Stat Card 1: Top Right */}
-              <div className="absolute -top-4 -right-4 hidden sm:flex items-center gap-3 bg-background/95 backdrop-blur-md border border-border px-4 py-3 rounded-2xl shadow-xl animate-bounce duration-1000">
+              <div className="absolute -top-4 -right-4 hidden sm:flex items-center gap-3 bg-background/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 px-4 py-3 rounded-2xl shadow-xl">
                 <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-black">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-foreground">100% Results</div>
-                  <div className="text-[11px] text-muted-foreground">CBSE Board Distinctions</div>
+                  <div className="font-extrabold text-sm text-slate-950 dark:text-white">100% Results</div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">CBSE Distinctions</div>
                 </div>
               </div>
 
               {/* Floating Stat Card 2: Bottom Left */}
-              <div className="absolute -bottom-5 -left-5 hidden sm:flex items-center gap-3 bg-background/95 backdrop-blur-md border border-border px-4 py-3 rounded-2xl shadow-xl">
+              <div className="absolute -bottom-5 -left-5 hidden sm:flex items-center gap-3 bg-background/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 px-4 py-3 rounded-2xl shadow-xl">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
                   <Users className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-foreground">15:1 Ratio</div>
-                  <div className="text-[11px] text-muted-foreground">Personalized Mentorship</div>
+                  <div className="font-extrabold text-sm text-slate-950 dark:text-white">15:1 Ratio</div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Personal Mentorship</div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* 4 Key Milestone Statistics Grid */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-primary font-heading">25+</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Years of Legacy</div>
-            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Nurturing bright minds</div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-emerald-600 dark:text-emerald-400 font-heading">100%</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Board Distinction</div>
-            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Academic rigor & support</div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-blue-600 dark:text-blue-400 font-heading">1,800+</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Enrolled Scholars</div>
-            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Diverse & inclusive student body</div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-5 text-center transition-all hover:shadow-lg hover:border-primary/40">
-            <div className="font-extrabold text-3xl sm:text-4xl text-amber-600 dark:text-amber-400 font-heading">50+</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">Co-Curricular Clubs</div>
-            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-0.5">Robotics, sports, arts & drama</div>
           </div>
         </div>
       </div>

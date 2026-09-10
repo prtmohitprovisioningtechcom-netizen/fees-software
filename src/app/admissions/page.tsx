@@ -107,19 +107,19 @@ export default function AdmissionsPage() {
 
       <main className="flex-1">
         {/* Page Hero */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-border/60">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+            <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Admissions Open 2025–26
             </Badge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
               Begin Your Child&apos;s{" "}
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Transformative Journey
               </span>
             </h1>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              We welcome applications from curious young minds seeking a nurturing, academically rigorous, and holistic educational community at <strong>{schoolName}</strong>.
+            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-3xl mx-auto leading-relaxed font-medium">
+              We welcome applications from curious young minds seeking a nurturing, academically rigorous, and holistic educational community at <strong className="font-bold text-slate-950 dark:text-white">{schoolName}</strong>.
             </p>
           </div>
         </section>
@@ -128,10 +128,10 @@ export default function AdmissionsPage() {
         <section className="py-16 sm:py-20 bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div className="text-center max-w-2xl mx-auto space-y-2">
-              <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+              <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
                 Simple & Transparent
               </Badge>
-              <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+              <h2 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
                 Four Easy Steps to Enrollment
               </h2>
             </div>
@@ -140,11 +140,11 @@ export default function AdmissionsPage() {
               {steps.map((step, idx) => (
                 <div
                   key={idx}
-                  className="bg-muted/30 border border-border/80 rounded-3xl p-6 space-y-3 relative hover:border-primary/50 transition-all hover:shadow-md"
+                  className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-3 relative hover:border-primary/50 transition-all hover:shadow-md shadow-sm"
                 >
-                  <div className="text-4xl font-heading font-black text-primary/30">{step.num}</div>
-                  <h3 className="font-heading font-bold text-lg text-foreground">{step.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
+                  <div className="text-4xl font-heading font-black text-primary/40">{step.num}</div>
+                  <h3 className="font-heading font-bold text-lg text-slate-950 dark:text-white">{step.title}</h3>
+                  <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal">{step.desc}</p>
                 </div>
               ))}
             </div>
@@ -152,20 +152,20 @@ export default function AdmissionsPage() {
         </section>
 
         {/* Interactive Application Form & Eligibility Criteria */}
-        <section className="py-16 sm:py-24 bg-muted/20 border-y border-border/60">
+        <section className="py-16 sm:py-24 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
               {/* Left Column: Full Online Admission Application Form */}
-              <div className="lg:col-span-7 bg-card border border-border rounded-3xl p-6 sm:p-10 shadow-xl space-y-6">
+              <div className="lg:col-span-7 bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl space-y-6">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase">
                     <Sparkles className="h-4 w-4" />
                     <span>Official Online Application</span>
                   </div>
-                  <h3 className="text-2xl font-heading font-bold text-foreground">
+                  <h3 className="text-2xl font-heading font-extrabold text-slate-950 dark:text-white">
                     Student Registration Form
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">
                     Please provide accurate details. Our admissions officer will call you to confirm appointment.
                   </p>
                 </div>
@@ -175,10 +175,10 @@ export default function AdmissionsPage() {
                     <div className="h-16 w-16 mx-auto rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
                       <CheckCircle2 className="h-10 w-10 animate-bounce" />
                     </div>
-                    <h4 className="text-2xl font-heading font-bold text-foreground">
+                    <h4 className="text-2xl font-heading font-bold text-slate-950 dark:text-white">
                       Application Submitted Successfully!
                     </h4>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    <p className="text-sm text-slate-800 dark:text-slate-200 font-medium max-w-md mx-auto">
                       Thank you, <strong>{form.parentName}</strong>. We have registered <strong>{form.studentName}</strong> for <strong>{form.grade}</strong>. Our team will review the application and contact you at <strong>{form.phone}</strong>.
                     </p>
                     <div className="pt-2">
@@ -339,7 +339,7 @@ export default function AdmissionsPage() {
                       </Button>
                     </div>
 
-                    <p className="text-[11px] text-muted-foreground text-center">
+                    <p className="text-xs font-semibold text-slate-750 text-slate-800 dark:text-slate-300 text-center">
                       🔒 Your data is completely safe and used strictly for official admission correspondence.
                     </p>
                   </form>
@@ -349,68 +349,68 @@ export default function AdmissionsPage() {
               {/* Right Column: Age Matrix & Required Documents */}
               <div className="lg:col-span-5 space-y-6">
                 {/* Age Criteria Table */}
-                <div className="bg-card border border-border rounded-3xl p-6 sm:p-7 space-y-4 shadow-sm">
+                <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 space-y-4 shadow-sm">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-primary" />
-                    <h4 className="font-heading font-bold text-lg text-foreground">
+                    <h4 className="font-heading font-extrabold text-lg text-slate-950 dark:text-white">
                       Age Eligibility Criteria
                     </h4>
                   </div>
 
-                  <div className="divide-y divide-border/60 text-xs">
+                  <div className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                     {ageCriteria.map((item, idx) => (
                       <div key={idx} className="py-2.5 flex items-center justify-between">
-                        <span className="font-semibold text-foreground">{item.grade}</span>
-                        <span className="text-muted-foreground">{item.age}</span>
+                        <span className="font-bold text-slate-950 dark:text-white">{item.grade}</span>
+                        <span className="text-slate-800 dark:text-slate-200 font-semibold">{item.age}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Required Documents Checklist */}
-                <div className="bg-card border border-border rounded-3xl p-6 sm:p-7 space-y-4 shadow-sm">
+                <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 space-y-4 shadow-sm">
                   <div className="flex items-center gap-2">
                     <FileCheck className="h-5 w-5 text-emerald-600" />
-                    <h4 className="font-heading font-bold text-lg text-foreground">
+                    <h4 className="font-heading font-extrabold text-lg text-slate-950 dark:text-white">
                       Documents Checklist
                     </h4>
                   </div>
 
-                  <ul className="space-y-2.5 text-xs text-muted-foreground">
+                  <ul className="space-y-2.5 text-xs text-slate-800 dark:text-slate-200 font-medium">
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>Original Municipal Birth Certificate of the child.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>Transfer Certificate (TC) from recognized previous school (Grade 2+).</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>Report Card / Marksheet of previous academic year.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>6 Passport-size photographs of student & 2 each of parents.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>Proof of Residence (Aadhaar / Passport / Electricity bill).</span>
                     </li>
                   </ul>
                 </div>
 
                 {/* Direct Helpline Card */}
-                <div className="bg-primary/10 border border-primary/30 rounded-3xl p-6 space-y-2 text-xs">
-                  <div className="font-heading font-bold text-base text-primary flex items-center gap-2">
+                <div className="bg-primary/10 border border-primary/40 rounded-3xl p-6 space-y-2 text-xs">
+                  <div className="font-heading font-extrabold text-base text-primary flex items-center gap-2">
                     <PhoneCall className="h-4 w-4" />
                     <span>Admissions Helpdesk</span>
                   </div>
-                  <p className="text-muted-foreground">
+                  <p className="text-slate-800 dark:text-slate-200 font-medium">
                     Have questions about availability of seats or stream selection? Call our counseling team:
                   </p>
-                  <p className="font-bold text-sm text-foreground">📞 {branding.phone || "+91 98765 43210"}</p>
-                  <p className="text-muted-foreground">Mon – Sat: 8:30 AM to 3:30 PM</p>
+                  <p className="font-extrabold text-sm text-slate-950 dark:text-white">📞 {branding.phone || "+91 98765 43210"}</p>
+                  <p className="text-slate-700 dark:text-slate-300 font-medium">Mon – Sat: 8:30 AM to 3:30 PM</p>
                 </div>
               </div>
             </div>

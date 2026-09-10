@@ -30,6 +30,7 @@ const publicPaths = [
   "/admissions",
   "/facilities",
   "/fees",
+  "/gallery",
   "/contact",
 ];
 

@@ -73,18 +73,18 @@ export default function FeesPage() {
 
       <main className="flex-1">
         {/* Page Hero */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-border/60">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-            <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+            <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Fee Policy 2025–26
             </Badge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
               Clear, Transparent &{" "}
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Affordable Investment
               </span>
             </h1>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-800 dark:text-slate-200 max-w-3xl mx-auto leading-relaxed font-medium">
               We uphold complete fee transparency with zero hidden surcharges or mid-term escalation. Explore comprehensive schedules and use our interactive calculator below.
             </p>
           </div>
@@ -94,49 +94,49 @@ export default function FeesPage() {
         <FeePreviewCalculator onOpenEnquiry={() => setModalOpen(true)} />
 
         {/* Comprehensive Fee Structure Schedule Table */}
-        <section className="py-16 sm:py-24 bg-card border-t border-border/60">
+        <section className="py-16 sm:py-24 bg-card border-t border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div className="text-center max-w-2xl mx-auto space-y-2">
-              <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 font-semibold text-xs">
+              <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
                 Official Schedule
               </Badge>
-              <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+              <h2 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight text-slate-950 dark:text-white">
                 Grade-Wise Fee Breakdown
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-slate-800 dark:text-slate-200 text-sm font-medium">
                 Structured on a convenient quarterly schedule (4 installments per academic year).
               </p>
             </div>
 
-            <div className="rounded-3xl border border-border overflow-hidden shadow-xl bg-background">
+            <div className="rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-background">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs sm:text-sm">
-                  <thead className="bg-muted/80 text-muted-foreground border-b border-border">
+                  <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                     <tr>
-                      <th className="p-4 sm:p-5 font-bold text-foreground">Academic Wing</th>
-                      <th className="p-4 sm:p-5 font-bold text-foreground">Quarterly Fee</th>
-                      <th className="p-4 sm:p-5 font-bold text-foreground">Annual Total</th>
-                      <th className="p-4 sm:p-5 font-bold text-foreground">One-Time Admission</th>
-                      <th className="p-4 sm:p-5 font-bold text-foreground">Inclusions</th>
+                      <th className="p-4 sm:p-5 font-extrabold text-slate-950 dark:text-white">Academic Wing</th>
+                      <th className="p-4 sm:p-5 font-extrabold text-slate-950 dark:text-white">Quarterly Fee</th>
+                      <th className="p-4 sm:p-5 font-extrabold text-slate-950 dark:text-white">Annual Total</th>
+                      <th className="p-4 sm:p-5 font-extrabold text-slate-950 dark:text-white">One-Time Admission</th>
+                      <th className="p-4 sm:p-5 font-extrabold text-slate-950 dark:text-white">Inclusions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                     {feeTable.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
-                        <td className="p-4 sm:p-5 font-bold text-foreground">{row.wing}</td>
-                        <td className="p-4 sm:p-5 font-bold text-primary">{row.quarterly}</td>
-                        <td className="p-4 sm:p-5 font-semibold text-foreground">{row.annual}</td>
-                        <td className="p-4 sm:p-5 text-muted-foreground">{row.admissionOneTime}</td>
-                        <td className="p-4 sm:p-5 text-muted-foreground text-xs">{row.includes}</td>
+                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                        <td className="p-4 sm:p-5 font-bold text-slate-950 dark:text-white">{row.wing}</td>
+                        <td className="p-4 sm:p-5 font-extrabold text-primary">{row.quarterly}</td>
+                        <td className="p-4 sm:p-5 font-bold text-slate-900 dark:text-slate-100">{row.annual}</td>
+                        <td className="p-4 sm:p-5 font-semibold text-slate-800 dark:text-slate-200">{row.admissionOneTime}</td>
+                        <td className="p-4 sm:p-5 text-slate-800 dark:text-slate-200 text-xs font-normal">{row.includes}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="p-4 sm:p-6 bg-muted/40 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+              <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-800 dark:text-slate-200 font-medium">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
                   <span>Due Dates: April 10, July 10, October 10, and January 10.</span>
                 </div>
                 <div>Late payment grace period: 10 calendar days with zero late fee penalty.</div>
@@ -146,41 +146,41 @@ export default function FeesPage() {
         </section>
 
         {/* Scholarships and Concessions */}
-        <section className="py-16 sm:py-20 bg-muted/20 border-y border-border/60">
+        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-card border border-border/80 rounded-3xl p-7 space-y-3 shadow-sm">
+              <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-7 space-y-3 shadow-sm">
                 <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
                   <Sparkles className="h-5 w-5" />
                 </div>
-                <h3 className="font-heading font-bold text-lg text-foreground">
+                <h3 className="font-heading font-bold text-lg text-slate-950 dark:text-white">
                   Merit Scholarships (Up to 50%)
                 </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
                   Offered to high achievers scoring 95%+ in Class 10 Board exams or winning national STEM / Olympiad distinctions.
                 </p>
               </div>
 
-              <div className="bg-card border border-border/80 rounded-3xl p-7 space-y-3 shadow-sm">
+              <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-7 space-y-3 shadow-sm">
                 <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
                   <Users className="h-5 w-5" />
                 </div>
-                <h3 className="font-heading font-bold text-lg text-foreground">
+                <h3 className="font-heading font-bold text-lg text-slate-950 dark:text-white">
                   Sibling Fee Concession
                 </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
                   A 20% tuition concession applies automatically to the second child when siblings study concurrently at our academy.
                 </p>
               </div>
 
-              <div className="bg-card border border-border/80 rounded-3xl p-7 space-y-3 shadow-sm">
+              <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-7 space-y-3 shadow-sm">
                 <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
-                <h3 className="font-heading font-bold text-lg text-foreground">
+                <h3 className="font-heading font-bold text-lg text-slate-950 dark:text-white">
                   Armed Forces & Corona Warriors
                 </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
                   Special 15% concession honoring personnel from Indian Defense forces, Central Armed Police, and healthcare professionals.
                 </p>
               </div>
