@@ -107,7 +107,7 @@ export function HeroSection({ schoolName, onOpenEnquiry }: HeroSectionProps) {
             </div>
 
             {/* Trust Markers / Highlights */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs font-bold text-slate-800 dark:text-slate-200">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" /> CBSE Affiliated Curriculum
               </span>

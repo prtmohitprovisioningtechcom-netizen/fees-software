@@ -109,7 +109,7 @@ export function CampusGallery({ onOpenEnquiry }: CampusGalleryProps) {
   };
 
   return (
-    <section id="gallery" className="py-10 sm:py-14 bg-muted/25 border-y border-border/60">
+    <section id="gallery" className="py-10 sm:py-14 bg-muted/15">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -203,7 +203,7 @@ export function CampusGallery({ onOpenEnquiry }: CampusGalleryProps) {
               </div>
 
               {/* Bottom Card Caption */}
-              <div className="p-4 bg-background flex-1 flex flex-col justify-between border-t border-slate-100 dark:border-slate-800">
+              <div className="p-4 bg-background flex-1 flex flex-col justify-between">
                 <p className="text-xs font-medium text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
                   {item.description}
                 </p>

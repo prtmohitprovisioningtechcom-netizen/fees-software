@@ -55,7 +55,7 @@ export function TestimonialsAndFAQ() {
   ];
 
   return (
-    <section id="testimonials" className="py-10 sm:py-14 bg-muted/20 border-t border-border/60">
+    <section id="testimonials" className="py-10 sm:py-14 bg-muted/15">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Testimonials Block */}
         <div className="space-y-6">
@@ -98,7 +98,7 @@ export function TestimonialsAndFAQ() {
         </div>
 
         {/* FAQs Block */}
-        <div className="pt-8 border-t border-slate-200 dark:border-slate-800 max-w-3xl mx-auto space-y-8">
+        <div className="pt-4 max-w-3xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h3 className="text-2xl sm:text-3xl font-extrabold font-heading tracking-tight text-slate-950 dark:text-white">
               Frequently Asked Questions

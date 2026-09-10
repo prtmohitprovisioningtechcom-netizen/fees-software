@@ -60,7 +60,7 @@ export default function AcademicsPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
             <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               Academic Excellence
@@ -120,7 +120,7 @@ export default function AcademicsPage() {
         </section>
 
         {/* Assessment & Continuous Evaluation Framework */}
-        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-slate-800">
+        <section className="py-16 sm:py-20 bg-slate-50 dark:bg-slate-900/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-6 space-y-5">

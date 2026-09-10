@@ -71,7 +71,7 @@ export default function FacilitiesPage() {
 
       <main className="flex-1">
         {/* Page Hero */}
-        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background border-b border-slate-200 dark:border-slate-800">
+        <section className="relative py-16 sm:py-24 bg-gradient-to-b from-primary/10 via-background to-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
             <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">
               World-Class Infrastructure
@@ -92,7 +92,7 @@ export default function FacilitiesPage() {
         <CampusLifeAndFacilities onOpenEnquiry={() => setModalOpen(true)} />
 
         {/* Comprehensive Facility Highlights Grid */}
-        <section className="py-16 sm:py-24 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
+        <section className="py-16 sm:py-24 bg-slate-50 dark:bg-slate-900/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div className="text-center max-w-2xl mx-auto space-y-2">
               <Badge variant="outline" className="text-primary border-primary/40 px-3 py-1 font-bold text-xs bg-primary/5">

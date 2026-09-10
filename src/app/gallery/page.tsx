@@ -151,7 +151,7 @@ export default function GalleryPage() {
 
       <main className="flex-1">
         {/* Gallery Hero Section */}
-        <section className="relative overflow-hidden pt-8 pb-10 sm:pt-12 sm:pb-12 bg-gradient-to-b from-primary/10 via-background to-background border-b border-border/60">
+        <section className="relative overflow-hidden pt-8 pb-10 sm:pt-12 sm:pb-12 bg-gradient-to-b from-primary/10 via-background to-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 text-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary">
               <Camera className="h-3.5 w-3.5" />
@@ -252,11 +252,11 @@ export default function GalleryPage() {
                   </div>
 
                   {/* Card Description */}
-                  <div className="p-4 bg-background flex-1 flex flex-col justify-between border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="p-4 bg-background flex-1 flex flex-col justify-between space-y-3">
                     <p className="text-xs font-medium text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
                       {photo.description}
                     </p>
-                    <div className="flex items-center justify-between text-xs font-bold text-primary pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-bold text-primary pt-1">
                       <span className="text-slate-500 font-semibold">{photo.date}</span>
                       <span className="flex items-center gap-1">
                         Enlarge <Eye className="h-3.5 w-3.5" />

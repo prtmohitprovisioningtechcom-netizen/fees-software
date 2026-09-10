@@ -88,7 +88,7 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
   const currentWing = academicPrograms[activeTab];
 
   return (
-    <section id="academics" className="py-10 sm:py-14 bg-muted/30 border-y border-border/60">
+    <section id="academics" className="py-10 sm:py-14 bg-muted/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Section Heading */}
         <div className="text-center max-w-3xl mx-auto space-y-3">
@@ -200,7 +200,7 @@ export function FeaturesAndAcademics({ onOpenEnquiry }: FeaturesAndAcademicsProp
                   </div>
                 </div>
 
-                <div className="space-y-2 border-t border-border/60 pt-4 text-xs text-muted-foreground">
+                <div className="space-y-2 pt-4 text-xs text-muted-foreground">
                   <div className="flex justify-between py-1">
                     <span>Curriculum Board:</span>
                     <strong className="text-foreground">CBSE (Central Board)</strong>

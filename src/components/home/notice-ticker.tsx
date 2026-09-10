@@ -36,7 +36,7 @@ const notices = [
 
 export function NoticeTicker({ onOpenEnquiry }: { onOpenEnquiry: () => void }) {
   return (
-    <div className="border-y border-border/70 bg-gradient-to-r from-primary/10 via-background to-primary/5 py-2.5 px-4">
+    <div className="bg-gradient-to-r from-primary/10 via-background to-primary/5 py-2 px-4">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 font-medium shrink-0">
           <Badge variant="default" className="bg-primary text-primary-foreground text-[11px] gap-1 px-2.5 py-0.5 shadow-sm">
